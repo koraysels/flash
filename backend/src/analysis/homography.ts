@@ -19,6 +19,10 @@ export function computeHomography(pairs: PointPair[]): number[] {
   const pxScale = Math.sqrt(2) / (pairs.reduce((s, p) => s + Math.hypot(p.px - pxMean, p.py - pyMean), 0) / pairs.length || 1)
   const wxScale = Math.sqrt(2) / (pairs.reduce((s, p) => s + Math.hypot(p.wx - wxMean, p.wy - wyMean), 0) / pairs.length || 1)
 
+  if (pxScale > 1e6 || wxScale > 1e6) {
+    throw new Error('Homography point cloud is degenerate — points may be coincident or collinear')
+  }
+
   const normPairs = pairs.map(({ px, py, wx, wy }) => ({
     px: (px - pxMean) * pxScale,
     py: (py - pyMean) * pxScale,
@@ -45,7 +49,13 @@ export function computeHomography(pairs: PointPair[]): number[] {
   // Normal equations: (A8^T A8) h = A8^T b
   const AtA8 = multiply(A8t, A8m) as Matrix
   const Atb = multiply(A8t, matrix(b8.map((v) => [v]))) as Matrix
-  const h8 = multiply(inv(AtA8), Atb) as Matrix
+  let AtA8inv: Matrix
+  try {
+    AtA8inv = inv(AtA8) as Matrix
+  } catch {
+    throw new Error('Homography system is singular — ensure points are non-collinear and cover the full image area')
+  }
+  const h8 = multiply(AtA8inv, Atb) as Matrix
   const h8arr = (h8.valueOf() as number[][]).map((r) => r[0])
   const h = [...h8arr, 1]
 
@@ -76,6 +86,7 @@ export function computeHomography(pairs: PointPair[]): number[] {
 
 export function applyHomography(H: number[], px: number, py: number): { wx: number; wy: number } {
   const w = H[6] * px + H[7] * py + H[8]
+  if (Math.abs(w) < 1e-10) throw new Error('Homography: degenerate projection (w ≈ 0)')
   return {
     wx: (H[0] * px + H[1] * py + H[2]) / w,
     wy: (H[3] * px + H[4] * py + H[5]) / w,
