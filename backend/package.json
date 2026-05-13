@@ -14,7 +14,8 @@
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@prisma/client": "^5.14.0",
-    "fastify": "^4.28.1"
+    "fastify": "^4.28.1",
+    "yt-dlp-exec": "^1.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
