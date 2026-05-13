@@ -53,4 +53,19 @@ describe('DirectionCounter', () => {
     counter.updateVehicle(5, 70)
     expect(counter.getCounts().AB).toBe(1)
   })
+
+  it('counts correctly when vehicle crosses AB then reverses to BA', () => {
+    const counter = new DirectionCounter(100, 0.4, 0.6)
+
+    // First pass: AB
+    counter.updateVehicle(6, 10)
+    counter.updateVehicle(6, 45)
+    counter.updateVehicle(6, 70)
+    expect(counter.getCounts()).toEqual({ AB: 1, BA: 0 })
+
+    // Reverse: BA
+    counter.updateVehicle(6, 50)
+    counter.updateVehicle(6, 35)
+    expect(counter.getCounts()).toEqual({ AB: 1, BA: 1 })
+  })
 })
