@@ -1,4 +1,4 @@
-import { createWriteStream, mkdirSync, existsSync } from 'fs'
+import { createWriteStream, mkdirSync, existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { pipeline } from 'stream/promises'
 
@@ -17,8 +17,18 @@ async function download() {
   const res = await fetch(MODEL_URL)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-  await pipeline(res.body as unknown as NodeJS.ReadableStream, createWriteStream(MODEL_PATH))
+  const writer = createWriteStream(MODEL_PATH)
+  try {
+    await pipeline(res.body as unknown as NodeJS.ReadableStream, writer)
+  } catch (err) {
+    // Clean up partial file so next run retries
+    try { unlinkSync(MODEL_PATH) } catch {}
+    throw err
+  }
   console.log('Model downloaded to', MODEL_PATH)
 }
 
-download().catch(console.error)
+download().catch(err => {
+  console.error(err)
+  process.exit(1)
+})
