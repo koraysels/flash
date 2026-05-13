@@ -2,6 +2,7 @@ import { db } from './db'
 import { extractStreamUrl } from './stream/extractor'
 import { FrameCapturer } from './stream/capturer'
 import { emitFrame, evictCameraFrame } from './socket/server'
+import { CameraPipeline } from './ai/pipeline'
 
 type WorkerEntry = {
   capturer: FrameCapturer
@@ -55,19 +56,37 @@ export class CameraWorkerManager {
   }
 
   private async startWorker(cameraId: string, pageUrl: string): Promise<void> {
-    this.retryTimers.delete(cameraId)
+    // Don't retry if already has a pending retry timer
+    if (this.retryTimers.has(cameraId)) return
+
     try {
+      const camera = await db.camera.findUniqueOrThrow({ where: { id: cameraId } })
       const streamUrl = await extractStreamUrl(pageUrl)
       const capturer = new FrameCapturer(streamUrl, cameraId)
 
-      capturer.on('frame', (frameBuffer: Buffer) => {
-        emitFrame({
-          cameraId,
-          frame: frameBuffer.toString('base64'),
-          timestamp: Date.now(),
-          vehicles: [],
-          counts: { AB: 0, BA: 0, speeders: 0 },
-        })
+      const pipeline = new CameraPipeline(
+        cameraId,
+        1280,
+        720,
+        camera.countingLineA,
+        camera.countingLineB,
+        camera.maxSpeedKmh,
+      )
+      await pipeline.init()
+
+      capturer.on('frame', async (frameBuffer: Buffer) => {
+        try {
+          const result = await pipeline.process(frameBuffer)
+          emitFrame({
+            cameraId,
+            frame: result.annotatedFrame.toString('base64'),
+            timestamp: Date.now(),
+            vehicles: result.vehicles,
+            counts: result.counts,
+          })
+        } catch (err) {
+          console.error(`Pipeline error for camera ${cameraId}:`, err)
+        }
       })
 
       capturer.on('error', (err: Error) => {
@@ -77,9 +96,11 @@ export class CameraWorkerManager {
       capturer.start()
       this.workers.set(cameraId, { capturer, cameraId })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error(`Failed to start worker for camera ${cameraId}: ${msg}`)
-      const timer = setTimeout(() => this.startWorker(cameraId, pageUrl), 60_000)
+      console.error(`Failed to start worker for camera ${cameraId}:`, err)
+      const timer = setTimeout(() => {
+        this.retryTimers.delete(cameraId)
+        this.startWorker(cameraId, pageUrl)
+      }, 60_000)
       this.retryTimers.set(cameraId, timer)
     }
   }
