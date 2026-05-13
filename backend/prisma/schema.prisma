@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Camera {
+  id                String    @id @default(cuid())
+  name              String
+  location          String
+  streamUrl         String
+  active            Boolean   @default(true)
+  maxSpeedKmh       Int?
+  homographyMatrix  Float[]
+  calibrationPoints Json?
+  countingLineA     Float     @default(0.4)
+  countingLineB     Float     @default(0.6)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  trafficEvents     TrafficEvent[]
+  dailyCounts       DailyCount[]
+}
+
+model TrafficEvent {
+  id           String   @id @default(cuid())
+  cameraId     String
+  camera       Camera   @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  timestamp    DateTime @default(now())
+  direction    String
+  vehicleClass String
+  speedKmh     Float?
+  isSpeeder    Boolean  @default(false)
+
+  @@index([cameraId, timestamp])
+}
+
+model DailyCount {
+  id           String   @id @default(cuid())
+  cameraId     String
+  camera       Camera   @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  date         DateTime
+  directionAB  Int      @default(0)
+  directionBA  Int      @default(0)
+  speeders     Int      @default(0)
+
+  @@unique([cameraId, date])
+}

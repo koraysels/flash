@@ -9,3 +9,7 @@ yarn-error.log*
 .pnp.js
 
 .vscode/*
+
+# Environment files
+backend/.env
+frontend/.env
