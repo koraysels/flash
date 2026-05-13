@@ -1,10 +1,10 @@
-import Fastify from 'fastify'
+import Fastify, { FastifyServerOptions } from 'fastify'
 import cors from '@fastify/cors'
 import { cameraRoutes } from './routes/cameras'
 import { config } from './config'
 
-export async function buildApp() {
-  const app = Fastify({ logger: true })
+export async function buildApp(opts: FastifyServerOptions = {}) {
+  const app = Fastify({ logger: true, ...opts })
   await app.register(cors, { origin: true })
   await app.register(cameraRoutes)
   return app
