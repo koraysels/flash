@@ -13,6 +13,7 @@ export function useCameraFeed(cameraId: string) {
   const [lastFrame, setLastFrame] = useState<string | null>(null)
   const [fps, setFps] = useState(0)
   const [counts, setCounts] = useState<{ AB: number; BA: number; speeders: number }>({ AB: 0, BA: 0, speeders: 0 })
+  const [avgSpeedKmh, setAvgSpeedKmh] = useState<number | null>(null)
   const frameCount = useRef(0)
   const lastFpsTime = useRef(Date.now())
 
@@ -21,6 +22,7 @@ export function useCameraFeed(cameraId: string) {
     setLastFrame(null)
     setFps(0)
     setCounts({ AB: 0, BA: 0, speeders: 0 })
+    setAvgSpeedKmh(null)
     frameCount.current = 0
     lastFpsTime.current = Date.now()
 
@@ -30,6 +32,9 @@ export function useCameraFeed(cameraId: string) {
       if (event.cameraId !== cameraId) return
       setLastFrame(event.frame)
       if (event.counts) setCounts(event.counts)
+
+      const speeds = event.vehicles.map((v) => v.speedKmh).filter((s): s is number => s !== null)
+      if (speeds.length > 0) setAvgSpeedKmh(speeds.reduce((a, b) => a + b, 0) / speeds.length)
 
       frameCount.current++
       const now = Date.now()
@@ -47,5 +52,5 @@ export function useCameraFeed(cameraId: string) {
     }
   }, [cameraId])
 
-  return { lastFrame, fps, counts }
+  return { lastFrame, fps, counts, avgSpeedKmh }
 }

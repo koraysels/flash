@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Cameras from './pages/Cameras'
 import CameraCalibrate from './pages/CameraCalibrate'
+import PiDisplay from './pages/PiDisplay'
 
 export default function App() {
   return (
@@ -28,7 +29,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/cameras" element={<Cameras />} />
             <Route path="/cameras/:id/calibrate" element={<CameraCalibrate />} />
-            <Route path="/display/:cameraId" element={<div>Pi Display — Plan 3</div>} />
+            <Route path="/display/:cameraId" element={<PiDisplay />} />
           </Routes>
         </main>
       </div>
