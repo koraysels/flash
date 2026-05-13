@@ -48,10 +48,18 @@ Each frame passes through a two-stage pipeline:
 - Library: `@aitrans/bytetrack` (JS port) or a Python ByteTrack process called via Node child_process as fallback
 
 ### 3. Speed Estimation
-- Per-camera calibration: user sets a reference distance in meters (e.g., lane width = 3.5m mapped to N pixels)
-- Speed = (pixels moved between frames × meters/pixel) / (frame interval in seconds) × 3.6
+- Per-camera calibration via **perspective transform + homography**
+- Calibration flow:
+  1. User opens calibration wizard for a camera
+  2. Split view: camera frame (left) + Google Maps satellite (right)
+  3. User places ≥4 corresponding point pairs on both views
+  4. Google Maps measurements give real-world coordinates (lat/lng → meters)
+  5. `opencv4nodejs` or `homography` npm package computes the 3×3 homography matrix H
+  6. H stored per camera in the database
+- Speed = apply H to vehicle centroid trajectory → real-world displacement in meters / frame interval × 3.6
 - Smoothed over 5 frames to reduce noise
 - Speed displayed in km/u
+- Handles camera angle, lens distortion, and perspective correctly
 
 ### 4. Direction Counting
 - Two virtual counting lines defined per camera (configurable position as % of frame height/width)
@@ -109,8 +117,8 @@ Backend emits one Socket.io event per camera per frame:
 
 **cameras**
 - `id`, `name`, `location`, `streamUrl`, `active`
-- `calibrationMeters` — reference distance in meters
-- `calibrationPixels` — corresponding pixel distance
+- `homographyMatrix` — JSON float[9] (3×3 matrix, image px → real-world meters)
+- `calibrationPoints` — JSON array of {imageX, imageY, worldX, worldY} point pairs
 - `countingLineA`, `countingLineB` — JSON (line position as fraction 0–1)
 
 **traffic_events**
@@ -132,7 +140,7 @@ Backend emits one Socket.io event per camera per frame:
 ### 2. Camera Management (`/cameras`)
 - List of cameras with add / edit / delete
 - Add form: name, location label, stream URL (from verkeerscentrum.be)
-- Edit: calibration wizard — user clicks two known points on the frame and enters real-world distance in meters; counting lines draggable on the frame
+- Edit: calibration wizard — split view (camera frame + Google Maps satellite), user places ≥4 point pairs, homography matrix computed and saved; counting lines draggable on the frame
 
 ### 3. Pi Display View (`/display/:cameraId`)
 - Fullscreen, no navigation chrome
@@ -171,7 +179,8 @@ All services on an internal Docker network. Only the frontend (port 80/443) and 
 |---------|---------|
 | `fluent-ffmpeg` | HLS frame extraction |
 | `onnxruntime-node` | YOLOv8 ONNX inference |
-| `bytetrack` (TS port) | Multi-object tracking |
+| `@aitrans/bytetrack` | Multi-object tracking |
+| `opencv4nodejs` or `homography` | Perspective transform + homography matrix |
 | `socket.io` | Realtime WebSocket |
 | `fastify` | REST API |
 | `prisma` | PostgreSQL ORM |
