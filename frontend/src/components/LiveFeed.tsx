@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { useCameraFeed } from '../hooks/useCameraFeed'
 
 type Props = {
-  cameraId: string
+  lastFrame: string | null
+  fps?: number
   className?: string
 }
 
-export function LiveFeed({ cameraId, className = '' }: Props) {
+export function LiveFeed({ lastFrame, fps = 0, className = '' }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { lastFrame, fps, counts } = useCameraFeed(cameraId)
 
   useEffect(() => {
     if (!lastFrame || !canvasRef.current) return
@@ -37,17 +36,10 @@ export function LiveFeed({ cameraId, className = '' }: Props) {
           Connecting...
         </div>
       )}
-      {lastFrame && (
+      {lastFrame && fps > 0 && (
         <span className="absolute bottom-2 right-2 text-xs text-gray-400 bg-black/50 px-1.5 py-0.5 rounded">
           {fps} fps
         </span>
-      )}
-      {lastFrame && (counts.AB > 0 || counts.BA > 0) && (
-        <div className="absolute top-2 left-2 text-xs text-white bg-black/50 px-1.5 py-0.5 rounded space-x-2">
-          <span>AB: {counts.AB}</span>
-          <span>BA: {counts.BA}</span>
-          {counts.speeders > 0 && <span className="text-red-400">⚡ {counts.speeders}</span>}
-        </div>
       )}
     </div>
   )

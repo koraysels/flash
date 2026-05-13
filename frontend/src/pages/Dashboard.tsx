@@ -5,7 +5,7 @@ import { CounterDisplay } from '../components/CounterDisplay'
 import { Camera } from '../lib/api'
 
 function CameraCard({ cam }: { cam: Camera }) {
-  const { lastFrame, counts } = useCameraFeed(cam.id)
+  const { lastFrame, fps, counts } = useCameraFeed(cam.id)
   return (
     <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
       <div className="flex justify-between items-start mb-2">
@@ -17,7 +17,7 @@ function CameraCard({ cam }: { cam: Camera }) {
           {lastFrame ? 'Live' : 'Connecting'}
         </span>
       </div>
-      <LiveFeed cameraId={cam.id} className="aspect-video" />
+      <LiveFeed lastFrame={lastFrame} fps={fps} className="aspect-video" />
       <CounterDisplay counts={counts} maxSpeedKmh={cam.maxSpeedKmh} />
     </div>
   )
