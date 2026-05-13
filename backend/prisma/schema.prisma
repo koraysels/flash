@@ -7,11 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Direction {
+  AB
+  BA
+}
+
 model Camera {
   id                String    @id @default(cuid())
-  name              String
-  location          String
-  streamUrl         String
+  name              String    @db.VarChar(255)
+  location          String    @db.VarChar(255)
+  streamUrl         String    @db.VarChar(1024)
   active            Boolean   @default(true)
   maxSpeedKmh       Int?
   homographyMatrix  Float[]
@@ -26,14 +31,14 @@ model Camera {
 }
 
 model TrafficEvent {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   cameraId     String
-  camera       Camera   @relation(fields: [cameraId], references: [id], onDelete: Cascade)
-  timestamp    DateTime @default(now())
-  direction    String
-  vehicleClass String
+  camera       Camera    @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  timestamp    DateTime  @default(now())
+  direction    Direction
+  vehicleClass String    @db.VarChar(50)
   speedKmh     Float?
-  isSpeeder    Boolean  @default(false)
+  isSpeeder    Boolean   @default(false)
 
   @@index([cameraId, timestamp])
 }
