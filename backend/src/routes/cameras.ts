@@ -70,4 +70,56 @@ export async function cameraRoutes(app: FastifyInstance) {
     })
     return counts
   })
+
+  app.post<{
+    Params: { id: string }
+    Body: {
+      pairs: Array<{ px: number; py: number; wx: number; wy: number }>
+      maxSpeedKmh?: number | null
+      countingLineA?: number
+      countingLineB?: number
+    }
+  }>('/api/cameras/:id/calibration', async (req, reply) => {
+    const { pairs, maxSpeedKmh, countingLineA, countingLineB } = req.body
+
+    if (!pairs || pairs.length < 4) {
+      reply.code(400)
+      return { error: 'At least 4 point pairs required' }
+    }
+
+    let H: number[]
+    try {
+      const { computeHomography } = await import('../analysis/homography')
+      H = computeHomography(pairs)
+    } catch (err) {
+      reply.code(400)
+      return { error: err instanceof Error ? err.message : 'Homography computation failed' }
+    }
+
+    try {
+      const camera = await db.camera.update({
+        where: { id: req.params.id },
+        data: {
+          homographyMatrix: H,
+          calibrationPoints: pairs as unknown as Prisma.InputJsonValue,
+          ...(maxSpeedKmh !== undefined && { maxSpeedKmh }),
+          ...(countingLineA !== undefined && { countingLineA }),
+          ...(countingLineB !== undefined && { countingLineB }),
+        },
+      })
+      return camera
+    } catch (err) {
+      return handlePrismaError(err, reply)
+    }
+  })
+
+  app.get<{ Params: { id: string } }>('/api/cameras/:id/snapshot', async (req, reply) => {
+    const { getLatestFrame } = await import('../socket/server')
+    const frame = getLatestFrame(req.params.id)
+    if (!frame) {
+      reply.code(404)
+      return { error: 'No frame available yet — make sure the camera stream is active' }
+    }
+    return { frame }
+  })
 }
