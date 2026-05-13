@@ -10,7 +10,7 @@ function PiDisplayInner({ camera }: { camera: Camera }) {
   const { lastFrame, fps, counts, avgSpeedKmh } = useCameraFeed(camera.id)
 
   return (
-    <div className="min-h-screen bg-black flex flex-col p-4">
+    <div className="h-screen bg-black flex flex-col p-4">
       <div className="flex justify-between items-center mb-3">
         <div>
           <h1 className="text-white text-2xl font-bold">{camera.name}</h1>
@@ -45,7 +45,7 @@ export default function PiDisplay() {
 
   if (!camera) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-gray-500">
+      <div className="h-screen bg-black flex items-center justify-center text-gray-500">
         Loading...
       </div>
     )
