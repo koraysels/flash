@@ -35,7 +35,9 @@ export class FrameCapturer extends EventEmitter {
       .on('error', (err: Error) => {
         if (this.running) {
           this.emit('error', err)
-          setTimeout(() => this.start(), 5000)
+          setTimeout(() => {
+            if (this.running) this.start()
+          }, 5000)
         }
       })
 

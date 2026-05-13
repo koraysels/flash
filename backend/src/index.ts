@@ -18,10 +18,15 @@ if (require.main === module) {
     const httpServer = createServer(app.server)
     initSocketServer(httpServer)
     const workerManager = new CameraWorkerManager()
-    workerManager.start()
 
     httpServer.listen(config.port, '0.0.0.0', () => {
       console.log(`Server running on port ${config.port}`)
+      workerManager.start().catch((err) => {
+        console.error('Worker manager failed to start:', err)
+      })
     })
+  }).catch((err) => {
+    console.error('Failed to start server:', err)
+    process.exit(1)
   })
 }

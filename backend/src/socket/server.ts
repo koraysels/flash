@@ -45,3 +45,7 @@ export function emitFrame(event: FrameEvent): void {
 export function getLatestFrame(cameraId: string): string | undefined {
   return latestFrames.get(cameraId)
 }
+
+export function evictCameraFrame(cameraId: string): void {
+  latestFrames.delete(cameraId)
+}
