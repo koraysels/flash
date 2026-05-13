@@ -13,3 +13,6 @@ yarn-error.log*
 # Environment files
 backend/.env
 frontend/.env
+
+# Model files
+backend/models/*.onnx

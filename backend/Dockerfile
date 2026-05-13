@@ -12,6 +12,13 @@ COPY frontend/package.json ./frontend/
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
+# Copy backend scripts for model download
+COPY backend/scripts ./backend/scripts
+COPY backend/tsconfig.json ./backend/
+
+# Download ML model
+RUN pnpm --filter flash-backend run download-model
+
 # Copy prisma schema
 COPY backend/prisma ./backend/prisma
 
@@ -20,7 +27,6 @@ RUN pnpm --filter flash-backend exec prisma generate
 
 # Copy backend source
 COPY backend/src ./backend/src
-COPY backend/tsconfig.json ./backend/
 
 # Build backend
 RUN pnpm --filter flash-backend run build
