@@ -1,4 +1,5 @@
 import { useCameras } from '../hooks/useCameras'
+import { LiveFeed } from '../components/LiveFeed'
 
 export default function Dashboard() {
   const { data: cameras, isLoading, error } = useCameras()
@@ -21,9 +22,7 @@ export default function Dashboard() {
                 {cam.active ? 'Live' : 'Offline'}
               </span>
             </div>
-            <div className="bg-gray-800 rounded-lg aspect-video flex items-center justify-center text-gray-600 text-sm">
-              Live feed — Plan 2
-            </div>
+            <LiveFeed cameraId={cam.id} className="aspect-video" />
           </div>
         ))}
         {cameras?.length === 0 && (
