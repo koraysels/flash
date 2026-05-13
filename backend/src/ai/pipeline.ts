@@ -72,6 +72,13 @@ export class CameraPipeline {
     }
   }
 
+  async dispose(): Promise<void> {
+    await this.detector.dispose()
+    this.tracker.reset()
+    this.counter.reset()
+    this.initialized = false
+  }
+
   resetDailyCounts(): void {
     this.counter.reset()
     this.speeders = 0

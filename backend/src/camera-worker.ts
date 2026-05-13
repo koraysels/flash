@@ -6,6 +6,7 @@ import { CameraPipeline } from './ai/pipeline'
 
 type WorkerEntry = {
   capturer: FrameCapturer
+  pipeline: CameraPipeline
   cameraId: string
 }
 
@@ -14,6 +15,7 @@ export class CameraWorkerManager {
   private retryTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private pollInterval: ReturnType<typeof setInterval> | null = null
   private syncing = false
+  private starting = new Set<string>()
 
   async start(): Promise<void> {
     await this.syncWorkers()
@@ -22,10 +24,13 @@ export class CameraWorkerManager {
 
   stop(): void {
     if (this.pollInterval) clearInterval(this.pollInterval)
-    for (const { capturer } of this.workers.values()) capturer.stop()
-    this.workers.clear()
-    for (const timer of this.retryTimers.values()) clearTimeout(timer)
+    for (const [, timer] of this.retryTimers) clearTimeout(timer)
     this.retryTimers.clear()
+    for (const { capturer, pipeline } of this.workers.values()) {
+      capturer.stop()
+      pipeline.dispose().catch(console.error)
+    }
+    this.workers.clear()
   }
 
   private async syncWorkers(): Promise<void> {
@@ -38,15 +43,16 @@ export class CameraWorkerManager {
       for (const [id, worker] of this.workers) {
         if (!activeIds.has(id)) {
           worker.capturer.stop()
-          this.workers.delete(id)
+          worker.pipeline.dispose().catch(console.error)
           evictCameraFrame(id)
+          this.workers.delete(id)
           const timer = this.retryTimers.get(id)
           if (timer) { clearTimeout(timer); this.retryTimers.delete(id) }
         }
       }
 
       for (const camera of cameras) {
-        if (!this.workers.has(camera.id) && !this.retryTimers.has(camera.id)) {
+        if (!this.workers.has(camera.id) && !this.retryTimers.has(camera.id) && !this.starting.has(camera.id)) {
           this.startWorker(camera.id, camera.streamUrl)
         }
       }
@@ -59,6 +65,7 @@ export class CameraWorkerManager {
     // Don't retry if already has a pending retry timer
     if (this.retryTimers.has(cameraId)) return
 
+    this.starting.add(cameraId)
     try {
       const camera = await db.camera.findUniqueOrThrow({ where: { id: cameraId } })
       const streamUrl = await extractStreamUrl(pageUrl)
@@ -94,8 +101,10 @@ export class CameraWorkerManager {
       })
 
       capturer.start()
-      this.workers.set(cameraId, { capturer, cameraId })
+      this.workers.set(cameraId, { capturer, pipeline, cameraId })
+      this.starting.delete(cameraId)
     } catch (err) {
+      this.starting.delete(cameraId)
       console.error(`Failed to start worker for camera ${cameraId}:`, err)
       const timer = setTimeout(() => {
         this.retryTimers.delete(cameraId)

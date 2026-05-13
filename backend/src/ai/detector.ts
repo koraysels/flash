@@ -34,6 +34,16 @@ export class Detector {
     })
   }
 
+  async dispose(): Promise<void> {
+    if (this.session) {
+      // onnxruntime-node's binding-level InferenceSession has dispose() but
+      // it is not declared on the public onnxruntime-common interface; cast to
+      // release the native session handle if the method exists.
+      ;(this.session as unknown as { dispose?: () => void }).dispose?.()
+      this.session = null
+    }
+  }
+
   async detect(rgbBuffer: Buffer, srcWidth: number, srcHeight: number): Promise<DetectionResult[]> {
     if (!this.session) throw new Error('Detector not initialized')
 
