@@ -27,4 +27,6 @@ RUN pnpm --filter flash-backend run build
 
 WORKDIR /app/backend
 EXPOSE 3001
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
+USER nodejs
 CMD ["node", "dist/index.js"]
