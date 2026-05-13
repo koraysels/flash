@@ -79,13 +79,34 @@ export async function cameraRoutes(app: FastifyInstance) {
       countingLineA?: number
       countingLineB?: number
     }
-  }>('/api/cameras/:id/calibration', async (req, reply) => {
+  }>('/api/cameras/:id/calibration', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['pairs'],
+        properties: {
+          pairs: {
+            type: 'array',
+            minItems: 4,
+            items: {
+              type: 'object',
+              required: ['px', 'py', 'wx', 'wy'],
+              properties: {
+                px: { type: 'number' },
+                py: { type: 'number' },
+                wx: { type: 'number' },
+                wy: { type: 'number' },
+              },
+            },
+          },
+          maxSpeedKmh: { type: ['number', 'null'] },
+          countingLineA: { type: 'number', minimum: 0, maximum: 1 },
+          countingLineB: { type: 'number', minimum: 0, maximum: 1 },
+        },
+      },
+    },
+  }, async (req, reply) => {
     const { pairs, maxSpeedKmh, countingLineA, countingLineB } = req.body
-
-    if (!pairs || pairs.length < 4) {
-      reply.code(400)
-      return { error: 'At least 4 point pairs required' }
-    }
 
     let H: number[]
     try {
