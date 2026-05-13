@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useCameras, useCreateCamera, useDeleteCamera } from '../hooks/useCameras'
 
 export default function Cameras() {
@@ -94,12 +95,12 @@ export default function Cameras() {
               )}
             </div>
             <div className="flex gap-2">
-              <a
-                href={`/cameras/${cam.id}/calibrate`}
-                className="text-sm text-gray-400 hover:text-white px-3 py-1 rounded-lg border border-gray-700 hover:border-gray-500"
+              <Link
+                to={`/cameras/${cam.id}/calibrate`}
+                className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 border border-blue-900 rounded"
               >
                 Calibrate
-              </a>
+              </Link>
               <button
                 onClick={() => deleteCamera.mutate(cam.id)}
                 disabled={deleteCamera.isPending}
