@@ -45,12 +45,13 @@ export async function annotateFrame(
     ctx.strokeRect(v.x1, v.y1, v.x2 - v.x1, v.y2 - v.y1)
 
     const label = `#${v.id} ${v.class}`
+    ctx.font = '12px monospace'
     const labelWidth = ctx.measureText(label).width + 8
     ctx.fillStyle = color
-    ctx.fillRect(v.x1, v.y1 - 18, labelWidth, 18)
+    const labelY = Math.max(18, v.y1)
+    ctx.fillRect(v.x1, labelY - 18, labelWidth, 18)
     ctx.fillStyle = '#000000'
-    ctx.font = '12px monospace'
-    ctx.fillText(label, v.x1 + 4, v.y1 - 4)
+    ctx.fillText(label, v.x1 + 4, labelY - 4)
   }
 
   return canvas.toBuffer('image/jpeg', 80)
