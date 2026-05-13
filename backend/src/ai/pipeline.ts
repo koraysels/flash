@@ -2,6 +2,7 @@ import { Detector } from './detector'
 import { Tracker, TrackedVehicle } from './tracker'
 import { annotateFrame } from './annotator'
 import { DirectionCounter } from '../analysis/counter'
+import { SpeedCalculator } from '../analysis/speed'
 import { join } from 'path'
 
 const MODEL_PATH = join(__dirname, '../../models/yolov8n.onnx')
@@ -23,6 +24,7 @@ export class CameraPipeline {
   private detector: Detector
   private tracker: Tracker
   private counter: DirectionCounter
+  private speedCalc: SpeedCalculator | null = null
   private initialized = false
   private speeders = 0
 
@@ -33,10 +35,15 @@ export class CameraPipeline {
     private readonly lineA: number,
     private readonly lineB: number,
     private readonly maxSpeedKmh: number | null,
+    private readonly homographyMatrix: number[] = [],
+    private readonly fps: number = 2,
   ) {
     this.detector = new Detector(MODEL_PATH)
     this.tracker = new Tracker()
     this.counter = new DirectionCounter(frameHeight, lineA, lineB)
+    if (homographyMatrix.length === 9) {
+      this.speedCalc = new SpeedCalculator(homographyMatrix, fps, maxSpeedKmh ?? undefined)
+    }
   }
 
   async init(): Promise<void> {
@@ -56,12 +63,17 @@ export class CameraPipeline {
 
     const counts = this.counter.getCounts()
 
-    const vehicles: VehicleInfo[] = tracked.map((v) => ({
-      id: v.id,
-      class: v.class,
-      speedKmh: null, // filled in Plan 4 after homography calibration
-      direction: null as 'AB' | 'BA' | null,
-    }))
+    const vehicles: VehicleInfo[] = tracked.map((v) => {
+      let speedKmh: number | null = null
+
+      if (this.speedCalc) {
+        this.speedCalc.addPosition(v.id, v.cx, v.cy, Date.now())
+        speedKmh = this.speedCalc.getSpeed(v.id)
+        if (this.speedCalc.isSpeeder(v.id)) this.speeders++
+      }
+
+      return { id: v.id, class: v.class, speedKmh, direction: null as 'AB' | 'BA' | null }
+    })
 
     const annotatedFrame = await annotateFrame(jpegBuffer, tracked, this.lineA, this.lineB)
 
@@ -76,6 +88,7 @@ export class CameraPipeline {
     await this.detector.dispose()
     this.tracker.reset()
     this.counter.reset()
+    this.speedCalc = null
     this.initialized = false
   }
 

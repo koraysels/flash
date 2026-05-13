@@ -78,6 +78,7 @@ export class CameraWorkerManager {
         camera.countingLineA,
         camera.countingLineB,
         camera.maxSpeedKmh,
+        camera.homographyMatrix,  // NEW
       )
       await pipeline.init()
 
