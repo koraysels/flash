@@ -15,6 +15,7 @@ describe.skipIf(!existsSync(MODEL_PATH))('Detector', () => {
     const results = await detector.detect(blankBuffer, 640, 640)
 
     expect(Array.isArray(results)).toBe(true)
+    expect(results.length).toBe(0) // blank frame should produce no detections
     for (const r of results) {
       expect(r).toHaveProperty('x1')
       expect(r).toHaveProperty('y1')

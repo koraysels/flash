@@ -38,7 +38,8 @@ export class Detector {
     if (!this.session) throw new Error('Detector not initialized')
 
     const inputTensor = this.preprocess(rgbBuffer, srcWidth, srcHeight)
-    const results = await this.session.run({ images: inputTensor })
+    const inputName = this.session.inputNames[0]
+    const results = await this.session.run({ [inputName]: inputTensor })
     const output = results['output0'].data as Float32Array
 
     return this.postprocess(output, srcWidth, srcHeight)
@@ -106,6 +107,7 @@ export class Detector {
   }
 }
 
+// Class-agnostic NMS: one vehicle per spatial location (intentional for counting)
 function nms(boxes: DetectionResult[], iouThreshold: number): DetectionResult[] {
   const sorted = [...boxes].sort((a, b) => b.confidence - a.confidence)
   const kept: DetectionResult[] = []
