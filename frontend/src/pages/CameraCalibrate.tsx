@@ -25,7 +25,10 @@ export default function CameraCalibrate() {
 
   useEffect(() => {
     if (!id) return
+    let cancelled = false
+
     getCameras().then((cams) => {
+      if (cancelled) return
       const cam = cams.find((c) => c.id === id)
       if (cam) {
         setCamera(cam)
@@ -34,15 +37,27 @@ export default function CameraCalibrate() {
         setLineB(cam.countingLineB ?? 0.6)
       }
     })
+
     getCameraSnapshot(id)
-      .then(setSnapshot)
-      .catch(() => setError('No camera snapshot available — make sure the stream is active.'))
+      .then((frame) => { if (!cancelled) setSnapshot(frame) })
+      .catch(() => { if (!cancelled) setError('No camera snapshot available — make sure the stream is active.') })
+
+    return () => { cancelled = true }
   }, [id])
+
+  const awaitingMapPoint = imagePoints.length > mapPoints.length
+  const awaitingFramePoint = mapPoints.length > imagePoints.length
 
   const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return
+    if (!awaitingMapPoint) return  // wait for frame point first
     setMapPoints((pts) => [...pts, { lat: e.latLng!.lat(), lng: e.latLng!.lng() }])
-  }, [])
+  }, [awaitingMapPoint])
+
+  function handleFramePoint(pts: Array<{ x: number; y: number }>) {
+    if (pts.length > imagePoints.length && awaitingFramePoint) return  // wait for map point
+    setImagePoints(pts)
+  }
 
   function removeLastPair() {
     setImagePoints((pts) => pts.slice(0, -1))
@@ -101,7 +116,7 @@ export default function CameraCalibrate() {
         <div>
           <p className="text-sm text-gray-400 mb-2">Camera frame — click to place points</p>
           {snapshot ? (
-            <FramePointPicker frameBase64={snapshot} points={imagePoints} onChange={setImagePoints} width={560} />
+            <FramePointPicker frameBase64={snapshot} points={imagePoints} onChange={handleFramePoint} width={560} />
           ) : (
             <div className="bg-gray-900 border border-gray-800 rounded-lg aspect-video flex items-center justify-center text-gray-500 text-sm">
               {error ? 'No snapshot' : 'Loading snapshot...'}
@@ -131,7 +146,7 @@ export default function CameraCalibrate() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-2">
         <span className={`text-sm font-medium ${pairsCount >= 4 ? 'text-green-400' : 'text-yellow-400'}`}>
           {pairsCount} point pairs {pairsCount >= 4 ? '✓' : '(need 4 minimum)'}
         </span>
@@ -139,6 +154,13 @@ export default function CameraCalibrate() {
           Remove last pair
         </button>
       </div>
+      {awaitingMapPoint && (
+        <p className="text-xs text-blue-400 mb-4">Now click the same point on the map →</p>
+      )}
+      {awaitingFramePoint && (
+        <p className="text-xs text-yellow-400 mb-4">Now click the same point on the camera frame ←</p>
+      )}
+      {!awaitingMapPoint && !awaitingFramePoint && <div className="mb-4" />}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6 grid grid-cols-3 gap-4">
         <div>
