@@ -7,7 +7,7 @@ services:
       - ./backend/.env
     ports:
       - "3001:3001"
-    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+    command: sh -c "pnpm --filter flash-backend exec prisma migrate deploy && node dist/index.js"
 
   frontend:
     build:
