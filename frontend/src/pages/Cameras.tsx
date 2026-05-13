@@ -2,21 +2,29 @@ import { useState } from 'react'
 import { useCameras, useCreateCamera, useDeleteCamera } from '../hooks/useCameras'
 
 export default function Cameras() {
-  const { data: cameras, isLoading } = useCameras()
+  const { data: cameras, isLoading, error } = useCameras()
   const createCamera = useCreateCamera()
   const deleteCamera = useDeleteCamera()
 
   const [form, setForm] = useState({ name: '', location: '', streamUrl: '' })
   const [showForm, setShowForm] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    await createCamera.mutateAsync(form)
-    setForm({ name: '', location: '', streamUrl: '' })
-    setShowForm(false)
+    if (createCamera.isPending) return
+    setSubmitError(null)
+    try {
+      await createCamera.mutateAsync(form)
+      setForm({ name: '', location: '', streamUrl: '' })
+      setShowForm(false)
+    } catch {
+      setSubmitError('Failed to save camera. Please try again.')
+    }
   }
 
-  if (isLoading) return <div className="text-gray-500">Loading...</div>
+  if (isLoading) return <div className="text-gray-500">Loading cameras...</div>
+  if (error) return <div className="text-red-400">Failed to load cameras. Please refresh.</div>
 
   return (
     <div className="max-w-3xl">
@@ -33,6 +41,7 @@ export default function Cameras() {
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6 space-y-4">
           <h2 className="font-semibold">New camera</h2>
+          {submitError && <p className="text-red-400 text-sm">{submitError}</p>}
           <div>
             <label className="block text-sm text-gray-400 mb-1">Name</label>
             <input
@@ -64,7 +73,7 @@ export default function Cameras() {
             />
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={createCamera.isPending} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium">
+            <button type="submit" disabled={createCamera.isPending} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium">
               {createCamera.isPending ? 'Saving...' : 'Save'}
             </button>
             <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">
@@ -93,7 +102,8 @@ export default function Cameras() {
               </a>
               <button
                 onClick={() => deleteCamera.mutate(cam.id)}
-                className="text-sm text-red-400 hover:text-red-300 px-3 py-1 rounded-lg border border-red-900 hover:border-red-700"
+                disabled={deleteCamera.isPending}
+                className="text-sm text-red-400 hover:text-red-300 disabled:opacity-50 px-3 py-1 rounded-lg border border-red-900 hover:border-red-700"
               >
                 Delete
               </button>

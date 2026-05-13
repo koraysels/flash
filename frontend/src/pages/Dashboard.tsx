@@ -1,9 +1,10 @@
 import { useCameras } from '../hooks/useCameras'
 
 export default function Dashboard() {
-  const { data: cameras, isLoading } = useCameras()
+  const { data: cameras, isLoading, error } = useCameras()
 
-  if (isLoading) return <div className="text-gray-500">Loading...</div>
+  if (isLoading) return <div className="text-gray-500">Loading cameras...</div>
+  if (error) return <div className="text-red-400">Failed to load cameras. Please refresh.</div>
 
   return (
     <div>
