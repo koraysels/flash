@@ -27,6 +27,8 @@ export class CameraPipeline {
   private speedCalc: SpeedCalculator | null = null
   private initialized = false
   private speeders = 0
+  private countedSpeeders = new Set<number>()
+  private activeVehicleIds = new Set<number>()
 
   constructor(
     private readonly cameraId: string,
@@ -57,6 +59,17 @@ export class CameraPipeline {
     const detections = await this.detector.detect(jpegBuffer, this.frameWidth, this.frameHeight)
     const tracked = this.tracker.update(detections)
 
+    const trackedIds = new Set(tracked.map((v) => v.id))
+
+    // Clean up dropped vehicles
+    for (const id of this.activeVehicleIds) {
+      if (!trackedIds.has(id)) {
+        if (this.speedCalc) this.speedCalc.removeVehicle(id)
+        this.countedSpeeders.delete(id)
+      }
+    }
+    this.activeVehicleIds = trackedIds
+
     for (const v of tracked) {
       this.counter.updateVehicle(v.id, v.cy)
     }
@@ -69,7 +82,10 @@ export class CameraPipeline {
       if (this.speedCalc) {
         this.speedCalc.addPosition(v.id, v.cx, v.cy, Date.now())
         speedKmh = this.speedCalc.getSpeed(v.id)
-        if (this.speedCalc.isSpeeder(v.id)) this.speeders++
+        if (this.speedCalc.isSpeeder(v.id) && !this.countedSpeeders.has(v.id)) {
+          this.countedSpeeders.add(v.id)
+          this.speeders++
+        }
       }
 
       return { id: v.id, class: v.class, speedKmh, direction: null as 'AB' | 'BA' | null }
@@ -90,10 +106,13 @@ export class CameraPipeline {
     this.counter.reset()
     this.speedCalc = null
     this.initialized = false
+    this.countedSpeeders.clear()
+    this.activeVehicleIds.clear()
   }
 
   resetDailyCounts(): void {
     this.counter.reset()
     this.speeders = 0
+    this.countedSpeeders.clear()
   }
 }
