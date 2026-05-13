@@ -17,6 +17,13 @@ export function useCameraFeed(cameraId: string) {
   const lastFpsTime = useRef(Date.now())
 
   useEffect(() => {
+    // Reset state when switching cameras
+    setLastFrame(null)
+    setFps(0)
+    setCounts({ AB: 0, BA: 0, speeders: 0 })
+    frameCount.current = 0
+    lastFpsTime.current = Date.now()
+
     socket.emit('subscribe', cameraId)
 
     const handler = (event: FrameEvent) => {

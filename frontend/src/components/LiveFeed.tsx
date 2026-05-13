@@ -23,6 +23,10 @@ export function LiveFeed({ cameraId, className = '' }: Props) {
       ctx.drawImage(img, 0, 0)
     }
     img.src = `data:image/jpeg;base64,${lastFrame}`
+
+    return () => {
+      img.onload = null
+    }
   }, [lastFrame])
 
   return (
