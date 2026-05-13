@@ -1,6 +1,9 @@
 import Fastify, { FastifyServerOptions } from 'fastify'
 import cors from '@fastify/cors'
+import { createServer } from 'http'
 import { cameraRoutes } from './routes/cameras'
+import { initSocketServer } from './socket/server'
+import { CameraWorkerManager } from './camera-worker'
 import { config } from './config'
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
@@ -12,8 +15,13 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
 
 if (require.main === module) {
   buildApp().then((app) => {
-    app.listen({ port: config.port, host: '0.0.0.0' }, (err) => {
-      if (err) process.exit(1)
+    const httpServer = createServer(app.server)
+    initSocketServer(httpServer)
+    const workerManager = new CameraWorkerManager()
+    workerManager.start()
+
+    httpServer.listen(config.port, '0.0.0.0', () => {
+      console.log(`Server running on port ${config.port}`)
     })
   })
 }

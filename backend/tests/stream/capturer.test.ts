@@ -3,15 +3,18 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('ffmpeg-static', () => ({ default: '/usr/bin/ffmpeg' }))
 
 vi.mock('fluent-ffmpeg', () => {
-  const mockFfmpeg = vi.fn(() => ({
+  const mockInstance = {
     inputOptions: vi.fn().mockReturnThis(),
     output: vi.fn().mockReturnThis(),
     outputOptions: vi.fn().mockReturnThis(),
     on: vi.fn().mockReturnThis(),
     run: vi.fn(),
     kill: vi.fn(),
-  }))
-  mockFfmpeg.setFfmpegPath = vi.fn()
+    setFfmpegPath: vi.fn(),
+  }
+  const mockFfmpeg = Object.assign(vi.fn(() => mockInstance), {
+    setFfmpegPath: vi.fn(),
+  })
   return { default: mockFfmpeg }
 })
 
