@@ -2,6 +2,7 @@
   "name": "flash-backend",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.28.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",

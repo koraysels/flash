@@ -2,6 +2,7 @@
   "name": "flash-frontend",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.28.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
