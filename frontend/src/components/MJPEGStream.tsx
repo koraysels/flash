@@ -27,7 +27,7 @@ export function MJPEGStream({ cameraId, className }: Props) {
     return () => { socket.off('frame', handler) }
   }, [cameraId])
 
-  // Watchdog: if stream goes quiet for STALE_THRESHOLD_MS, force img reload and keep retrying
+  // [] is safe: interval closure only reads lastActivityRef (stable ref), never props/state
   useEffect(() => {
     const id = setInterval(() => {
       if (lastActivityRef.current === 0) return
@@ -51,8 +51,11 @@ export function MJPEGStream({ cameraId, className }: Props) {
         alt=""
       />
       {stale && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-          <span className="text-white text-sm font-medium">Reconnecting…</span>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+          <span className="flex items-center gap-2 text-white text-sm font-medium">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            Reconnecting…
+          </span>
         </div>
       )}
     </div>
