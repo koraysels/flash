@@ -140,6 +140,9 @@ export async function cameraRoutes(app: FastifyInstance) {
     }
   })
 
+  // Drop MJPEG frames when the readable buffer exceeds this — slow consumer, not a push problem
+  const MJPEG_DROP_WATERMARK = 200 * 1024
+
   // MJPEG stream — multipart/x-mixed-replace; server annotates every frame server-side
   app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {
     const streamer = getStreamer(req.params.id)
@@ -156,6 +159,8 @@ export async function cameraRoutes(app: FastifyInstance) {
 
     const onFrame = (jpeg: Buffer) => {
       if (pass.destroyed) return
+      // Client is not reading fast enough — drop this frame rather than buffer indefinitely
+      if (pass.readableLength > MJPEG_DROP_WATERMARK) return
       const hdr = Buffer.from(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`)
       pass.push(Buffer.concat([hdr, jpeg, Buffer.from('\r\n')]))
     }
