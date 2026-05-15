@@ -23,17 +23,21 @@ export function HlsPlayer({ cameraId, className }: Props) {
 
     if (Hls.isSupported()) {
       const hls = new Hls({
-        // Long segments (~9s) from verkeerscentrum — tune buffer accordingly
+        // The upstream chunklist only ever has 3 segments (~9.6s each = ~29s total).
+        // liveSyncDurationCount must be < 3 so HLS.js can find its start position.
+        // Set to 1 → start 1 segment behind the live edge (9.6s latency is fine).
         liveSyncDurationCount: 1,
-        liveMaxLatencyDurationCount: 3,
-        maxBufferLength: 30,
+        liveMaxLatencyDurationCount: 3,  // never fall beyond all available segments
+        maxBufferLength: 30,             // keep up to 30s buffered for smooth playback
         maxMaxBufferLength: 60,
         lowLatencyMode: false,
-        // Retry on network errors
-        fragLoadingMaxRetry: 6,
-        manifestLoadingMaxRetry: 3,
-        levelLoadingMaxRetry: 3,
-        fragLoadingRetryDelay: 2000,
+        // Retry config
+        fragLoadingMaxRetry: 8,
+        fragLoadingRetryDelay: 1500,
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+        maxFragLookUpTolerance: 0.5,
+        backBufferLength: 20,
       })
       hlsRef.current = hls
 
@@ -41,19 +45,28 @@ export function HlsPlayer({ cameraId, className }: Props) {
         hls.loadSource(src)
         setStatus('buffering')
       })
+
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {})
       })
+
+      // First fragment ready in buffer — try to ensure playback starts
+      let playStarted = false
       hls.on(Hls.Events.FRAG_BUFFERED, () => {
-        if (status !== 'playing') setStatus('playing')
+        if (!playStarted) {
+          playStarted = true
+          video.play().catch(() => {})
+        }
       })
+
       hls.on(Hls.Events.ERROR, (_e, data) => {
         if (data.fatal) {
-          setStatus('error')
-          setErrorMsg(data.details ?? 'Stream error')
-          // Try to recover network errors automatically
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            setTimeout(() => hls.startLoad(), 3000)
+            // Auto-recover network errors (stale segment URLs on stream rotation)
+            hls.startLoad()
+          } else {
+            setStatus('error')
+            setErrorMsg(data.details ?? 'Stream error')
           }
         }
       })
@@ -63,7 +76,6 @@ export function HlsPlayer({ cameraId, className }: Props) {
       // Safari native HLS
       video.src = src
       video.addEventListener('waiting', () => setStatus('buffering'), { once: true })
-      video.addEventListener('playing', () => setStatus('playing'))
       video.addEventListener('error', () => { setStatus('error'); setErrorMsg('Stream error') })
       video.play().catch(() => {})
     } else {
@@ -77,12 +89,12 @@ export function HlsPlayer({ cameraId, className }: Props) {
     }
   }, [cameraId])
 
-  // Update playing status when video actually starts playing
+  // Track playing/waiting via the video element's own events (not HLS.js events)
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
     const onPlaying = () => setStatus('playing')
-    const onWaiting = () => setStatus('buffering')
+    const onWaiting = () => setStatus((s) => s === 'error' ? s : 'buffering')
     video.addEventListener('playing', onPlaying)
     video.addEventListener('waiting', onWaiting)
     return () => {
@@ -91,15 +103,13 @@ export function HlsPlayer({ cameraId, className }: Props) {
     }
   }, [])
 
-  const statusLabel = {
-    connecting: 'Connecting...',
-    buffering: 'Buffering (~10s for first segment)...',
-    playing: null,
-    error: errorMsg ?? 'Stream unavailable',
-  }[status]
+  const overlay = status === 'connecting' ? 'Connecting...'
+    : status === 'buffering' ? 'Buffering...'
+    : status === 'error' ? (errorMsg ?? 'Stream unavailable')
+    : null
 
   return (
-    <div className={`relative bg-gray-900 rounded-lg overflow-hidden ${className ?? ''}`}>
+    <div className={`relative bg-black rounded-lg overflow-hidden ${className ?? ''}`}>
       <video
         ref={videoRef}
         autoPlay
@@ -107,13 +117,13 @@ export function HlsPlayer({ cameraId, className }: Props) {
         playsInline
         className="w-full h-full object-contain"
       />
-      {statusLabel && (
-        <div className={`absolute inset-0 flex items-center justify-center text-sm px-4 text-center
+      {overlay && (
+        <div className={`absolute inset-0 flex items-center justify-center text-sm gap-2
           ${status === 'error' ? 'text-red-400' : 'text-gray-400'}`}>
-          {status === 'buffering' && (
-            <div className="w-6 h-6 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin mr-2 flex-shrink-0" />
+          {(status === 'connecting' || status === 'buffering') && (
+            <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin flex-shrink-0" />
           )}
-          {statusLabel}
+          {overlay}
         </div>
       )}
       {status === 'playing' && (

@@ -4,7 +4,7 @@ type Position = { wx: number; wy: number; timestamp: number }
 
 export class SpeedCalculator {
   private history = new Map<number, Position[]>()
-  private readonly smoothingWindow = 5
+  private readonly maxHistory = 12
 
   constructor(
     private readonly homographyMatrix: number[],
@@ -12,26 +12,41 @@ export class SpeedCalculator {
     private readonly maxSpeedKmh?: number,
   ) {}
 
+  /** px, py should be the bottom-center of the bounding box (ground contact point) */
   addPosition(vehicleId: number, px: number, py: number, timestamp: number): void {
     const world = applyHomography(this.homographyMatrix, px, py)
     const positions = this.history.get(vehicleId) ?? []
+
+    // EMA on world position to dampen homography projection noise
+    if (positions.length > 0) {
+      const last = positions[positions.length - 1]
+      world.wx = 0.65 * world.wx + 0.35 * last.wx
+      world.wy = 0.65 * world.wy + 0.35 * last.wy
+    }
+
     positions.push({ ...world, timestamp })
-    if (positions.length > this.smoothingWindow) positions.shift()
+    if (positions.length > this.maxHistory) positions.shift()
     this.history.set(vehicleId, positions)
   }
 
   getSpeed(vehicleId: number): number | null {
     const positions = this.history.get(vehicleId)
-    if (!positions || positions.length < 2) return null
+    if (!positions || positions.length < 3) return null
 
-    const oldest = positions[0]
-    const newest = positions[positions.length - 1]
-    const dt = (newest.timestamp - oldest.timestamp) / 1000
-    if (dt <= 0) return null
+    // Compute instant speed for each consecutive pair, then take the median.
+    // Median is robust to single-frame projection outliers.
+    const instantSpeeds: number[] = []
+    for (let i = 1; i < positions.length; i++) {
+      const dt = (positions[i].timestamp - positions[i - 1].timestamp) / 1000
+      if (dt <= 0) continue
+      const dx = positions[i].wx - positions[i - 1].wx
+      const dy = positions[i].wy - positions[i - 1].wy
+      instantSpeeds.push(Math.sqrt(dx * dx + dy * dy) / dt * 3.6)
+    }
 
-    const dx = newest.wx - oldest.wx
-    const dy = newest.wy - oldest.wy
-    return Math.sqrt(dx * dx + dy * dy) / dt * 3.6  // m/s → km/u
+    if (instantSpeeds.length === 0) return null
+    instantSpeeds.sort((a, b) => a - b)
+    return instantSpeeds[Math.floor(instantSpeeds.length / 2)]
   }
 
   isSpeeder(vehicleId: number): boolean {

@@ -4,22 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="Initialize project structure and configuration files">
-      <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/backend/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/backend/prisma/schema.prisma" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/routes/cameras.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/routes/cameras.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/stream/capturer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/capturer.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/stream/extractor.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/extractor.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/hooks/useCameraFeed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/hooks/useCameraFeed.ts" afterDir="false" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: enhance camera calibration UI with guidance and HLS streaming support">
+      <change beforePath="$PROJECT_DIR$/backend/src/analysis/speed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/analysis/speed.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/HlsPlayer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/HlsPlayer.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/pages/CameraCalibrate.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/CameraCalibrate.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pnpm-lock.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pnpm-lock.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -81,7 +69,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="29360000" />
+      <workItem from="1778661338564" duration="30372000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -91,7 +79,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778662908905</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="feat: enhance camera calibration UI with guidance and HLS streaming support">
+      <option name="closed" value="true" />
+      <created>1778841092296</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1778841092296</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -110,7 +106,9 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initialize project structure and configuration files" />
-    <option name="LAST_COMMIT_MESSAGE" value="Initialize project structure and configuration files" />
+    <MESSAGE value="feat: enhance camera calibration interface with guidance and HLS streaming support" />
+    <MESSAGE value="feat: enhance camera calibration UI with guidance and HLS streaming support" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: enhance camera calibration UI with guidance and HLS streaming support" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

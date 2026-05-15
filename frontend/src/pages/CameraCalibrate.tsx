@@ -163,7 +163,7 @@ export default function CameraCalibrate() {
   const canSave = pairsCount >= 4 && imagePoints.length === mapPoints.length
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-screen-2xl">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Calibrate: {camera?.name ?? '...'}</h1>
@@ -209,7 +209,7 @@ export default function CameraCalibrate() {
         <div>
           <p className="text-sm font-medium text-gray-300 mb-2">① Camera image — click landmarks</p>
           {snapshot ? (
-            <FramePointPicker frameBase64={snapshot} points={imagePoints} onChange={handleFramePoint} width={560} />
+            <FramePointPicker frameBase64={snapshot} points={imagePoints} onChange={handleFramePoint} width={640} />
           ) : snapshotMissing ? (
             <label className="bg-gray-900 border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-lg aspect-video flex flex-col items-center justify-center text-gray-400 text-sm cursor-pointer gap-2">
               <span className="text-3xl">↑</span>
@@ -247,7 +247,7 @@ export default function CameraCalibrate() {
               </StandaloneSearchBox>
               <GoogleMap
                 mapContainerClassName="w-full rounded-lg"
-                mapContainerStyle={{ height: '270px' }}
+                mapContainerStyle={{ height: '460px' }}
                 center={mapCenter}
                 zoom={mapZoom}
                 mapTypeId="satellite"
