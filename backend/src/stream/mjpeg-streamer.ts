@@ -121,20 +121,20 @@ export class MJPEGStreamer extends EventEmitter {
   // (between HLS segments), repeat the last frame so clients never freeze.
   private startDequeue(): void {
     this.dequeueTimer = setInterval(() => {
+      const frameTime = Date.now()
       const isNewFrame = this.frameQueue.length > 0
       const frame = this.frameQueue.shift() ?? this.latestRawFrame
       if (!frame) return
       this.latestRawFrame = frame
 
       this.videoFpsCount++
-      const now = Date.now()
-      if (now - this.videoFpsLastTime >= 1000) {
+      if (frameTime - this.videoFpsLastTime >= 1000) {
         this.videoFps = this.videoFpsCount
         this.videoFpsCount = 0
-        this.videoFpsLastTime = now
+        this.videoFpsLastTime = frameTime
       }
 
-      this.onRawFrame(frame, isNewFrame)
+      this.onRawFrame(frame, isNewFrame, frameTime)
     }, 1000 / OUTPUT_FPS)
   }
 
@@ -199,7 +199,7 @@ export class MJPEGStreamer extends EventEmitter {
     this.ffmpegProc.run()
   }
 
-  private onRawFrame(jpeg: Buffer, isNewFrame: boolean): void {
+  private onRawFrame(jpeg: Buffer, isNewFrame: boolean, frameTime: number): void {
     this.frameIdx++
 
     loadImage(jpeg).then((img) => {
@@ -207,7 +207,7 @@ export class MJPEGStreamer extends EventEmitter {
 
       if (isNewFrame && !this.analysisRunning) {
         this.analysisRunning = true
-        this.analyse(img, width, height).finally(() => { this.analysisRunning = false })
+        this.analyse(img, width, height, frameTime).finally(() => { this.analysisRunning = false })
       }
 
       if (!this.annotationRunning) {
@@ -245,7 +245,7 @@ export class MJPEGStreamer extends EventEmitter {
       })
   }
 
-  private async analyse(img: Image, width: number, height: number): Promise<void> {
+  private async analyse(img: Image, width: number, height: number, frameTime: number): Promise<void> {
     if (width !== this.actualWidth || height !== this.actualHeight) {
       this.counter = new DirectionCounter(height, this.lineA, this.lineB)
       this.actualWidth = width
@@ -278,7 +278,7 @@ export class MJPEGStreamer extends EventEmitter {
     for (const v of tracked) {
       let speedKmh: number | null = null
       if (this.speedCalc) {
-        this.speedCalc.addPosition(v.id, v.bcx, v.bcy, Date.now())
+        this.speedCalc.addPosition(v.id, v.bcx, v.bcy, frameTime)
         speedKmh = this.speedCalc.getSpeed(v.id)
         if (this.speedCalc.isSpeeder(v.id) && !this.countedSpeeders.has(v.id)) {
           this.countedSpeeders.add(v.id); this.speeders++
