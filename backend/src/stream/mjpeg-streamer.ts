@@ -15,7 +15,7 @@ const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
 
 // HLS segments arrive in bursts; cap queue at ~20s worth of frames so memory
 // stays bounded if a segment happens to be delivered faster than we dequeue.
-const MAX_QUEUE = 500
+const MAX_QUEUE = 51   // ~3 s at OUTPUT_FPS; bounds live latency under burst
 const OUTPUT_FPS = 17
 
 function resolveFfmpegPath(): string {
@@ -217,7 +217,7 @@ export class MJPEGStreamer extends EventEmitter {
     const img = await loadImage(jpeg)
     const { width, height } = img
 
-    if (height !== this.actualHeight) {
+    if (width !== this.actualWidth || height !== this.actualHeight) {
       this.counter = new DirectionCounter(height, this.lineA, this.lineB)
       this.actualWidth = width
       this.actualHeight = height
