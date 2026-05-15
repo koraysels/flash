@@ -157,7 +157,7 @@ git commit -m "fix: drop mjpeg frames per-client when readable buffer exceeds 20
 
 **What:** Add two effects to `MJPEGStream`:
 1. A passive socket listener that records the timestamp of the last `frame` event for this camera into a ref. **No `subscribe`/`unsubscribe`** — the parent already handles that.
-2. A 2-second watchdog interval that checks if the last event was more than 5 s ago (and at least one event has been seen). If stale: set `stale = true` and increment `imgKey` to force the `<img>` to reconnect. Reset `lastEventRef.current` to 0 after forcing reload so the watchdog doesn't re-trigger on every tick.
+2. A 2-second watchdog interval that checks if the last activity was more than 5 s ago. If stale: set `stale = true`, increment `imgKey` to force the `<img>` to reconnect, and reset `lastActivityRef.current` to `Date.now()` (not 0) — so the watchdog keeps retrying every STALE_THRESHOLD_MS until the server recovers, with no user interaction required.
 
 When `stale = true`, show a centered "Reconnecting…" overlay over the video area. When a new socket event arrives, clear `stale`.
 
@@ -182,27 +182,30 @@ interface Props {
 export function MJPEGStream({ cameraId, className }: Props) {
   const [stale, setStale] = useState(false)
   const [imgKey, setImgKey] = useState(0)
-  const lastEventRef = useRef(0)
+  // Tracks last frame-event or last reload attempt; 0 = stream never seen
+  const lastActivityRef = useRef(0)
 
   // Passive listener — parent already subscribes; we only track timestamp
   useEffect(() => {
     const handler = (event: FrameEvent) => {
       if (event.cameraId !== cameraId) return
-      lastEventRef.current = Date.now()
+      lastActivityRef.current = Date.now()
       setStale(false)
     }
     socket.on('frame', handler)
     return () => { socket.off('frame', handler) }
   }, [cameraId])
 
-  // Watchdog: if stream goes quiet for STALE_THRESHOLD_MS, force img reload
+  // Watchdog: if stream goes quiet for STALE_THRESHOLD_MS, force img reload and keep retrying
   useEffect(() => {
     const id = setInterval(() => {
-      if (lastEventRef.current === 0) return
-      if (Date.now() - lastEventRef.current > STALE_THRESHOLD_MS) {
+      if (lastActivityRef.current === 0) return
+      if (Date.now() - lastActivityRef.current > STALE_THRESHOLD_MS) {
         setStale(true)
         setImgKey((k) => k + 1)
-        lastEventRef.current = 0
+        // Reset to now so the watchdog waits another STALE_THRESHOLD_MS before retrying,
+        // enabling continuous automatic reconnect without user interaction
+        lastActivityRef.current = Date.now()
       }
     }, WATCHDOG_INTERVAL_MS)
     return () => clearInterval(id)
@@ -259,11 +262,12 @@ git commit -m "feat: add stale-stream watchdog to MJPEGStream with reconnect ove
 3. ✅ Stall watchdog — Task 2: passive socket listener + 2s watchdog interval
 4. ✅ Reconnecting state — overlay shown when `stale = true`
 5. ✅ Force reload — `imgKey` increment causes React to remount `<img>`, triggering a new HTTP connection
-6. ✅ No double subscribe — Task 2 uses `socket.on`/`socket.off` only, no `subscribe`/`unsubscribe`
+6. ✅ Continuous reconnect — `lastActivityRef.current = Date.now()` after reload (not 0) so watchdog retries every STALE_THRESHOLD_MS without user interaction
+7. ✅ No double subscribe — Task 2 uses `socket.on`/`socket.off` only, no `subscribe`/`unsubscribe`
 
 **Placeholder scan:** None found.
 
 **Type consistency:**
 - `FrameEvent` imported as `type` from `../hooks/useCameraFeed` — matches the export in that file
-- `lastEventRef.current` is `number` (0 = never seen) throughout; compared with `Date.now()` (also number)
+- `lastActivityRef.current` is `number` (0 = never seen, >0 = last frame or reload time)
 - `imgKey` is `number` state, used as React `key` prop on `<img>` — valid
