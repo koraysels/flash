@@ -13,6 +13,11 @@ import { join } from 'path'
 
 const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
 
+// HLS segments arrive in bursts; cap queue at ~20s worth of frames so memory
+// stays bounded if a segment happens to be delivered faster than we dequeue.
+const MAX_QUEUE = 500
+const OUTPUT_FPS = 25
+
 function resolveFfmpegPath(): string {
   if (process.platform === 'darwin') {
     for (const p of ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg']) {
@@ -49,7 +54,13 @@ export class MJPEGStreamer extends EventEmitter {
   private actualWidth = 768
   private actualHeight = 576
 
-  // Video fps tracking
+  // Frame queue: ffmpeg delivers HLS frames in bursts; we dequeue at a fixed
+  // rate so MJPEG output is smooth regardless of segment delivery timing.
+  private frameQueue: Buffer[] = []
+  private latestRawFrame: Buffer | null = null
+  private dequeueTimer: ReturnType<typeof setInterval> | null = null
+
+  // Video fps tracking (measures dequeue/display rate)
   private videoFpsCount = 0
   private videoFpsLastTime = Date.now()
   private videoFps = 0
@@ -67,7 +78,7 @@ export class MJPEGStreamer extends EventEmitter {
     this.tracker = new Tracker()
     this.counter = new DirectionCounter(576, lineA, lineB)
     this.speedCalc = homographyMatrix.length === 9
-      ? new SpeedCalculator(homographyMatrix, 25, maxSpeedKmh ?? undefined)
+      ? new SpeedCalculator(homographyMatrix, OUTPUT_FPS, maxSpeedKmh ?? undefined)
       : null
   }
 
@@ -80,25 +91,48 @@ export class MJPEGStreamer extends EventEmitter {
   start(): void {
     if (this.running) return
     this.running = true
+    this.startDequeue()
     this.spawn()
   }
 
   stop(): void {
     this.running = false
+    if (this.dequeueTimer) { clearInterval(this.dequeueTimer); this.dequeueTimer = null }
+    this.frameQueue = []
     this.ffmpegProc?.kill('SIGTERM')
     this.ffmpegProc = null
   }
 
   isRunning(): boolean { return this.running }
 
-  /** Number of active frame listeners (= connected MJPEG clients) */
   clientCount(): number { return this.listenerCount('frame') }
+
+  // Dequeue one frame every 1/OUTPUT_FPS seconds. If the queue is empty
+  // (between HLS segments), repeat the last frame so clients never freeze.
+  private startDequeue(): void {
+    this.dequeueTimer = setInterval(() => {
+      const frame = this.frameQueue.shift() ?? this.latestRawFrame
+      if (!frame) return
+      this.latestRawFrame = frame
+
+      this.videoFpsCount++
+      const now = Date.now()
+      if (now - this.videoFpsLastTime >= 1000) {
+        this.videoFps = this.videoFpsCount
+        this.videoFpsCount = 0
+        this.videoFpsLastTime = now
+      }
+
+      this.onRawFrame(frame)
+    }, 1000 / OUTPUT_FPS)
+  }
 
   private spawn(): void {
     const pass = new PassThrough()
 
     const inputOpts = [
-      '-re',                  // read at native frame rate — gives smooth 25fps output instead of burst
+      // No -re: live HLS is already paced by the server; -re adds artificial
+      // delays that stall at segment boundaries when source timing is uneven.
       '-fflags', 'nobuffer',
       '-flags', 'low_delay',
       '-timeout', '10000000',
@@ -115,15 +149,14 @@ export class MJPEGStreamer extends EventEmitter {
       .outputOptions([
         '-f', 'image2pipe',
         '-vcodec', 'mjpeg',
-        '-q:v', '4',         // JPEG quality (1=best, 31=worst)
-        // No -vf fps filter → full source frame rate via -re
+        '-q:v', '4',
       ])
       .output(pass as unknown as string)
       .on('start', (cmd) => console.log(`[mjpeg:${this.cameraId}] ffmpeg: ${cmd}`))
       .on('error', (err: Error) => {
         if (!this.running) return
         console.error(`[mjpeg:${this.cameraId}] ffmpeg error: ${err.message}`)
-        setTimeout(() => { if (this.running) this.spawn() }, 5000)
+        setTimeout(() => { if (this.running) this.spawn() }, 1000)
       })
 
     const SOI = Buffer.from([0xff, 0xd8])
@@ -139,7 +172,9 @@ export class MJPEGStreamer extends EventEmitter {
         if (e === -1) { buf = s > 0 ? buf.slice(s) : buf; break }
         const frame = buf.slice(s, e + 2)
         buf = buf.slice(e + 2)
-        this.onRawFrame(frame)
+        // Push into queue; if we're at the cap, drop the oldest frame
+        if (this.frameQueue.length >= MAX_QUEUE) this.frameQueue.shift()
+        this.frameQueue.push(frame)
       }
     })
 
@@ -149,22 +184,13 @@ export class MJPEGStreamer extends EventEmitter {
   private onRawFrame(jpeg: Buffer): void {
     this.frameIdx++
 
-    // Track video fps — count raw frames per second
-    this.videoFpsCount++
-    const now = Date.now()
-    if (now - this.videoFpsLastTime >= 1000) {
-      this.videoFps = this.videoFpsCount
-      this.videoFpsCount = 0
-      this.videoFpsLastTime = now
-    }
-
-    // Run analysis on every frame the hardware can keep up with; skip if previous is still running
+    // Run analysis on every frame the hardware can keep up with
     if (!this.analysisRunning) {
       this.analysisRunning = true
       this.analyse(jpeg).finally(() => { this.analysisRunning = false })
     }
 
-    // Annotate and push to MJPEG clients (fire-and-forget)
+    // Annotate and push to MJPEG clients
     this.annotate(jpeg).then((annotated) => this.emit('frame', annotated)).catch(() => this.emit('frame', jpeg))
   }
 
@@ -178,8 +204,6 @@ export class MJPEGStreamer extends EventEmitter {
       this.actualHeight = height
     }
 
-    // Letterbox-resize to 640×640 using native bilinear scaling — maintains aspect
-    // ratio and matches the preprocessing YOLOv8 expects from its training pipeline
     const scale = Math.min(640 / width, 640 / height)
     const scaledW = Math.round(width * scale)
     const scaledH = Math.round(height * scale)
@@ -236,7 +260,6 @@ export class MJPEGStreamer extends EventEmitter {
     const ctx = canvas.getContext('2d')
     ctx.drawImage(img, 0, 0)
 
-    // Counting lines
     const aY = this.lineA * height
     const bY = this.lineB * height
     ctx.strokeStyle = 'rgba(255,220,0,0.85)'
@@ -250,7 +273,6 @@ export class MJPEGStreamer extends EventEmitter {
     ctx.fillText('A', 4, aY - 3)
     ctx.fillText('B', 4, bY - 3)
 
-    // Vehicle boxes with latest known detections
     for (const v of this.boxes) {
       const color = CLASS_COLORS[v.class] ?? '#fff'
       ctx.strokeStyle = color

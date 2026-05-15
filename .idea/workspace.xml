@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: add video fps tracking to MJPEGStreamer and update related components">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update CameraCard to display both AI and video FPS metrics" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -70,7 +68,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="35621000" />
+      <workItem from="1778661338564" duration="35947000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -128,7 +126,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778849084945</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="feat: update CameraCard to display both AI and video FPS metrics">
+      <option name="closed" value="true" />
+      <created>1778871480523</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1778871480524</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -154,7 +160,8 @@
     <MESSAGE value="feat: refactor CameraWorkerManager to use MJPEGStreamer and streamline worker management" />
     <MESSAGE value="feat: optimize MJPEGStreamer to analyze every frame and remove analysis stride" />
     <MESSAGE value="feat: add video fps tracking to MJPEGStreamer and update related components" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add video fps tracking to MJPEGStreamer and update related components" />
+    <MESSAGE value="feat: update CameraCard to display both AI and video FPS metrics" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update CameraCard to display both AI and video FPS metrics" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
