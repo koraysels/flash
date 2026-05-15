@@ -8,6 +8,9 @@ import { getStreamer } from '../camera-worker'
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
 const hlsUrlCache = new Map<string, string>()
 
+// ~4 frames at expected JPEG size (~40KB); keeps per-client buffering below ~200ms of latency
+const MJPEG_DROP_WATERMARK = 200 * 1024
+
 function handlePrismaError(err: unknown, reply: FastifyReply) {
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
     reply.code(404).send({ error: 'Not found' })
@@ -139,9 +142,6 @@ export async function cameraRoutes(app: FastifyInstance) {
       return handlePrismaError(err, reply)
     }
   })
-
-  // Drop MJPEG frames when the readable buffer exceeds this — slow consumer, not a push problem
-  const MJPEG_DROP_WATERMARK = 200 * 1024
 
   // MJPEG stream — multipart/x-mixed-replace; server annotates every frame server-side
   app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {
