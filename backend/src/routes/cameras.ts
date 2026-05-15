@@ -1,6 +1,10 @@
 import { FastifyInstance, FastifyReply } from 'fastify'
 import { db } from '../db'
 import { Prisma } from '@prisma/client'
+import { extractStreamUrl } from '../stream/extractor'
+
+// Cache resolved HLS URLs so we don't re-extract on every proxy request
+const hlsUrlCache = new Map<string, string>()
 
 function handlePrismaError(err: unknown, reply: FastifyReply) {
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
@@ -142,5 +146,57 @@ export async function cameraRoutes(app: FastifyInstance) {
       return { error: 'No frame available yet — make sure the camera stream is active' }
     }
     return { frame }
+  })
+
+  // HLS proxy — forwards requests to the upstream HLS server with the required
+  // Referer header so hotlink protection doesn't block us. Rewrites relative
+  // URLs in playlists so all requests route through here.
+  app.get<{ Params: { id: string; '*': string } }>('/api/cameras/:id/hls/*', async (req, reply) => {
+    const camera = await db.camera.findUnique({ where: { id: req.params.id } })
+    if (!camera) { reply.code(404); return }
+
+    let hlsBase = hlsUrlCache.get(camera.id)
+    if (!hlsBase) {
+      const resolved = await extractStreamUrl(camera.streamUrl)
+      hlsBase = resolved.substring(0, resolved.lastIndexOf('/') + 1)
+      hlsUrlCache.set(camera.id, hlsBase)
+    }
+
+    const segment = req.params['*']
+    const upstreamUrl = hlsBase + segment
+
+    const upstream = await fetch(upstreamUrl, {
+      headers: {
+        'Referer': 'https://www.verkeerscentrum.be/',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    })
+
+    if (!upstream.ok) {
+      // If the cached base URL is stale (stream rotated), clear it and retry once
+      if (upstream.status === 403 || upstream.status === 404) {
+        hlsUrlCache.delete(camera.id)
+      }
+      reply.code(upstream.status)
+      return
+    }
+
+    const ct = upstream.headers.get('content-type') ?? 'application/octet-stream'
+    reply.header('Content-Type', ct)
+    reply.header('Cache-Control', 'no-cache')
+    reply.header('Access-Control-Allow-Origin', '*')
+
+    if (segment.endsWith('.m3u8')) {
+      // Rewrite relative playlist entries to go through our proxy
+      const text = await upstream.text()
+      const rewritten = text.replace(
+        /^((?!#)[^\r\n]+)$/gm,
+        (line) => `/api/cameras/${camera.id}/hls/${line.trim()}`,
+      )
+      return reply.send(rewritten)
+    }
+
+    // TS segments — stream directly
+    return reply.send(Buffer.from(await upstream.arrayBuffer()))
   })
 }

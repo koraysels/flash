@@ -1,5 +1,5 @@
-FROM node:20-alpine
-RUN apk add --no-cache openssl
+FROM node:20-slim
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm
 WORKDIR /app
 
@@ -34,6 +34,6 @@ RUN pnpm --filter flash-backend run build
 
 WORKDIR /app/backend
 EXPOSE 3001
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 && chown -R nodejs:nodejs /app
-USER nodejs
+RUN chown -R node:node /app
+USER node
 CMD ["node", "dist/src/index.js"]

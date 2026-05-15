@@ -1,6 +1,5 @@
 import Fastify, { FastifyServerOptions } from 'fastify'
 import cors from '@fastify/cors'
-import { createServer } from 'http'
 import { cameraRoutes } from './routes/cameras'
 import { initSocketServer } from './socket/server'
 import { CameraWorkerManager } from './camera-worker'
@@ -14,16 +13,14 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
 }
 
 if (require.main === module) {
-  buildApp().then((app) => {
-    const httpServer = createServer(app.server)
-    initSocketServer(httpServer)
+  buildApp().then(async (app) => {
+    initSocketServer(app.server)
     const workerManager = new CameraWorkerManager()
 
-    httpServer.listen(config.port, '0.0.0.0', () => {
-      console.log(`Server running on port ${config.port}`)
-      workerManager.start().catch((err) => {
-        console.error('Worker manager failed to start:', err)
-      })
+    await app.listen({ port: config.port, host: '0.0.0.0' })
+    console.log(`Server running on port ${config.port}`)
+    workerManager.start().catch((err) => {
+      console.error('Worker manager failed to start:', err)
     })
   }).catch((err) => {
     console.error('Failed to start server:', err)

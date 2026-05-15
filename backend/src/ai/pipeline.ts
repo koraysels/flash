@@ -1,3 +1,4 @@
+import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { Detector } from './detector'
 import { Tracker, TrackedVehicle } from './tracker'
 import { annotateFrame } from './annotator'
@@ -5,7 +6,7 @@ import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
 import { join } from 'path'
 
-const MODEL_PATH = join(__dirname, '../../models/yolov8n.onnx')
+const MODEL_PATH = join(process.cwd(), 'models/yolov8n.onnx')
 
 export type VehicleInfo = {
   id: number
@@ -29,20 +30,24 @@ export class CameraPipeline {
   private speeders = 0
   private countedSpeeders = new Set<number>()
   private activeVehicleIds = new Set<number>()
+  private actualWidth: number
+  private actualHeight: number
 
   constructor(
     private readonly cameraId: string,
-    private readonly frameWidth: number,
-    private readonly frameHeight: number,
+    initialWidth: number,
+    initialHeight: number,
     private readonly lineA: number,
     private readonly lineB: number,
     private readonly maxSpeedKmh: number | null,
     private readonly homographyMatrix: number[] = [],
     private readonly fps: number = 2,
   ) {
+    this.actualWidth = initialWidth
+    this.actualHeight = initialHeight
     this.detector = new Detector(MODEL_PATH)
     this.tracker = new Tracker()
-    this.counter = new DirectionCounter(frameHeight, lineA, lineB)
+    this.counter = new DirectionCounter(initialHeight, lineA, lineB)
     if (homographyMatrix.length === 9) {
       this.speedCalc = new SpeedCalculator(homographyMatrix, fps, maxSpeedKmh ?? undefined)
     }
@@ -56,7 +61,26 @@ export class CameraPipeline {
   async process(jpegBuffer: Buffer): Promise<PipelineResult> {
     if (!this.initialized) throw new Error('Pipeline not initialized')
 
-    const detections = await this.detector.detect(jpegBuffer, this.frameWidth, this.frameHeight)
+    // Decode JPEG → raw RGB pixels (detector.preprocess() reads raw RGB, not JPEG bytes)
+    const img = await loadImage(jpegBuffer)
+    const { width, height } = img
+    const canvas = createCanvas(width, height)
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0)
+    const rgba = ctx.getImageData(0, 0, width, height).data
+    const rgb = Buffer.allocUnsafe(width * height * 3)
+    for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
+      rgb[j] = rgba[i]; rgb[j + 1] = rgba[i + 1]; rgb[j + 2] = rgba[i + 2]
+    }
+
+    // Rebuild counter when actual frame dimensions differ from initial assumption
+    if (height !== this.actualHeight) {
+      this.counter = new DirectionCounter(height, this.lineA, this.lineB)
+      this.actualWidth = width
+      this.actualHeight = height
+    }
+
+    const detections = await this.detector.detect(rgb, width, height)
     const tracked = this.tracker.update(detections)
 
     const trackedIds = new Set(tracked.map((v) => v.id))
@@ -71,7 +95,8 @@ export class CameraPipeline {
     this.activeVehicleIds = trackedIds
 
     for (const v of tracked) {
-      this.counter.updateVehicle(v.id, v.cy)
+      // Use bottom-center y for counting — ground contact point crosses line more accurately
+      this.counter.updateVehicle(v.id, v.bcy)
     }
 
     const counts = this.counter.getCounts()
@@ -80,7 +105,8 @@ export class CameraPipeline {
       let speedKmh: number | null = null
 
       if (this.speedCalc) {
-        this.speedCalc.addPosition(v.id, v.cx, v.cy, Date.now())
+        // Bottom-center projects correctly through homography (calibrated to ground plane)
+        this.speedCalc.addPosition(v.id, v.bcx, v.bcy, Date.now())
         speedKmh = this.speedCalc.getSpeed(v.id)
         if (this.speedCalc.isSpeeder(v.id) && !this.countedSpeeders.has(v.id)) {
           this.countedSpeeders.add(v.id)

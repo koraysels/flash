@@ -40,7 +40,22 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('exports', {}\\).keys\\(\\)\\)[:20]\\)\")",
       "Bash(curl -s \"https://registry.npmjs.org/@napi-rs/canvas/1.0.0\")",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('readme',''\\)[:2000]\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(docker --version)",
+      "Bash(docker info *)",
+      "Bash(docker run *)",
+      "Bash(docker rmi flash-backend-test *)",
+      "Bash(curl -sL \"https://players.media.verkeerscentrum.be/?name=WEB_1__A0086_A12_ANTWERPEN-HAVEN_45.1__2\")",
+      "Bash(curl *)",
+      "Bash(echo \"exit: $?\")",
+      "Read(//tmp/**)",
+      "Bash(/Users/koraysels/work/flash/node_modules/.pnpm/ffmpeg-static@5.3.0/node_modules/ffmpeg-static/ffmpeg -i /tmp/test.ts -frames:v 1 -f image2 -vcodec mjpeg /tmp/local_frame.jpg -y)",
+      "Bash(echo \"--- exit: $? ---\")",
+      "Bash(xattr -l /Users/koraysels/work/flash/node_modules/.pnpm/ffmpeg-static@5.3.0/node_modules/ffmpeg-static/ffmpeg)",
+      "Bash(/Users/koraysels/work/flash/node_modules/.pnpm/ffmpeg-static@5.3.0/node_modules/ffmpeg-static/ffmpeg -version)",
+      "Bash(codesign --sign - --force --deep /Users/koraysels/work/flash/node_modules/.pnpm/ffmpeg-static@5.3.0/node_modules/ffmpeg-static/ffmpeg)",
+      "Bash(echo \"signed: $?\")",
+      "Bash(ffmpeg -version)"
     ]
   }
 }

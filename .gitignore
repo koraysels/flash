@@ -16,3 +16,7 @@ frontend/.env
 
 # Model files
 backend/models/*.onnx
+backend/dist/
+frontend/dist/
+backend/node_modules/
+frontend/node_modules/
