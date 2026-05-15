@@ -11,7 +11,7 @@ import { SpeedCalculator } from '../analysis/speed'
 import { emitFrame } from '../socket/server'
 import { join } from 'path'
 
-const MODEL_PATH = join(process.cwd(), 'models/yolov8n.onnx')
+const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
 
 function resolveFfmpegPath(): string {
   if (process.platform === 'darwin') {
@@ -48,6 +48,11 @@ export class MJPEGStreamer extends EventEmitter {
   private analysisRunning = false
   private actualWidth = 768
   private actualHeight = 576
+
+  // Video fps tracking
+  private videoFpsCount = 0
+  private videoFpsLastTime = Date.now()
+  private videoFps = 0
 
   constructor(
     private readonly cameraId: string,
@@ -144,6 +149,15 @@ export class MJPEGStreamer extends EventEmitter {
   private onRawFrame(jpeg: Buffer): void {
     this.frameIdx++
 
+    // Track video fps — count raw frames per second
+    this.videoFpsCount++
+    const now = Date.now()
+    if (now - this.videoFpsLastTime >= 1000) {
+      this.videoFps = this.videoFpsCount
+      this.videoFpsCount = 0
+      this.videoFpsLastTime = now
+    }
+
     // Run analysis on every frame the hardware can keep up with; skip if previous is still running
     if (!this.analysisRunning) {
       this.analysisRunning = true
@@ -211,6 +225,7 @@ export class MJPEGStreamer extends EventEmitter {
       counts: this.counts,
       frameWidth: width,
       frameHeight: height,
+      videoFps: this.videoFps,
     })
   }
 

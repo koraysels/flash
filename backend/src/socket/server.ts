@@ -19,6 +19,7 @@ export type FrameEvent = {
   counts: { AB: number; BA: number; speeders: number }
   frameWidth: number
   frameHeight: number
+  videoFps: number
 }
 
 let io: SocketServer | null = null

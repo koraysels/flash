@@ -4,8 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: refactor CameraWorkerManager to use MJPEGStreamer and streamline worker management">
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: optimize MJPEGStreamer to analyze every frame and remove analysis stride">
+      <change afterPath="$PROJECT_DIR$/backend/yolov8s.pt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/socket/server.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/socket/server.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/hooks/useCameraFeed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/hooks/useCameraFeed.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -67,7 +72,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="33370000" />
+      <workItem from="1778661338564" duration="34917000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -109,7 +114,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778846575290</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="feat: optimize MJPEGStreamer to analyze every frame and remove analysis stride">
+      <option name="closed" value="true" />
+      <created>1778847112532</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1778847112532</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -133,7 +146,8 @@
     <MESSAGE value="feat: update camera calibration UI and improve HLS player buffering logic" />
     <MESSAGE value="feat: add fps parameter to FrameCapturer and update frame emission structure" />
     <MESSAGE value="feat: refactor CameraWorkerManager to use MJPEGStreamer and streamline worker management" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: refactor CameraWorkerManager to use MJPEGStreamer and streamline worker management" />
+    <MESSAGE value="feat: optimize MJPEGStreamer to analyze every frame and remove analysis stride" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: optimize MJPEGStreamer to analyze every frame and remove analysis stride" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
