@@ -1,13 +1,13 @@
 import { useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { LiveFeed } from '../components/LiveFeed'
+import { AnnotatedStream } from '../components/AnnotatedStream'
 import { CounterDisplay } from '../components/CounterDisplay'
 import { SpeedDisplay } from '../components/SpeedDisplay'
 import { getCameras, type Camera } from '../lib/api'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 
 function PiDisplayInner({ camera }: { camera: Camera }) {
-  const { lastFrame, fps, counts, avgSpeedKmh } = useCameraFeed(camera.id)
+  const { fps, counts, avgSpeedKmh, vehicles, frameSize } = useCameraFeed(camera.id)
 
   return (
     <div className="h-screen bg-black flex flex-col p-4">
@@ -19,7 +19,15 @@ function PiDisplayInner({ camera }: { camera: Camera }) {
         <SpeedDisplay speedKmh={avgSpeedKmh} maxSpeedKmh={camera.maxSpeedKmh} />
       </div>
       <div className="flex-1">
-        <LiveFeed lastFrame={lastFrame} fps={fps} className="w-full h-full rounded-xl" />
+        <AnnotatedStream
+          cameraId={camera.id}
+          vehicles={vehicles}
+          frameWidth={frameSize?.width ?? null}
+          frameHeight={frameSize?.height ?? null}
+          lineA={camera.countingLineA}
+          lineB={camera.countingLineB}
+          className="w-full h-full rounded-xl"
+        />
       </div>
       <div className="mt-3">
         <CounterDisplay counts={counts} maxSpeedKmh={camera.maxSpeedKmh} />

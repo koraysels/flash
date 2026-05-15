@@ -6,23 +6,29 @@ export type VehicleInfo = {
   class: string
   speedKmh: number | null
   direction: 'AB' | 'BA' | null
+  x1: number
+  y1: number
+  x2: number
+  y2: number
 }
 
 export type FrameEvent = {
   cameraId: string
-  frame: string
   timestamp: number
   vehicles: VehicleInfo[]
   counts: { AB: number; BA: number; speeders: number }
+  frameWidth: number
+  frameHeight: number
 }
 
 let io: SocketServer | null = null
+// Keep latest raw JPEG for the snapshot endpoint
 const latestFrames = new Map<string, string>()
 
 export function initSocketServer(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: { origin: '*' },
-    maxHttpBufferSize: 5e6,
+    maxHttpBufferSize: 2e6,
   })
 
   io.on('connection', (socket) => {
@@ -37,8 +43,8 @@ export function initSocketServer(httpServer: HttpServer): SocketServer {
   return io
 }
 
-export function emitFrame(event: FrameEvent): void {
-  latestFrames.set(event.cameraId, event.frame)
+export function emitFrame(event: FrameEvent, rawJpeg?: string): void {
+  if (rawJpeg) latestFrames.set(event.cameraId, rawJpeg)
   io?.to(`camera:${event.cameraId}`).emit('frame', event)
 }
 

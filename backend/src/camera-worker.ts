@@ -69,7 +69,8 @@ export class CameraWorkerManager {
     try {
       const camera = await db.camera.findUniqueOrThrow({ where: { id: cameraId } })
       const streamUrl = await extractStreamUrl(pageUrl)
-      const capturer = new FrameCapturer(streamUrl, cameraId)
+      const fps = 5
+      const capturer = new FrameCapturer(streamUrl, cameraId, fps)
 
       const pipeline = new CameraPipeline(
         cameraId,
@@ -78,7 +79,8 @@ export class CameraWorkerManager {
         camera.countingLineA,
         camera.countingLineB,
         camera.maxSpeedKmh,
-        camera.homographyMatrix,  // NEW
+        camera.homographyMatrix,
+        fps,
       )
       await pipeline.init()
 
@@ -87,11 +89,12 @@ export class CameraWorkerManager {
           const result = await pipeline.process(frameBuffer)
           emitFrame({
             cameraId,
-            frame: result.annotatedFrame.toString('base64'),
             timestamp: Date.now(),
             vehicles: result.vehicles,
             counts: result.counts,
-          })
+            frameWidth: result.frameWidth,
+            frameHeight: result.frameHeight,
+          }, frameBuffer.toString('base64'))
         } catch (err) {
           console.error(`Pipeline error for camera ${cameraId}:`, err)
         }

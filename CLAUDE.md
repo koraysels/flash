@@ -67,16 +67,26 @@ DailyCount     — aggregated per-camera per-day counts
 ## Socket.io protocol
 
 Clients join a room per camera via `socket.emit('subscribe', cameraId)`.
-Server emits `frame` events with:
+Server emits `frame` events with detection data only (no video — video comes via HLS):
 ```typescript
 {
   cameraId: string
-  frame: string        // base64 JPEG (annotated)
   timestamp: number
-  vehicles: Array<{ id: number; class: string; speedKmh: number | null; direction: null }>
+  vehicles: Array<{ id: number; class: string; speedKmh: number | null; direction: null; x1: number; y1: number; x2: number; y2: number }>
   counts: { AB: number; BA: number; speeders: number }
+  frameWidth: number   // actual decoded frame width (e.g. 768)
+  frameHeight: number  // actual decoded frame height (e.g. 576)
 }
 ```
+
+Raw JPEGs are stored server-side only (for the `/api/cameras/:id/snapshot` endpoint). The annotated JPEG is no longer produced — the frontend canvas overlay handles annotation.
+
+## Video architecture
+
+- **Video**: HLS stream proxied by backend (`/api/cameras/:id/hls/*`) → HLS.js in browser
+- **Boxes**: Detection coordinates sent via socket.io → Canvas 2D overlay drawn in `AnnotatedStream.tsx`
+- **No annotated JPEG**: `annotateFrame()` is no longer called in the pipeline (saves CPU)
+- **AI fps**: 5fps (up from 2fps) — `FrameCapturer` and `CameraPipeline` both use `fps=5`
 
 ## Common gotchas
 

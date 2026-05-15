@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: enhance camera calibration UI with guidance and HLS streaming support">
-      <change beforePath="$PROJECT_DIR$/backend/src/analysis/speed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/analysis/speed.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/HlsPlayer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/HlsPlayer.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/CameraCalibrate.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/CameraCalibrate.tsx" afterDir="false" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update camera calibration UI and improve HLS player buffering logic">
+      <change beforePath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -69,7 +67,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="30372000" />
+      <workItem from="1778661338564" duration="31143000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -87,7 +85,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778841092296</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="feat: update camera calibration UI and improve HLS player buffering logic">
+      <option name="closed" value="true" />
+      <created>1778843700158</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1778843700158</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -108,7 +114,8 @@
     <MESSAGE value="Initialize project structure and configuration files" />
     <MESSAGE value="feat: enhance camera calibration interface with guidance and HLS streaming support" />
     <MESSAGE value="feat: enhance camera calibration UI with guidance and HLS streaming support" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: enhance camera calibration UI with guidance and HLS streaming support" />
+    <MESSAGE value="feat: update camera calibration UI and improve HLS player buffering logic" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update camera calibration UI and improve HLS player buffering logic" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

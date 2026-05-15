@@ -1,7 +1,6 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { Detector } from './detector'
-import { Tracker, TrackedVehicle } from './tracker'
-import { annotateFrame } from './annotator'
+import { Tracker } from './tracker'
 import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
 import { join } from 'path'
@@ -13,12 +12,17 @@ export type VehicleInfo = {
   class: string
   speedKmh: number | null
   direction: 'AB' | 'BA' | null
+  x1: number
+  y1: number
+  x2: number
+  y2: number
 }
 
 export type PipelineResult = {
-  annotatedFrame: Buffer
   vehicles: VehicleInfo[]
   counts: { AB: number; BA: number; speeders: number }
+  frameWidth: number
+  frameHeight: number
 }
 
 export class CameraPipeline {
@@ -114,15 +118,14 @@ export class CameraPipeline {
         }
       }
 
-      return { id: v.id, class: v.class, speedKmh, direction: null as 'AB' | 'BA' | null }
+      return { id: v.id, class: v.class, speedKmh, direction: null as 'AB' | 'BA' | null, x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2 }
     })
 
-    const annotatedFrame = await annotateFrame(jpegBuffer, tracked, this.lineA, this.lineB)
-
     return {
-      annotatedFrame,
       vehicles,
       counts: { ...counts, speeders: this.speeders },
+      frameWidth: width,
+      frameHeight: height,
     }
   }
 
