@@ -107,10 +107,10 @@ function predictBox(track: TrackedVehicle): { x1: number; y1: number; x2: number
   const dt = last.timestamp - prev.timestamp
   if (dt <= 0) return track
 
-  // Velocity in px/ms, project ~500ms ahead (matches 2fps interval)
+  // Project 1.5× the observed interval ahead, capped at one frame worth (~80ms at 12fps)
   const vx = (last.cx - prev.cx) / dt
   const vy = (last.cy - prev.cy) / dt
-  const ahead = Math.min(dt * 1.5, 600)
+  const ahead = Math.min(dt * 1.5, 120)
 
   const w = track.x2 - track.x1
   const h = track.y2 - track.y1

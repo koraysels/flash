@@ -31,7 +31,7 @@ export class SpeedCalculator {
 
   getSpeed(vehicleId: number): number | null {
     const positions = this.history.get(vehicleId)
-    if (!positions || positions.length < 3) return null
+    if (!positions || positions.length < 2) return null
 
     // Compute instant speed for each consecutive pair, then take the median.
     // Median is robust to single-frame projection outliers.

@@ -31,9 +31,6 @@ const CLASS_COLORS: Record<string, string> = {
 
 type Box = { id: number; class: string; speedKmh: number | null; x1: number; y1: number; x2: number; y2: number }
 
-// Run YOLO every N frames — keeps analysis at ~5fps when source is ~25fps
-const ANALYSIS_STRIDE = 5
-
 export class MJPEGStreamer extends EventEmitter {
   private ffmpegProc: ReturnType<typeof ffmpeg> | null = null
   private running = false
@@ -147,8 +144,8 @@ export class MJPEGStreamer extends EventEmitter {
   private onRawFrame(jpeg: Buffer): void {
     this.frameIdx++
 
-    // Kick off analysis asynchronously — never blocks the frame loop
-    if (this.frameIdx % ANALYSIS_STRIDE === 0 && !this.analysisRunning) {
+    // Run analysis on every frame the hardware can keep up with; skip if previous is still running
+    if (!this.analysisRunning) {
       this.analysisRunning = true
       this.analyse(jpeg).finally(() => { this.analysisRunning = false })
     }
@@ -167,16 +164,21 @@ export class MJPEGStreamer extends EventEmitter {
       this.actualHeight = height
     }
 
-    const canvas = createCanvas(width, height)
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(img, 0, 0)
-    const rgba = ctx.getImageData(0, 0, width, height).data
-    const rgb = Buffer.allocUnsafe(width * height * 3)
-    for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
-      rgb[j] = rgba[i]; rgb[j + 1] = rgba[i + 1]; rgb[j + 2] = rgba[i + 2]
-    }
+    // Letterbox-resize to 640×640 using native bilinear scaling — maintains aspect
+    // ratio and matches the preprocessing YOLOv8 expects from its training pipeline
+    const scale = Math.min(640 / width, 640 / height)
+    const scaledW = Math.round(width * scale)
+    const scaledH = Math.round(height * scale)
+    const padX = Math.round((640 - scaledW) / 2)
+    const padY = Math.round((640 - scaledH) / 2)
+    const canvas640 = createCanvas(640, 640)
+    const ctx640 = canvas640.getContext('2d')
+    ctx640.fillStyle = '#808080'
+    ctx640.fillRect(0, 0, 640, 640)
+    ctx640.drawImage(img, padX, padY, scaledW, scaledH)
+    const rgba640 = ctx640.getImageData(0, 0, 640, 640).data
 
-    const detections = await this.detector.detect(rgb, width, height)
+    const detections = await this.detector.detect(rgba640, padX, padY, scale, width, height)
     const tracked = this.tracker.update(detections)
 
     const lost = new Set(this.boxes.map((b) => b.id))

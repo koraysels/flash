@@ -68,23 +68,25 @@ export class CameraPipeline {
     // Decode JPEG → raw RGB pixels (detector.preprocess() reads raw RGB, not JPEG bytes)
     const img = await loadImage(jpegBuffer)
     const { width, height } = img
-    const canvas = createCanvas(width, height)
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(img, 0, 0)
-    const rgba = ctx.getImageData(0, 0, width, height).data
-    const rgb = Buffer.allocUnsafe(width * height * 3)
-    for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
-      rgb[j] = rgba[i]; rgb[j + 1] = rgba[i + 1]; rgb[j + 2] = rgba[i + 2]
-    }
-
-    // Rebuild counter when actual frame dimensions differ from initial assumption
     if (height !== this.actualHeight) {
       this.counter = new DirectionCounter(height, this.lineA, this.lineB)
       this.actualWidth = width
       this.actualHeight = height
     }
 
-    const detections = await this.detector.detect(rgb, width, height)
+    const scale = Math.min(640 / width, 640 / height)
+    const scaledW = Math.round(width * scale)
+    const scaledH = Math.round(height * scale)
+    const padX = Math.round((640 - scaledW) / 2)
+    const padY = Math.round((640 - scaledH) / 2)
+    const canvas640 = createCanvas(640, 640)
+    const ctx640 = canvas640.getContext('2d')
+    ctx640.fillStyle = '#808080'
+    ctx640.fillRect(0, 0, 640, 640)
+    ctx640.drawImage(img, padX, padY, scaledW, scaledH)
+    const rgba640 = ctx640.getImageData(0, 0, 640, 640).data
+
+    const detections = await this.detector.detect(rgba640, padX, padY, scale, width, height)
     const tracked = this.tracker.update(detections)
 
     const trackedIds = new Set(tracked.map((v) => v.id))
