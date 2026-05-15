@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer">
-      <change beforePath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" afterDir="false" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: adjust output FPS and improve frame annotation handling in MJPEGStreamer">
+      <change afterPath="$PROJECT_DIR$/docs/superpowers/plans/2026-05-15-mjpeg-streamer-pipeline-fixes.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -70,7 +71,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="36585000" />
+      <workItem from="1778661338564" duration="37217000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -152,7 +153,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778872004353</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="feat: adjust output FPS and improve frame annotation handling in MJPEGStreamer">
+      <option name="closed" value="true" />
+      <created>1778872553300</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1778872553300</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -181,7 +190,8 @@
     <MESSAGE value="feat: update CameraCard to display both AI and video FPS metrics" />
     <MESSAGE value="feat: implement frame queue management and improve video fps tracking in MJPEGStreamer" />
     <MESSAGE value="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer" />
+    <MESSAGE value="feat: adjust output FPS and improve frame annotation handling in MJPEGStreamer" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: adjust output FPS and improve frame annotation handling in MJPEGStreamer" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
