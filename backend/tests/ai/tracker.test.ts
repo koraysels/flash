@@ -54,8 +54,8 @@ describe('Tracker', () => {
     tracker.update([car(100, 100)])
     tracker.update([car(100, 100)])
 
-    // Miss enough frames to expire the track
-    for (let i = 0; i < 9; i++) tracker.update([])
+    // Miss enough frames to expire the track (maxMissedFrames = 12, so 13 misses evict)
+    for (let i = 0; i < 13; i++) tracker.update([])
 
     expect(tracker.update([])).toHaveLength(0)
   })

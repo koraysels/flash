@@ -19,7 +19,7 @@ const BOX_ALPHA = 0.55
 export class Tracker {
   private tracks: TrackedVehicle[] = []
   private nextId = 1
-  private readonly maxMissedFrames = 8
+  private readonly maxMissedFrames = 12
   private readonly iouThreshold = 0.2
   // A track must be confirmed for this many frames before being reported
   private readonly minConfirmedFrames = 2
