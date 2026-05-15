@@ -117,6 +117,7 @@ export class MJPEGStreamer extends EventEmitter {
   // (between HLS segments), repeat the last frame so clients never freeze.
   private startDequeue(): void {
     this.dequeueTimer = setInterval(() => {
+      const isNewFrame = this.frameQueue.length > 0
       const frame = this.frameQueue.shift() ?? this.latestRawFrame
       if (!frame) return
       this.latestRawFrame = frame
@@ -129,7 +130,7 @@ export class MJPEGStreamer extends EventEmitter {
         this.videoFpsLastTime = now
       }
 
-      this.onRawFrame(frame)
+      this.onRawFrame(frame, isNewFrame)
     }, 1000 / OUTPUT_FPS)
   }
 
@@ -194,16 +195,16 @@ export class MJPEGStreamer extends EventEmitter {
     this.ffmpegProc.run()
   }
 
-  private onRawFrame(jpeg: Buffer): void {
+  private onRawFrame(jpeg: Buffer, isNewFrame: boolean): void {
     this.frameIdx++
 
-    // Run analysis on every frame the hardware can keep up with
-    if (!this.analysisRunning) {
+    // Only run AI on genuinely new frames — filler repeats must not re-feed
+    // the tracker (inflates missed-frame counts and biases speed/count state)
+    if (isNewFrame && !this.analysisRunning) {
       this.analysisRunning = true
       this.analyse(jpeg).finally(() => { this.analysisRunning = false })
     }
 
-    // Annotate and push — serialised so frames are never emitted out of order
     if (!this.annotationRunning) {
       this.annotationRunning = true
       this.annotate(jpeg)
