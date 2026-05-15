@@ -61,7 +61,15 @@
       "WebFetch(domain:docs.ultralytics.com)",
       "Bash(pip3 --version)",
       "Bash(python3 *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "mcp__serena__find_symbol",
+      "mcp__serena__replace_content",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs kill -9)",
+      "Bash(lsof -ti:5174)",
+      "Bash(pkill -9 -f \"tsx watch\")",
+      "Bash(pkill -9 -f \"onnxruntime\")",
+      "Bash(lsof -ti:3001,5174)"
     ]
   }
 }
