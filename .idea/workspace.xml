@@ -6,8 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer">
       <change beforePath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/AnnotatedStream.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/components/HlsPlayer.tsx" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -72,7 +70,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="36267000" />
+      <workItem from="1778661338564" duration="36585000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -146,7 +144,15 @@
       <option name="project" value="LOCAL" />
       <updated>1778871684718</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer">
+      <option name="closed" value="true" />
+      <created>1778872004353</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1778872004353</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

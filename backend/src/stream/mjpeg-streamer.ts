@@ -16,7 +16,7 @@ const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
 // HLS segments arrive in bursts; cap queue at ~20s worth of frames so memory
 // stays bounded if a segment happens to be delivered faster than we dequeue.
 const MAX_QUEUE = 500
-const OUTPUT_FPS = 25
+const OUTPUT_FPS = 17
 
 function resolveFfmpegPath(): string {
   if (process.platform === 'darwin') {
@@ -51,6 +51,7 @@ export class MJPEGStreamer extends EventEmitter {
   private countedSpeeders = new Set<number>()
   private frameIdx = 0
   private analysisRunning = false
+  private annotationRunning = false
   private actualWidth = 768
   private actualHeight = 576
 
@@ -202,8 +203,14 @@ export class MJPEGStreamer extends EventEmitter {
       this.analyse(jpeg).finally(() => { this.analysisRunning = false })
     }
 
-    // Annotate and push to MJPEG clients
-    this.annotate(jpeg).then((annotated) => this.emit('frame', annotated)).catch(() => this.emit('frame', jpeg))
+    // Annotate and push — serialised so frames are never emitted out of order
+    if (!this.annotationRunning) {
+      this.annotationRunning = true
+      this.annotate(jpeg)
+        .then((annotated) => this.emit('frame', annotated))
+        .catch(() => this.emit('frame', jpeg))
+        .finally(() => { this.annotationRunning = false })
+    }
   }
 
   private async analyse(jpeg: Buffer): Promise<void> {
@@ -300,7 +307,9 @@ export class MJPEGStreamer extends EventEmitter {
       ctx.fillText(label, v.x1 + 3, ly - 3)
     }
 
-    return canvas.toBuffer('image/jpeg', 80)
+    // encode() is async and runs on the libuv thread pool — unlike toBuffer()
+    // which is synchronous and blocks the event loop, stalling the dequeue timer
+    return canvas.encode('jpeg', 80)
   }
 
   async dispose(): Promise<void> {
