@@ -4,7 +4,7 @@ import { MJPEGStream } from '../components/MJPEGStream'
 import { Camera } from '../lib/api'
 
 function CameraCard({ cam }: { cam: Camera }) {
-  const { fps, counts, avgSpeedKmh, active } = useCameraFeed(cam.id)
+  const { aiFps, videoFps, counts, avgSpeedKmh, active } = useCameraFeed(cam.id)
   const totalVehicles = counts.AB + counts.BA
 
   return (
@@ -15,10 +15,13 @@ function CameraCard({ cam }: { cam: Camera }) {
           <p className="text-xs text-gray-400">{cam.location}</p>
         </div>
         {active ? (
-          <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-green-950 border border-green-800 text-green-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            AI · {fps} fps
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs tabular-nums text-gray-400">{videoFps} fps</span>
+            <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-green-950 border border-green-800 text-green-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              AI · {aiFps} fps
+            </span>
+          </div>
         ) : (
           <span className="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-500">Starting...</span>
         )}

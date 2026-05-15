@@ -7,7 +7,7 @@ import { getCameras, type Camera } from '../lib/api'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 
 function PiDisplayInner({ camera }: { camera: Camera }) {
-  const { counts, avgSpeedKmh } = useCameraFeed(camera.id)
+  const { counts, avgSpeedKmh, aiFps, videoFps, active } = useCameraFeed(camera.id)
 
   return (
     <div className="h-screen bg-black flex flex-col p-4">
@@ -16,7 +16,16 @@ function PiDisplayInner({ camera }: { camera: Camera }) {
           <h1 className="text-white text-2xl font-bold">{camera.name}</h1>
           <p className="text-gray-400 text-sm">{camera.location}</p>
         </div>
-        <SpeedDisplay speedKmh={avgSpeedKmh} maxSpeedKmh={camera.maxSpeedKmh} />
+        <div className="flex items-center gap-3">
+          {active && (
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="tabular-nums">{videoFps} fps video</span>
+              <span className="text-gray-600">·</span>
+              <span className="tabular-nums text-green-400">{aiFps} fps AI</span>
+            </div>
+          )}
+          <SpeedDisplay speedKmh={avgSpeedKmh} maxSpeedKmh={camera.maxSpeedKmh} />
+        </div>
       </div>
       <div className="flex-1">
         <MJPEGStream cameraId={camera.id} className="w-full h-full rounded-xl" />
