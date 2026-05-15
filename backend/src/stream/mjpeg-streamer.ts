@@ -65,6 +65,11 @@ export class MJPEGStreamer extends EventEmitter {
   private videoFpsLastTime = Date.now()
   private videoFps = 0
 
+  // Restart backoff: quick first retry, then exponential up to 30 s
+  private retryCount = 0
+  private spawnedAt = 0
+  private static readonly RETRY_DELAYS = [0, 500, 2_000, 5_000, 15_000, 30_000]
+
   constructor(
     private readonly cameraId: string,
     private readonly streamUrl: string,
@@ -152,11 +157,18 @@ export class MJPEGStreamer extends EventEmitter {
         '-q:v', '4',
       ])
       .output(pass as unknown as string)
-      .on('start', (cmd) => console.log(`[mjpeg:${this.cameraId}] ffmpeg: ${cmd}`))
+      .on('start', (cmd) => {
+        this.spawnedAt = Date.now()
+        console.log(`[mjpeg:${this.cameraId}] ffmpeg: ${cmd}`)
+      })
       .on('error', (err: Error) => {
         if (!this.running) return
-        console.error(`[mjpeg:${this.cameraId}] ffmpeg error: ${err.message}`)
-        setTimeout(() => { if (this.running) this.spawn() }, 1000)
+        // If it ran stably for >10 s before failing, treat next error as fresh
+        if (Date.now() - this.spawnedAt > 10_000) this.retryCount = 0
+        const delay = MJPEGStreamer.RETRY_DELAYS[Math.min(this.retryCount, MJPEGStreamer.RETRY_DELAYS.length - 1)]
+        this.retryCount++
+        console.error(`[mjpeg:${this.cameraId}] error (retry #${this.retryCount} in ${delay} ms): ${err.message}`)
+        setTimeout(() => { if (this.running) this.spawn() }, delay)
       })
 
     const SOI = Buffer.from([0xff, 0xd8])
