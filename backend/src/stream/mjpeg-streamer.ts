@@ -13,8 +13,8 @@ import { join } from 'path'
 
 const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
 
-// HLS segments arrive in bursts; cap queue at ~20s worth of frames so memory
-// stays bounded if a segment happens to be delivered faster than we dequeue.
+// HLS segments arrive in bursts; cap queue at ~3 s of frames so live latency
+// stays bounded if a segment is delivered faster than we dequeue.
 const MAX_QUEUE = 51   // ~3 s at OUTPUT_FPS; bounds live latency under burst
 const OUTPUT_FPS = 17
 
