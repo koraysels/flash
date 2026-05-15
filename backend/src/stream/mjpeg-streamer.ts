@@ -3,7 +3,7 @@ import ffmpegStatic from 'ffmpeg-static'
 import { EventEmitter } from 'events'
 import { PassThrough } from 'stream'
 import { existsSync } from 'fs'
-import { createCanvas, loadImage } from '@napi-rs/canvas'
+import { createCanvas, loadImage, type Image } from '@napi-rs/canvas'
 import { Detector } from '../ai/detector'
 import { Tracker } from '../ai/tracker'
 import { DirectionCounter } from '../analysis/counter'
@@ -52,6 +52,8 @@ export class MJPEGStreamer extends EventEmitter {
   private frameIdx = 0
   private analysisRunning = false
   private annotationRunning = false
+  private lastAnnotatedJpeg: Buffer | null = null
+  private pendingAnnotation: { img: Image; width: number; height: number; fallback: Buffer } | null = null
   private actualWidth = 768
   private actualHeight = 576
 
@@ -105,6 +107,8 @@ export class MJPEGStreamer extends EventEmitter {
     this.running = false
     if (this.dequeueTimer) { clearInterval(this.dequeueTimer); this.dequeueTimer = null }
     this.frameQueue = []
+    this.lastAnnotatedJpeg = null
+    this.pendingAnnotation = null
     this.ffmpegProc?.kill('SIGTERM')
     this.ffmpegProc = null
   }
@@ -198,26 +202,50 @@ export class MJPEGStreamer extends EventEmitter {
   private onRawFrame(jpeg: Buffer, isNewFrame: boolean): void {
     this.frameIdx++
 
-    // Only run AI on genuinely new frames — filler repeats must not re-feed
-    // the tracker (inflates missed-frame counts and biases speed/count state)
-    if (isNewFrame && !this.analysisRunning) {
-      this.analysisRunning = true
-      this.analyse(jpeg).finally(() => { this.analysisRunning = false })
-    }
+    loadImage(jpeg).then((img) => {
+      const { width, height } = img
 
-    if (!this.annotationRunning) {
-      this.annotationRunning = true
-      this.annotate(jpeg)
-        .then((annotated) => this.emit('frame', annotated))
-        .catch(() => this.emit('frame', jpeg))
-        .finally(() => { this.annotationRunning = false })
-    }
+      if (isNewFrame && !this.analysisRunning) {
+        this.analysisRunning = true
+        this.analyse(img, width, height).finally(() => { this.analysisRunning = false })
+      }
+
+      if (!this.annotationRunning) {
+        this.annotateAndEmit(img, width, height, jpeg)
+      } else {
+        // Coalesce: latest frame wins, earlier pending is discarded
+        this.pendingAnnotation = { img, width, height, fallback: jpeg }
+        // Keep MJPEG stream flowing at output fps with the last good frame
+        if (this.lastAnnotatedJpeg) this.emit('frame', this.lastAnnotatedJpeg)
+      }
+    }).catch(() => {
+      // If decode fails, emit raw jpeg as fallback and keep going
+      if (this.lastAnnotatedJpeg) this.emit('frame', this.lastAnnotatedJpeg)
+    })
   }
 
-  private async analyse(jpeg: Buffer): Promise<void> {
-    const img = await loadImage(jpeg)
-    const { width, height } = img
+  private annotateAndEmit(img: Image, width: number, height: number, fallback: Buffer): void {
+    this.annotationRunning = true
+    this.annotate(img, width, height)
+      .then((annotated) => {
+        this.lastAnnotatedJpeg = annotated
+        this.emit('frame', annotated)
+      })
+      .catch(() => {
+        this.emit('frame', this.lastAnnotatedJpeg ?? fallback)
+      })
+      .finally(() => {
+        const pending = this.pendingAnnotation
+        this.pendingAnnotation = null
+        if (pending && this.running) {
+          this.annotateAndEmit(pending.img, pending.width, pending.height, pending.fallback)
+        } else {
+          this.annotationRunning = false
+        }
+      })
+  }
 
+  private async analyse(img: Image, width: number, height: number): Promise<void> {
     if (width !== this.actualWidth || height !== this.actualHeight) {
       this.counter = new DirectionCounter(height, this.lineA, this.lineB)
       this.actualWidth = width
@@ -273,9 +301,7 @@ export class MJPEGStreamer extends EventEmitter {
     })
   }
 
-  private async annotate(jpeg: Buffer): Promise<Buffer> {
-    const img = await loadImage(jpeg)
-    const { width, height } = img
+  private async annotate(img: Image, width: number, height: number): Promise<Buffer> {
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
     ctx.drawImage(img, 0, 0)
