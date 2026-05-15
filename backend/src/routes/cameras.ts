@@ -1,7 +1,9 @@
 import { FastifyInstance, FastifyReply } from 'fastify'
+import { PassThrough } from 'stream'
 import { db } from '../db'
 import { Prisma } from '@prisma/client'
 import { extractStreamUrl } from '../stream/extractor'
+import { getStreamer } from '../camera-worker'
 
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
 const hlsUrlCache = new Map<string, string>()
@@ -136,6 +138,39 @@ export async function cameraRoutes(app: FastifyInstance) {
     } catch (err) {
       return handlePrismaError(err, reply)
     }
+  })
+
+  // MJPEG stream — multipart/x-mixed-replace; server annotates every frame server-side
+  app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {
+    const streamer = getStreamer(req.params.id)
+    if (!streamer) {
+      reply.code(503).send({ error: 'Camera stream not available yet' })
+      return
+    }
+
+    reply.header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
+    reply.header('Cache-Control', 'no-cache, no-store')
+    reply.header('Access-Control-Allow-Origin', '*')
+
+    const pass = new PassThrough()
+
+    const onFrame = (jpeg: Buffer) => {
+      if (pass.destroyed) return
+      const hdr = Buffer.from(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`)
+      pass.push(Buffer.concat([hdr, jpeg, Buffer.from('\r\n')]))
+    }
+
+    streamer.on('frame', onFrame)
+
+    const cleanup = () => {
+      streamer.off('frame', onFrame)
+      if (!pass.destroyed) pass.destroy()
+    }
+
+    req.socket?.once('close', cleanup)
+    pass.once('close', cleanup)
+
+    reply.send(pass)
   })
 
   app.get<{ Params: { id: string } }>('/api/cameras/:id/snapshot', async (req, reply) => {

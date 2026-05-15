@@ -1,15 +1,14 @@
 import { useCameras } from '../hooks/useCameras'
 import { useCameraFeed } from '../hooks/useCameraFeed'
-import { AnnotatedStream } from '../components/AnnotatedStream'
+import { MJPEGStream } from '../components/MJPEGStream'
 import { Camera } from '../lib/api'
 
 function CameraCard({ cam }: { cam: Camera }) {
-  const { fps, counts, avgSpeedKmh, vehicles, frameSize, active } = useCameraFeed(cam.id)
+  const { fps, counts, avgSpeedKmh, active } = useCameraFeed(cam.id)
   const totalVehicles = counts.AB + counts.BA
 
   return (
     <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-      {/* Header */}
       <div className="flex justify-between items-center px-4 py-3">
         <div>
           <p className="font-semibold">{cam.name}</p>
@@ -25,18 +24,8 @@ function CameraCard({ cam }: { cam: Camera }) {
         )}
       </div>
 
-      {/* Annotated live stream — HLS video + server-sent detection overlay */}
-      <AnnotatedStream
-        cameraId={cam.id}
-        vehicles={vehicles}
-        frameWidth={frameSize?.width ?? null}
-        frameHeight={frameSize?.height ?? null}
-        lineA={cam.countingLineA}
-        lineB={cam.countingLineB}
-        className="aspect-[4/3] mx-0"
-      />
+      <MJPEGStream cameraId={cam.id} className="aspect-[4/3]" />
 
-      {/* Counts */}
       <div className="px-4 py-3">
         <div className="grid grid-cols-3 gap-2 text-center mb-2">
           <div className="bg-gray-800 rounded-lg py-2">

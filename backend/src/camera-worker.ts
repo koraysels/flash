@@ -1,17 +1,15 @@
 import { db } from './db'
 import { extractStreamUrl } from './stream/extractor'
-import { FrameCapturer } from './stream/capturer'
-import { emitFrame, evictCameraFrame } from './socket/server'
-import { CameraPipeline } from './ai/pipeline'
+import { MJPEGStreamer } from './stream/mjpeg-streamer'
+import { evictCameraFrame } from './socket/server'
 
-type WorkerEntry = {
-  capturer: FrameCapturer
-  pipeline: CameraPipeline
-  cameraId: string
+const streamers = new Map<string, MJPEGStreamer>()
+
+export function getStreamer(cameraId: string): MJPEGStreamer | undefined {
+  return streamers.get(cameraId)
 }
 
 export class CameraWorkerManager {
-  private workers = new Map<string, WorkerEntry>()
   private retryTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private pollInterval: ReturnType<typeof setInterval> | null = null
   private syncing = false
@@ -26,11 +24,10 @@ export class CameraWorkerManager {
     if (this.pollInterval) clearInterval(this.pollInterval)
     for (const [, timer] of this.retryTimers) clearTimeout(timer)
     this.retryTimers.clear()
-    for (const { capturer, pipeline } of this.workers.values()) {
-      capturer.stop()
-      pipeline.dispose().catch(console.error)
+    for (const streamer of streamers.values()) {
+      streamer.dispose().catch(console.error)
     }
-    this.workers.clear()
+    streamers.clear()
   }
 
   private async syncWorkers(): Promise<void> {
@@ -40,19 +37,18 @@ export class CameraWorkerManager {
       const cameras = await db.camera.findMany({ where: { active: true } })
       const activeIds = new Set(cameras.map((c) => c.id))
 
-      for (const [id, worker] of this.workers) {
+      for (const [id, streamer] of streamers) {
         if (!activeIds.has(id)) {
-          worker.capturer.stop()
-          worker.pipeline.dispose().catch(console.error)
+          streamer.dispose().catch(console.error)
           evictCameraFrame(id)
-          this.workers.delete(id)
+          streamers.delete(id)
           const timer = this.retryTimers.get(id)
           if (timer) { clearTimeout(timer); this.retryTimers.delete(id) }
         }
       }
 
       for (const camera of cameras) {
-        if (!this.workers.has(camera.id) && !this.retryTimers.has(camera.id) && !this.starting.has(camera.id)) {
+        if (!streamers.has(camera.id) && !this.retryTimers.has(camera.id) && !this.starting.has(camera.id)) {
           this.startWorker(camera.id, camera.streamUrl)
         }
       }
@@ -62,51 +58,26 @@ export class CameraWorkerManager {
   }
 
   private async startWorker(cameraId: string, pageUrl: string): Promise<void> {
-    // Don't retry if already has a pending retry timer
     if (this.retryTimers.has(cameraId)) return
-
     this.starting.add(cameraId)
     try {
       const camera = await db.camera.findUniqueOrThrow({ where: { id: cameraId } })
       const streamUrl = await extractStreamUrl(pageUrl)
-      const fps = 5
-      const capturer = new FrameCapturer(streamUrl, cameraId, fps)
 
-      const pipeline = new CameraPipeline(
+      const streamer = new MJPEGStreamer(
         cameraId,
-        1280,
-        720,
+        streamUrl,
         camera.countingLineA,
         camera.countingLineB,
         camera.maxSpeedKmh,
-        camera.homographyMatrix,
-        fps,
+        (camera.homographyMatrix as number[] | null) ?? [],
       )
-      await pipeline.init()
+      await streamer.init()
+      streamer.start()
 
-      capturer.on('frame', async (frameBuffer: Buffer) => {
-        try {
-          const result = await pipeline.process(frameBuffer)
-          emitFrame({
-            cameraId,
-            timestamp: Date.now(),
-            vehicles: result.vehicles,
-            counts: result.counts,
-            frameWidth: result.frameWidth,
-            frameHeight: result.frameHeight,
-          }, frameBuffer.toString('base64'))
-        } catch (err) {
-          console.error(`Pipeline error for camera ${cameraId}:`, err)
-        }
-      })
-
-      capturer.on('error', (err: Error) => {
-        console.error(`Camera ${cameraId} stream error:`, err.message)
-      })
-
-      capturer.start()
-      this.workers.set(cameraId, { capturer, pipeline, cameraId })
+      streamers.set(cameraId, streamer)
       this.starting.delete(cameraId)
+      console.log(`[worker:${cameraId}] started`)
     } catch (err) {
       this.starting.delete(cameraId)
       console.error(`Failed to start worker for camera ${cameraId}:`, err)

@@ -55,7 +55,8 @@
       "Bash(/Users/koraysels/work/flash/node_modules/.pnpm/ffmpeg-static@5.3.0/node_modules/ffmpeg-static/ffmpeg -version)",
       "Bash(codesign --sign - --force --deep /Users/koraysels/work/flash/node_modules/.pnpm/ffmpeg-static@5.3.0/node_modules/ffmpeg-static/ffmpeg)",
       "Bash(echo \"signed: $?\")",
-      "Bash(ffmpeg -version)"
+      "Bash(ffmpeg -version)",
+      "Bash(xxd)"
     ]
   }
 }
