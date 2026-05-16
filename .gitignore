@@ -12,6 +12,7 @@ yarn-error.log*
 
 # Environment files
 backend/.env
+backend/.env.test
 frontend/.env
 
 # Model files

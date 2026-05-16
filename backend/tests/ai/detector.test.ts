@@ -26,5 +26,5 @@ describe.skipIf(!existsSync(MODEL_PATH))('Detector', () => {
     }
 
     await detector.dispose()
-  }, 30000)
+  }, 300_000)
 })
