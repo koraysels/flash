@@ -69,7 +69,11 @@
       "Bash(lsof -ti:5174)",
       "Bash(pkill -9 -f \"tsx watch\")",
       "Bash(pkill -9 -f \"onnxruntime\")",
-      "Bash(lsof -ti:3001,5174)"
+      "Bash(lsof -ti:3001,5174)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(timeout 60 node_modules/.bin/vitest run tests/routes/cameras.test.ts)",
+      "Bash(timeout 90 ./node_modules/.bin/vitest run tests/routes/cameras.test.ts)",
+      "Bash(timeout 90 /Users/koraysels/work/flash/backend/node_modules/.bin/vitest run tests/routes/cameras.test.ts)"
     ]
   }
 }

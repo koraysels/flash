@@ -46,7 +46,7 @@ export class MJPEGStreamer extends EventEmitter {
   // rate so MJPEG output is smooth regardless of segment delivery timing.
   private frameQueue: Buffer[] = []
   private latestRawFrame: Buffer | null = null
-  private dequeueTimer: ReturnType<typeof setInterval> | null = null
+  private dequeueTimer: ReturnType<typeof setTimeout> | null = null
 
   // Video fps tracking (measures dequeue/display rate)
   private videoFpsCount = 0
@@ -114,9 +114,6 @@ export class MJPEGStreamer extends EventEmitter {
           this.lastFrameWidth = msg.frameWidth
           this.lastFrameHeight = msg.frameHeight
 
-          // Emit the freshly annotated MJPEG frame immediately
-          this.emit('frame', msg.annotatedJpeg)
-
           emitFrame({
             cameraId: this.cameraId,
             timestamp: Date.now(),
@@ -158,7 +155,7 @@ export class MJPEGStreamer extends EventEmitter {
 
   stop(): void {
     this.running = false
-    if (this.dequeueTimer) { clearInterval(this.dequeueTimer); this.dequeueTimer = null }
+    if (this.dequeueTimer) { clearTimeout(this.dequeueTimer); this.dequeueTimer = null }
     this.frameQueue = []
     this.lastAnnotatedJpeg = null
     this.ffmpegProc?.kill('SIGTERM')
@@ -173,25 +170,33 @@ export class MJPEGStreamer extends EventEmitter {
 
   clientCount(): number { return this.listenerCount('frame') }
 
-  // Dequeue one frame every 1/OUTPUT_FPS seconds. If the queue is empty
-  // (between HLS segments), repeat the last frame so clients never freeze.
+  // Dequeue one frame every 1/OUTPUT_FPS seconds using a self-correcting timer.
+  // Each tick schedules the next one relative to an absolute target timestamp so
+  // accumulated jitter from late wakeups is continuously corrected.
   private startDequeue(): void {
-    this.dequeueTimer = setInterval(() => {
+    const intervalMs = 1000 / OUTPUT_FPS
+    let nextTarget = Date.now() + intervalMs
+
+    const tick = () => {
       const frameTime = Date.now()
       const isNewFrame = this.frameQueue.length > 0
       const frame = this.frameQueue.shift() ?? this.latestRawFrame
-      if (!frame) return
-      this.latestRawFrame = frame
-
-      this.videoFpsCount++
-      if (frameTime - this.videoFpsLastTime >= 1000) {
-        this.videoFps = this.videoFpsCount
-        this.videoFpsCount = 0
-        this.videoFpsLastTime = frameTime
+      if (frame) {
+        this.latestRawFrame = frame
+        this.videoFpsCount++
+        if (frameTime - this.videoFpsLastTime >= 1000) {
+          this.videoFps = this.videoFpsCount
+          this.videoFpsCount = 0
+          this.videoFpsLastTime = frameTime
+        }
+        this.onRawFrame(frame, isNewFrame, frameTime)
       }
+      if (!this.running) return
+      nextTarget += intervalMs
+      this.dequeueTimer = setTimeout(tick, Math.max(0, nextTarget - Date.now()))
+    }
 
-      this.onRawFrame(frame, isNewFrame, frameTime)
-    }, 1000 / OUTPUT_FPS)
+    this.dequeueTimer = setTimeout(tick, intervalMs)
   }
 
   private spawn(): void {
@@ -265,14 +270,9 @@ export class MJPEGStreamer extends EventEmitter {
   private onRawFrame(jpeg: Buffer, isNewFrame: boolean, frameTime: number): void {
     this.frameIdx++
 
-    // Keep MJPEG stream flowing at output fps with the last annotated frame.
-    // The worker will push a fresh annotated frame when it finishes.
-    if (this.lastAnnotatedJpeg) {
-      this.emit('frame', this.lastAnnotatedJpeg)
-    }
+    // Emit last annotated frame; fall back to the raw JPEG before the first worker result arrives.
+    this.emit('frame', this.lastAnnotatedJpeg ?? jpeg)
 
-    // Post new frames to the worker for full AI processing.
-    // Drop frames while the worker is busy — the next new frame will be picked up.
     if (isNewFrame && this.workerReady && !this.workerBusy) {
       this.workerBusy = true
       this.aiWorker!.postMessage({ type: 'analyse', jpeg, frameTime })
