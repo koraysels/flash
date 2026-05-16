@@ -20,6 +20,14 @@ export type FrameEvent = {
   frameWidth: number
   frameHeight: number
   videoFps: number
+  timing?: {
+    decodeMs: number
+    canvasMs: number
+    inferenceMs: number
+    trackMs: number
+    annotateMs: number
+    totalMs: number
+  }
 }
 
 let io: SocketServer | null = null
