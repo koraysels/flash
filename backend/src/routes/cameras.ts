@@ -3,7 +3,7 @@ import { PassThrough } from 'stream'
 import { db } from '../db'
 import { Prisma } from '@prisma/client'
 import { extractStreamUrl } from '../stream/extractor'
-import { getStreamer } from '../camera-worker'
+import { getStreamer, getManager } from '../camera-worker'
 
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
 const hlsUrlCache = new Map<string, string>()
@@ -137,6 +137,8 @@ export async function cameraRoutes(app: FastifyInstance) {
           ...(countingLineB !== undefined && { countingLineB }),
         },
       })
+      // Restart the streamer so the worker picks up the new calibration
+      getManager()?.restartCamera(req.params.id)
       return camera
     } catch (err) {
       return handlePrismaError(err, reply)

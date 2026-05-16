@@ -15,13 +15,17 @@ const WATCHDOG_INTERVAL_MS = 2_000
 // settling smoothly between AI detections (~5fps = 200ms apart).
 const LERP = 0.2
 // Keep a box alive this many detection cycles after it stops being detected,
-// then fade and remove. Prevents single-frame blink-outs.
-const MAX_MISSED = 3
+// then fade and remove. At ~5fps AI this gives ~2s of tolerance before removal.
+const MAX_MISSED = 10
+// EMA weight for displayed speed — blends new readings toward the current display
+// value so the number doesn't jump on every AI frame (~5fps).
+const SPEED_ALPHA = 0.25
 
 type SmoothVehicle = {
   id: number
   class: string
   speedKmh: number | null
+  displaySpeed: number | null  // EMA-smoothed speed for display
   // Current displayed position (lerped)
   x1: number; y1: number; x2: number; y2: number
   // Target position from latest detection
@@ -111,10 +115,17 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, clas
         s.tx1 = v.x1; s.ty1 = v.y1; s.tx2 = v.x2; s.ty2 = v.y2
         s.speedKmh = v.speedKmh
         s.missed = 0
+        // EMA-blend the displayed speed to stop it jumping each AI frame
+        if (v.speedKmh !== null) {
+          s.displaySpeed = s.displaySpeed === null
+            ? v.speedKmh
+            : SPEED_ALPHA * v.speedKmh + (1 - SPEED_ALPHA) * s.displaySpeed
+        }
       } else {
         // New vehicle: start display position at target (no initial jump)
         smooth.set(v.id, {
           id: v.id, class: v.class, speedKmh: v.speedKmh,
+          displaySpeed: v.speedKmh,
           x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2,
           tx1: v.x1, ty1: v.y1, tx2: v.x2, ty2: v.y2,
           missed: 0,
@@ -184,7 +195,7 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, clas
         ctx.setLineDash([])
         ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
 
-        const label = s.speedKmh !== null ? `${s.class} ${Math.round(s.speedKmh)}km/h` : s.class
+        const label = s.displaySpeed !== null ? `${s.class} ${Math.round(s.displaySpeed)}km/h` : s.class
         ctx.font = '11px monospace'
         const tw = ctx.measureText(label).width + 6
         const ly = Math.max(y1, offsetY + 14)

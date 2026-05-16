@@ -17,12 +17,18 @@ export function getStreamer(cameraId: string): MJPEGStreamer | undefined {
   return streamers.get(cameraId)
 }
 
+let _manager: CameraWorkerManager | null = null
+
+export function setManager(m: CameraWorkerManager): void { _manager = m }
+export function getManager(): CameraWorkerManager | null { return _manager }
+
 export class CameraWorkerManager {
   private retryTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private pollInterval: ReturnType<typeof setInterval> | null = null
   private syncing = false
   private starting = new Set<string>()
   private initSlots = 0   // number of cameras currently loading their ONNX model
+  private initQueue: Array<{ cameraId: string; pageUrl: string }> = []
 
   async start(): Promise<void> {
     await this.syncWorkers()
@@ -33,6 +39,7 @@ export class CameraWorkerManager {
     if (this.pollInterval) clearInterval(this.pollInterval)
     for (const [, timer] of this.retryTimers) clearTimeout(timer)
     this.retryTimers.clear()
+    this.initQueue = []
     for (const streamer of streamers.values()) {
       streamer.dispose().catch(console.error)
     }
@@ -54,6 +61,7 @@ export class CameraWorkerManager {
           streamers.delete(id)
           const timer = this.retryTimers.get(id)
           if (timer) { clearTimeout(timer); this.retryTimers.delete(id) }
+          this.initQueue = this.initQueue.filter(q => q.cameraId !== id)
         }
       }
 
@@ -63,7 +71,8 @@ export class CameraWorkerManager {
       }
 
       for (const camera of cameras) {
-        if (!streamers.has(camera.id) && !this.retryTimers.has(camera.id) && !this.starting.has(camera.id)) {
+        const inInitQueue = this.initQueue.some(q => q.cameraId === camera.id)
+        if (!streamers.has(camera.id) && !this.retryTimers.has(camera.id) && !this.starting.has(camera.id) && !inInitQueue) {
           this.startWorker(camera.id, camera.streamUrl)
         }
       }
@@ -77,15 +86,13 @@ export class CameraWorkerManager {
   private async startWorker(cameraId: string, pageUrl: string): Promise<void> {
     if (this.retryTimers.has(cameraId) || this.starting.has(cameraId)) return
 
-    // If all init slots are occupied, defer — the sync loop will pick this up next cycle
-    // (or we schedule a retry so we don't wait a full 60 s)
+    // If all init slots are occupied, enqueue — drainInitQueue() will start it
+    // as soon as another camera finishes loading its ONNX model.
     if (this.initSlots >= MAX_CONCURRENT_INITS) {
-      const timer = setTimeout(() => {
-        this.retryTimers.delete(cameraId)
-        this.startWorker(cameraId, pageUrl)
-      }, 15_000)
-      this.retryTimers.set(cameraId, timer)
-      console.log(`[worker:${cameraId}] init slots full (${this.initSlots}/${MAX_CONCURRENT_INITS}) — queued for 15 s`)
+      if (!this.initQueue.some(q => q.cameraId === cameraId)) {
+        this.initQueue.push({ cameraId, pageUrl })
+        console.log(`[worker:${cameraId}] init slots full (${this.initSlots}/${MAX_CONCURRENT_INITS}) — queued`)
+      }
       return
     }
 
@@ -118,6 +125,30 @@ export class CameraWorkerManager {
     } finally {
       this.starting.delete(cameraId)
       this.initSlots--
+      this.drainInitQueue()
+    }
+  }
+
+  restartCamera(cameraId: string): void {
+    const streamer = streamers.get(cameraId)
+    if (streamer) {
+      streamer.dispose().catch(console.error)
+      evictCameraFrame(cameraId)
+      streamers.delete(cameraId)
+    }
+    const timer = this.retryTimers.get(cameraId)
+    if (timer) { clearTimeout(timer); this.retryTimers.delete(cameraId) }
+    this.initQueue = this.initQueue.filter(q => q.cameraId !== cameraId)
+    this.starting.delete(cameraId)
+    void this.syncWorkers()
+  }
+
+  private drainInitQueue(): void {
+    while (this.initSlots < MAX_CONCURRENT_INITS && this.initQueue.length > 0) {
+      const next = this.initQueue.shift()!
+      if (!streamers.has(next.cameraId) && !this.starting.has(next.cameraId)) {
+        void this.startWorker(next.cameraId, next.pageUrl)
+      }
     }
   }
 }

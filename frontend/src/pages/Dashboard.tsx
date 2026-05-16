@@ -58,9 +58,14 @@ function CameraCard({ cam }: { cam: Camera }) {
               ? avgSpeedKmh !== null ? `Avg ${Math.round(avgSpeedKmh)} km/h` : 'Speed calibrated'
               : <a href={`/cameras/${cam.id}/calibrate`} className="text-yellow-500 hover:text-yellow-400">Calibrate for speed →</a>}
           </span>
-          {cam.maxSpeedKmh != null && (
-            <span className="text-red-400">⚡ {counts.speeders} speeders &gt;{cam.maxSpeedKmh} km/h</span>
-          )}
+          <div className="flex items-center gap-3">
+            {cam.maxSpeedKmh != null && (
+              <span className="text-red-400">⚡ {counts.speeders} speeders &gt;{cam.maxSpeedKmh} km/h</span>
+            )}
+            <a href={`/display/${cam.id}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
+              Pi display →
+            </a>
+          </div>
         </div>
       </div>
     </div>
