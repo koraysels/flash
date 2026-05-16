@@ -188,6 +188,22 @@ export async function cameraRoutes(app: FastifyInstance) {
     return { frame }
   })
 
+  // HLS playlist redirect — resolves the camera page URL to an HLS playlist and
+  // redirects the client to the proxied playlist. HLS.js follows the redirect automatically.
+  app.get<{ Params: { id: string } }>('/api/cameras/:id/hls', async (req, reply) => {
+    const camera = await db.camera.findUnique({ where: { id: req.params.id } })
+    if (!camera) { reply.code(404); return }
+
+    let hlsFullUrl = hlsUrlCache.get(camera.id)
+    if (!hlsFullUrl) {
+      hlsFullUrl = await extractStreamUrl(camera.streamUrl)
+      hlsUrlCache.set(camera.id, hlsFullUrl)
+    }
+
+    const filename = hlsFullUrl.split('/').pop() ?? 'stream.m3u8'
+    reply.redirect(`/api/cameras/${camera.id}/hls/${filename}`, 307)
+  })
+
   // HLS proxy — forwards requests to the upstream HLS server with the required
   // Referer header so hotlink protection doesn't block us. Rewrites relative
   // URLs in playlists so all requests route through here.
@@ -195,12 +211,12 @@ export async function cameraRoutes(app: FastifyInstance) {
     const camera = await db.camera.findUnique({ where: { id: req.params.id } })
     if (!camera) { reply.code(404); return }
 
-    let hlsBase = hlsUrlCache.get(camera.id)
-    if (!hlsBase) {
-      const resolved = await extractStreamUrl(camera.streamUrl)
-      hlsBase = resolved.substring(0, resolved.lastIndexOf('/') + 1)
-      hlsUrlCache.set(camera.id, hlsBase)
+    let hlsFullUrl = hlsUrlCache.get(camera.id)
+    if (!hlsFullUrl) {
+      hlsFullUrl = await extractStreamUrl(camera.streamUrl)
+      hlsUrlCache.set(camera.id, hlsFullUrl)
     }
+    const hlsBase = hlsFullUrl.substring(0, hlsFullUrl.lastIndexOf('/') + 1)
 
     const segment = req.params['*']
     const upstreamUrl = hlsBase + segment
@@ -213,7 +229,7 @@ export async function cameraRoutes(app: FastifyInstance) {
     })
 
     if (!upstream.ok) {
-      // If the cached base URL is stale (stream rotated), clear it and retry once
+      // If the cached URL is stale (stream rotated), clear it and retry once
       if (upstream.status === 403 || upstream.status === 404) {
         hlsUrlCache.delete(camera.id)
       }

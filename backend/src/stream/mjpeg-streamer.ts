@@ -36,9 +36,10 @@ export class MJPEGStreamer extends EventEmitter {
   // Latest state published by the worker
   private boxes: Box[] = []
   private counts = { AB: 0, BA: 0, speeders: 0 }
-  private lastAnnotatedJpeg: Buffer | null = null
   private lastFrameWidth = 768
   private lastFrameHeight = 576
+  // Latest raw frame as base64 — kept for the snapshot endpoint
+  private latestRawBase64: string | null = null
 
   private frameIdx = 0
 
@@ -110,7 +111,6 @@ export class MJPEGStreamer extends EventEmitter {
           this.workerBusy = false
           this.boxes = msg.boxes
           this.counts = msg.counts
-          this.lastAnnotatedJpeg = msg.annotatedJpeg
           this.lastFrameWidth = msg.frameWidth
           this.lastFrameHeight = msg.frameHeight
 
@@ -123,7 +123,7 @@ export class MJPEGStreamer extends EventEmitter {
             frameHeight: msg.frameHeight,
             videoFps: this.videoFps,
             timing: msg.timing,
-          })
+          }, this.latestRawBase64 ?? undefined)
         }
       })
 
@@ -157,7 +157,7 @@ export class MJPEGStreamer extends EventEmitter {
     this.running = false
     if (this.dequeueTimer) { clearTimeout(this.dequeueTimer); this.dequeueTimer = null }
     this.frameQueue = []
-    this.lastAnnotatedJpeg = null
+    this.latestRawBase64 = null
     this.ffmpegProc?.kill('SIGTERM')
     this.ffmpegProc = null
     this.aiWorker?.terminate()
@@ -269,9 +269,9 @@ export class MJPEGStreamer extends EventEmitter {
 
   private onRawFrame(jpeg: Buffer, isNewFrame: boolean, frameTime: number): void {
     this.frameIdx++
-
-    // Emit last annotated frame; fall back to the raw JPEG before the first worker result arrives.
-    this.emit('frame', this.lastAnnotatedJpeg ?? jpeg)
+    // Emit raw frame for the MJPEG debug endpoint; store base64 for the snapshot endpoint.
+    this.latestRawBase64 = jpeg.toString('base64')
+    this.emit('frame', jpeg)
 
     if (isNewFrame && this.workerReady && !this.workerBusy) {
       this.workerBusy = true

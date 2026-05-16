@@ -25,7 +25,6 @@ export type FrameEvent = {
     canvasMs: number
     inferenceMs: number
     trackMs: number
-    annotateMs: number
     totalMs: number
   }
 }

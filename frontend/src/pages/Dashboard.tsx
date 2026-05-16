@@ -1,10 +1,10 @@
 import { useCameras } from '../hooks/useCameras'
 import { useCameraFeed } from '../hooks/useCameraFeed'
-import { MJPEGStream } from '../components/MJPEGStream'
+import { HLSVideoStream } from '../components/HLSVideoStream'
 import { Camera } from '../lib/api'
 
 function CameraCard({ cam }: { cam: Camera }) {
-  const { aiFps, videoFps, counts, avgSpeedKmh, active } = useCameraFeed(cam.id)
+  const { aiFps, videoFps, counts, avgSpeedKmh, vehicles, frameSize, active } = useCameraFeed(cam.id)
   const totalVehicles = counts.AB + counts.BA
 
   return (
@@ -27,7 +27,14 @@ function CameraCard({ cam }: { cam: Camera }) {
         )}
       </div>
 
-      <MJPEGStream cameraId={cam.id} className="aspect-[4/3]" />
+      <HLSVideoStream
+        cameraId={cam.id}
+        vehicles={vehicles}
+        frameSize={frameSize}
+        lineA={cam.countingLineA}
+        lineB={cam.countingLineB}
+        className="aspect-[4/3]"
+      />
 
       <div className="px-4 py-3">
         <div className="grid grid-cols-3 gap-2 text-center mb-2">

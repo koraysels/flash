@@ -40,20 +40,12 @@ export type WorkerResultMsg = {
   counts: { AB: number; BA: number; speeders: number }
   frameWidth: number
   frameHeight: number
-  annotatedJpeg: Buffer
-  timing: { decodeMs: number; canvasMs: number; inferenceMs: number; trackMs: number; annotateMs: number; totalMs: number }
+  timing: { decodeMs: number; canvasMs: number; inferenceMs: number; trackMs: number; totalMs: number }
 }
 
 // ----------------------------------------------------------------------------------
 
 const MODEL_PATH = join(process.cwd(), 'models/yolov8n.onnx')
-
-const CLASS_COLORS: Record<string, string> = {
-  car: '#3b82f6',
-  truck: '#f59e0b',
-  bus: '#10b981',
-  motorcycle: '#8b5cf6',
-}
 
 const { cameraId, lineA, lineB, maxSpeedKmh, homographyMatrix, outputFps } = workerData as WorkerInitData
 
@@ -72,7 +64,7 @@ let prevBoxIds = new Set<number>()
 
 // Periodic timing summary — log to stderr every 100 frames so you can see per-stage costs
 let frameCount = 0
-const timingAccum = { decodeMs: 0, canvasMs: 0, inferenceMs: 0, trackMs: 0, annotateMs: 0, totalMs: 0 }
+const timingAccum = { decodeMs: 0, canvasMs: 0, inferenceMs: 0, trackMs: 0, totalMs: 0 }
 
 detector.init()
   .then(() => parentPort!.postMessage({ type: 'ready' }))
@@ -149,50 +141,12 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
 
     const t4 = performance.now()
 
-    // Annotate frame
-    const canvas = createCanvas(width, height)
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(img, 0, 0)
-
-    const aY = lineA * height
-    const bY = lineB * height
-    ctx.strokeStyle = 'rgba(255,220,0,0.85)'
-    ctx.lineWidth = 2
-    ctx.setLineDash([10, 5])
-    ctx.beginPath(); ctx.moveTo(0, aY); ctx.lineTo(width, aY); ctx.stroke()
-    ctx.beginPath(); ctx.moveTo(0, bY); ctx.lineTo(width, bY); ctx.stroke()
-    ctx.setLineDash([])
-    ctx.font = 'bold 11px monospace'
-    ctx.fillStyle = 'rgba(255,220,0,0.9)'
-    ctx.fillText('A', 4, aY - 3)
-    ctx.fillText('B', 4, bY - 3)
-
-    for (const v of boxes) {
-      const color = CLASS_COLORS[v.class] ?? '#fff'
-      ctx.strokeStyle = color
-      ctx.lineWidth = 2
-      ctx.strokeRect(v.x1, v.y1, v.x2 - v.x1, v.y2 - v.y1)
-      const label = v.speedKmh !== null ? `${v.class} ${Math.round(v.speedKmh)}km/h` : v.class
-      ctx.font = '11px monospace'
-      const tw = ctx.measureText(label).width + 6
-      const ly = Math.max(14, v.y1)
-      ctx.fillStyle = color
-      ctx.fillRect(v.x1, ly - 14, tw, 14)
-      ctx.fillStyle = '#000'
-      ctx.fillText(label, v.x1 + 3, ly - 3)
-    }
-
-    // encode() runs on the libuv thread pool (non-blocking within this worker)
-    const annotatedJpeg = await canvas.encode('jpeg', 80)
-    const t5 = performance.now()
-
     const timing = {
       decodeMs: Math.round(t1 - t0),
       canvasMs: Math.round(t2 - t1),
       inferenceMs: Math.round(t3 - t2),
       trackMs: Math.round(t4 - t3),
-      annotateMs: Math.round(t5 - t4),
-      totalMs: Math.round(t5 - t0),
+      totalMs: Math.round(t4 - t0),
     }
 
     // Accumulate for periodic log
@@ -214,7 +168,6 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       counts: { ...counts, speeders },
       frameWidth: width,
       frameHeight: height,
-      annotatedJpeg,
       timing,
     } satisfies WorkerResultMsg)
   } catch (err) {

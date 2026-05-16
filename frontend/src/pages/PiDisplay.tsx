@@ -1,13 +1,13 @@
 import { useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { MJPEGStream } from '../components/MJPEGStream'
+import { HLSVideoStream } from '../components/HLSVideoStream'
 import { CounterDisplay } from '../components/CounterDisplay'
 import { SpeedDisplay } from '../components/SpeedDisplay'
 import { getCameras, type Camera } from '../lib/api'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 
 function PiDisplayInner({ camera }: { camera: Camera }) {
-  const { counts, avgSpeedKmh, aiFps, videoFps, active } = useCameraFeed(camera.id)
+  const { counts, avgSpeedKmh, aiFps, videoFps, vehicles, frameSize, active } = useCameraFeed(camera.id)
 
   return (
     <div className="h-screen bg-black flex flex-col p-4">
@@ -28,7 +28,14 @@ function PiDisplayInner({ camera }: { camera: Camera }) {
         </div>
       </div>
       <div className="flex-1">
-        <MJPEGStream cameraId={camera.id} className="w-full h-full rounded-xl" />
+        <HLSVideoStream
+          cameraId={camera.id}
+          vehicles={vehicles}
+          frameSize={frameSize}
+          lineA={camera.countingLineA}
+          lineB={camera.countingLineB}
+          className="w-full h-full rounded-xl"
+        />
       </div>
       <div className="mt-3">
         <CounterDisplay counts={counts} maxSpeedKmh={camera.maxSpeedKmh} />
