@@ -245,6 +245,7 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, clas
         className="w-full h-full object-contain"
         alt=""
         onLoad={recomputeLayout}
+        onError={() => setTimeout(() => setImgKey(k => k + 1), 2_000)}
       />
       <canvas
         ref={canvasRef}
