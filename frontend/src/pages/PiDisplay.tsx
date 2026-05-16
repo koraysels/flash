@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { HLSVideoStream } from '../components/HLSVideoStream'
+import { CameraStream } from '../components/CameraStream'
 import { CounterDisplay } from '../components/CounterDisplay'
 import { SpeedDisplay } from '../components/SpeedDisplay'
 import { getCameras, type Camera } from '../lib/api'
@@ -28,7 +28,7 @@ function PiDisplayInner({ camera }: { camera: Camera }) {
         </div>
       </div>
       <div className="flex-1">
-        <HLSVideoStream
+        <CameraStream
           cameraId={camera.id}
           vehicles={vehicles}
           frameSize={frameSize}

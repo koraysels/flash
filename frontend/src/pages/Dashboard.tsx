@@ -1,6 +1,6 @@
 import { useCameras } from '../hooks/useCameras'
 import { useCameraFeed } from '../hooks/useCameraFeed'
-import { HLSVideoStream } from '../components/HLSVideoStream'
+import { CameraStream } from '../components/CameraStream'
 import { Camera } from '../lib/api'
 
 function CameraCard({ cam }: { cam: Camera }) {
@@ -27,7 +27,7 @@ function CameraCard({ cam }: { cam: Camera }) {
         )}
       </div>
 
-      <HLSVideoStream
+      <CameraStream
         cameraId={cam.id}
         vehicles={vehicles}
         frameSize={frameSize}

@@ -8,9 +8,9 @@ import { join } from 'path'
 import { emitFrame } from '../socket/server'
 import type { WorkerInitData, WorkerResultMsg } from './ai-worker'
 
-// HLS segments arrive in bursts; cap queue at ~3 s of frames so live latency
-// stays bounded if a segment is delivered faster than we dequeue.
-const MAX_QUEUE = 51   // ~3 s at OUTPUT_FPS; bounds live latency under burst
+// With -re, frames arrive at ~source fps (~25) and drain at OUTPUT_FPS (17).
+// Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
+const MAX_QUEUE = 34   // ~2 s at OUTPUT_FPS
 const OUTPUT_FPS = 17
 
 function resolveFfmpegPath(): string {
@@ -203,8 +203,11 @@ export class MJPEGStreamer extends EventEmitter {
     const pass = new PassThrough()
 
     const inputOpts = [
-      // No -re: live HLS is already paced by the server; -re adds artificial
-      // delays that stall at segment boundaries when source timing is uneven.
+      '-re',           // Read at native frame rate. Without this, ffmpeg decodes a 9-second
+                       // HLS segment in ~0.5s, flooding the queue with 200+ frames in a burst.
+                       // The queue overflows, old frames are dropped, and playback appears at
+                       // wrong speed. -re paces output to real-time, fixing both visual speed
+                       // and frameTime accuracy for the speed calculator.
       '-fflags', 'nobuffer',
       '-flags', 'low_delay',
       '-timeout', '10000000',

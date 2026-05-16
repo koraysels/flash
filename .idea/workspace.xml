@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="fix: update settings and workspace configuration for improved task management">
-      <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="perf: streamline AI worker by removing annotation step and optimizing HLS URL handling">
+      <change afterPath="$PROJECT_DIR$/frontend/src/components/CameraStream.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/PiDisplay.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/PiDisplay.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,8 +23,25 @@
     <option name="chatModeId" value="Agent" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "koraysels"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "git@github.com:koraysels/flash.git",
+    "accountId": "fd3bdc83-196e-440a-b98e-fe1401de3242"
+  }
+}]]></component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 8
 }]]></component>
@@ -39,7 +57,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "master",
+    "git-widget-placeholder": "rust-optimize",
     "junie.onboarding.icon.badge.shown": "true",
     "last_opened_file_path": "/Users/koraysels/work/flash/frontend",
     "node.js.detected.package.eslint": "true",
@@ -71,7 +89,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="40754000" />
+      <workItem from="1778661338564" duration="47386000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -169,7 +187,31 @@
       <option name="project" value="LOCAL" />
       <updated>1778873148915</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="fix: update settings and workspace configuration for improved task management">
+      <option name="closed" value="true" />
+      <created>1778877312654</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1778877312654</updated>
+    </task>
+    <task id="LOCAL-00014" summary="perf: optimize frame dequeue timing using setTimeout for smoother MJPEG output">
+      <option name="closed" value="true" />
+      <created>1778926161647</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1778926161647</updated>
+    </task>
+    <task id="LOCAL-00015" summary="perf: streamline AI worker by removing annotation step and optimizing HLS URL handling">
+      <option name="closed" value="true" />
+      <created>1778927341265</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1778927341265</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -200,7 +242,10 @@
     <MESSAGE value="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer" />
     <MESSAGE value="feat: adjust output FPS and improve frame annotation handling in MJPEGStreamer" />
     <MESSAGE value="fix: update settings and workspace configuration for improved task management" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: update settings and workspace configuration for improved task management" />
+    <MESSAGE value="perf: implement camera and ONNX model loading limits to optimize resource usage" />
+    <MESSAGE value="perf: optimize frame dequeue timing using setTimeout for smoother MJPEG output" />
+    <MESSAGE value="perf: streamline AI worker by removing annotation step and optimizing HLS URL handling" />
+    <option name="LAST_COMMIT_MESSAGE" value="perf: streamline AI worker by removing annotation step and optimizing HLS URL handling" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
