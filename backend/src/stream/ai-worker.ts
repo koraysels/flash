@@ -46,7 +46,7 @@ export type WorkerResultMsg = {
 
 // ----------------------------------------------------------------------------------
 
-const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
+const MODEL_PATH = join(process.cwd(), 'models/yolov8n.onnx')
 
 const CLASS_COLORS: Record<string, string> = {
   car: '#3b82f6',
