@@ -129,6 +129,7 @@ export class MJPEGStreamer extends EventEmitter {
             frameWidth: msg.frameWidth,
             frameHeight: msg.frameHeight,
             videoFps: this.videoFps,
+            recentTrapMeasurements: msg.recentTrapMeasurements,
             timing: msg.timing,
           }, this.latestRawBase64 ?? undefined)
         }

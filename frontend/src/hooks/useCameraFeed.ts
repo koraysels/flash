@@ -12,6 +12,8 @@ export type VehicleInfo = {
   y2: number
 }
 
+export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: boolean }
+
 export type FrameEvent = {
   cameraId: string
   timestamp: number
@@ -20,6 +22,7 @@ export type FrameEvent = {
   frameWidth: number
   frameHeight: number
   videoFps: number
+  recentTrapMeasurements: TrapMeasurement[]
 }
 
 export function useCameraFeed(cameraId: string) {
@@ -30,6 +33,7 @@ export function useCameraFeed(cameraId: string) {
   const [vehicles, setVehicles] = useState<VehicleInfo[]>([])
   const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null)
   const [active, setActive] = useState(false)
+  const [recentTrapMeasurements, setRecentTrapMeasurements] = useState<TrapMeasurement[]>([])
   const aiFrameCount = useRef(0)
   const lastFpsTime = useRef(Date.now())
   const avgSpeedRef = useRef<number | null>(null)
@@ -42,6 +46,7 @@ export function useCameraFeed(cameraId: string) {
     setVehicles([])
     setFrameSize(null)
     setActive(false)
+    setRecentTrapMeasurements([])
     aiFrameCount.current = 0
     lastFpsTime.current = Date.now()
     avgSpeedRef.current = null
@@ -57,6 +62,7 @@ export function useCameraFeed(cameraId: string) {
         setFrameSize({ width: event.frameWidth, height: event.frameHeight })
       }
       if (event.videoFps) setVideoFps(event.videoFps)
+      if (event.recentTrapMeasurements?.length) setRecentTrapMeasurements(event.recentTrapMeasurements)
 
       const speeds = event.vehicles.map((v) => v.speedKmh).filter((s): s is number => s !== null)
       if (speeds.length > 0) {
@@ -81,5 +87,5 @@ export function useCameraFeed(cameraId: string) {
     }
   }, [cameraId])
 
-  return { aiFps, videoFps, counts, avgSpeedKmh, vehicles, frameSize, active }
+  return { aiFps, videoFps, counts, avgSpeedKmh, vehicles, frameSize, active, recentTrapMeasurements }
 }

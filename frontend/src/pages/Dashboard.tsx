@@ -3,10 +3,46 @@ import { useCameras } from '../hooks/useCameras'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 import { CameraStream } from '../components/CameraStream'
 import { Camera, resetCounts } from '../lib/api'
+import type { TrapMeasurement } from '../hooks/useCameraFeed'
+
+function TrapLog({ measurements, maxSpeedKmh }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null }) {
+  if (!measurements.length) return (
+    <div className="border-t-2 border-black px-3 py-2 text-xs text-stone-400 uppercase tracking-widest">
+      No measurements yet — waiting for vehicles to cross both lines
+    </div>
+  )
+  const now = Date.now()
+  return (
+    <div className="border-t-2 border-black">
+      <p className="px-3 pt-2 text-xs uppercase tracking-widest text-stone-400 font-bold">Recent trap measurements</p>
+      <div className="divide-y divide-stone-200">
+        {measurements.slice(0, 5).map((m, i) => {
+          const agoS = Math.round((now - m.timestamp) / 1000)
+          const agoStr = agoS < 60 ? `${agoS}s ago` : `${Math.round(agoS / 60)}m ago`
+          return (
+            <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs tabular-nums">
+              <span className={`font-bold text-sm ${m.isSpeeder ? 'text-red-600' : ''}`}>
+                {Math.round(m.speedKmh)} km/h
+              </span>
+              <div className="flex items-center gap-3 text-stone-400">
+                {m.isSpeeder && maxSpeedKmh && (
+                  <span className="text-red-600 font-bold uppercase tracking-widest text-xs">
+                    +{Math.round(m.speedKmh - maxSpeedKmh)}
+                  </span>
+                )}
+                <span>{agoStr}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function CameraCard({ cam }: { cam: Camera }) {
   const [resetting, setResetting] = useState(false)
-  const { aiFps, videoFps, counts, avgSpeedKmh, vehicles, frameSize, active } = useCameraFeed(cam.id)
+  const { aiFps, videoFps, counts, avgSpeedKmh, vehicles, frameSize, active, recentTrapMeasurements } = useCameraFeed(cam.id)
   const totalVehicles = counts.AB + counts.BA
 
   return (
@@ -55,6 +91,10 @@ function CameraCard({ cam }: { cam: Camera }) {
           <p className="text-2xl font-bold tabular-nums">{totalVehicles}</p>
         </div>
       </div>
+
+      {cam.trapSpeedEnabled && (
+        <TrapLog measurements={recentTrapMeasurements} maxSpeedKmh={cam.maxSpeedKmh} />
+      )}
 
       <div className="flex items-center justify-between px-3 py-2 border-t-2 border-black text-xs">
         <span>

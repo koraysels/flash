@@ -12,7 +12,7 @@ import { Detector } from '../ai/detector'
 import { Tracker } from '../ai/tracker'
 import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
-import { TrapSpeedCalculator } from '../analysis/trap-speed'
+import { TrapSpeedCalculator, type TrapMeasurement } from '../analysis/trap-speed'
 import { applyHomography } from '../analysis/homography'
 
 // ---- types shared with main thread -----------------------------------------------
@@ -45,6 +45,7 @@ export type WorkerResultMsg = {
   frameWidth: number
   frameHeight: number
   timing: { decodeMs: number; canvasMs: number; inferenceMs: number; trackMs: number; totalMs: number }
+  recentTrapMeasurements: TrapMeasurement[]
 }
 
 // ----------------------------------------------------------------------------------
@@ -242,6 +243,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       frameWidth: width,
       frameHeight: height,
       timing,
+      recentTrapMeasurements: trapCalc?.getRecentMeasurements() ?? [],
     } satisfies WorkerResultMsg)
   } catch (err) {
     process.stderr.write(`[ai-worker:${cameraId}] error: ${err}\n`)

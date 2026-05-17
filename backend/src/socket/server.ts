@@ -12,6 +12,8 @@ export type VehicleInfo = {
   y2: number
 }
 
+export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: boolean }
+
 export type FrameEvent = {
   cameraId: string
   timestamp: number
@@ -20,6 +22,7 @@ export type FrameEvent = {
   frameWidth: number
   frameHeight: number
   videoFps: number
+  recentTrapMeasurements: TrapMeasurement[]
   timing?: {
     decodeMs: number
     canvasMs: number
