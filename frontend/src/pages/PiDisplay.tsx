@@ -34,6 +34,9 @@ function PiDisplayInner({ camera }: { camera: Camera }) {
           frameSize={frameSize}
           lineA={camera.countingLineA}
           lineB={camera.countingLineB}
+          lineAPoints={camera.countingLineAPoints}
+          lineBPoints={camera.countingLineBPoints}
+          maxSpeedKmh={camera.maxSpeedKmh}
           className="w-full h-full rounded-xl"
         />
       </div>

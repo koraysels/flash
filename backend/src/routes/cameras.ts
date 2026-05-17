@@ -87,6 +87,8 @@ export async function cameraRoutes(app: FastifyInstance) {
       maxSpeedKmh?: number | null
       countingLineA?: number
       countingLineB?: number
+      countingLineAPoints?: number[]
+      countingLineBPoints?: number[]
     }
   }>('/api/cameras/:id/calibration', {
     schema: {
@@ -96,7 +98,7 @@ export async function cameraRoutes(app: FastifyInstance) {
         properties: {
           pairs: {
             type: 'array',
-            minItems: 4,
+            minItems: 0,
             items: {
               type: 'object',
               required: ['px', 'py', 'wx', 'wy'],
@@ -111,30 +113,37 @@ export async function cameraRoutes(app: FastifyInstance) {
           maxSpeedKmh: { type: ['number', 'null'] },
           countingLineA: { type: 'number', minimum: 0, maximum: 1 },
           countingLineB: { type: 'number', minimum: 0, maximum: 1 },
+          countingLineAPoints: { type: 'array', items: { type: 'number' } },
+          countingLineBPoints: { type: 'array', items: { type: 'number' } },
         },
       },
     },
   }, async (req, reply) => {
-    const { pairs, maxSpeedKmh, countingLineA, countingLineB } = req.body
+    const { pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints } = req.body
 
-    let H: number[]
-    try {
-      const { computeHomography } = await import('../analysis/homography')
-      H = computeHomography(pairs)
-    } catch (err) {
-      reply.code(400)
-      return { error: err instanceof Error ? err.message : 'Homography computation failed' }
+    // Homography only computed when at least 4 point pairs are provided
+    let H: number[] | undefined
+    if (pairs.length >= 4) {
+      try {
+        const { computeHomography } = await import('../analysis/homography')
+        H = computeHomography(pairs)
+      } catch (err) {
+        reply.code(400)
+        return { error: err instanceof Error ? err.message : 'Homography computation failed' }
+      }
     }
 
     try {
       const camera = await db.camera.update({
         where: { id: req.params.id },
         data: {
-          homographyMatrix: H,
-          calibrationPoints: pairs as unknown as Prisma.InputJsonValue,
+          ...(H !== undefined && { homographyMatrix: H }),
+          ...(pairs.length >= 4 && { calibrationPoints: pairs as unknown as Prisma.InputJsonValue }),
           ...(maxSpeedKmh !== undefined && { maxSpeedKmh }),
           ...(countingLineA !== undefined && { countingLineA }),
           ...(countingLineB !== undefined && { countingLineB }),
+          ...(countingLineAPoints !== undefined && { countingLineAPoints }),
+          ...(countingLineBPoints !== undefined && { countingLineBPoints }),
         },
       })
       // Restart the streamer so the worker picks up the new calibration
@@ -146,6 +155,13 @@ export async function cameraRoutes(app: FastifyInstance) {
   })
 
   // MJPEG stream — multipart/x-mixed-replace; server annotates every frame server-side
+  app.post<{ Params: { id: string } }>('/api/cameras/:id/reset-counts', (req, reply) => {
+    const streamer = getStreamer(req.params.id)
+    if (!streamer) { reply.code(404).send({ error: 'Camera not found or not running' }); return }
+    streamer.resetDailyCounts()
+    reply.code(204).send()
+  })
+
   app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {
     const streamer = getStreamer(req.params.id)
     if (!streamer) {

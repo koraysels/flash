@@ -19,6 +19,8 @@ export type WorkerInitData = {
   cameraId: string
   lineA: number
   lineB: number
+  lineAPoints: number[]   // [x1,y1,x2,y2] normalised 0-1, or [] for horizontal
+  lineBPoints: number[]   // same for B
   maxSpeedKmh: number | null
   homographyMatrix: number[]
   outputFps: number
@@ -47,11 +49,11 @@ export type WorkerResultMsg = {
 
 const MODEL_PATH = join(process.cwd(), 'models/yolov8n.onnx')
 
-const { cameraId, lineA, lineB, maxSpeedKmh, homographyMatrix, outputFps } = workerData as WorkerInitData
+const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, outputFps } = workerData as WorkerInitData
 
 const detector = new Detector(MODEL_PATH)
 const tracker = new Tracker()
-let counter = new DirectionCounter(576, lineA, lineB)
+let counter = new DirectionCounter(576, lineA, lineB, lineAPoints, lineBPoints)
 const speedCalc = homographyMatrix.length === 9
   ? new SpeedCalculator(homographyMatrix, outputFps, maxSpeedKmh ?? undefined)
   : null
@@ -59,12 +61,22 @@ const speedCalc = homographyMatrix.length === 9
 let actualWidth = 768
 let actualHeight = 576
 let speeders = 0
-const countedSpeeders = new Set<number>()
+const countedSpeeders = new Set<number>()   // IDs already counted (never reset until reset-counts)
+const vehicleZoneSpeed = new Map<number, number>()  // max speed seen while in zone per vehicle
 let prevBoxIds = new Set<number>()
 
 // Periodic timing summary — log to stderr every 100 frames so you can see per-stage costs
 let frameCount = 0
 const timingAccum = { decodeMs: 0, canvasMs: 0, inferenceMs: 0, trackMs: 0, totalMs: 0 }
+
+// Returns the normalised Y of a counting line at a given normalised X.
+// For angled lines ([x1,y1,x2,y2]); falls back to the scalar fraction for horizontal ones.
+function lineYAtX(pts: number[], nx: number, fallback: number): number {
+  if (pts.length !== 4) return fallback
+  const [x1, y1, x2, y2] = pts
+  if (Math.abs(x2 - x1) < 1e-6) return (y1 + y2) / 2
+  return y1 + ((y2 - y1) / (x2 - x1)) * (nx - x1)
+}
 
 detector.init()
   .then(() => parentPort!.postMessage({ type: 'ready' }))
@@ -75,6 +87,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
     counter.reset()
     speeders = 0
     countedSpeeders.clear()
+    vehicleZoneSpeed.clear()
     return
   }
 
@@ -88,7 +101,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
     const t1 = performance.now()
 
     if (width !== actualWidth || height !== actualHeight) {
-      counter = new DirectionCounter(height, lineA, lineB)
+      counter = new DirectionCounter(height, lineA, lineB, lineAPoints, lineBPoints)
       actualWidth = width
       actualHeight = height
     }
@@ -116,13 +129,19 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
     // Clean up vehicles that disappeared
     for (const id of prevBoxIds) {
       if (!currentIds.has(id)) {
+        // If the vehicle vanished while still in zone, evaluate its peak zone speed now
+        const maxZoneSpd = vehicleZoneSpeed.get(id)
+        if (maxZoneSpd !== undefined && maxSpeedKmh !== null && maxZoneSpd > maxSpeedKmh && !countedSpeeders.has(id)) {
+          countedSpeeders.add(id)
+          speeders++
+        }
+        vehicleZoneSpeed.delete(id)
         speedCalc?.removeVehicle(id)
-        countedSpeeders.delete(id)
       }
     }
     prevBoxIds = currentIds
 
-    for (const v of tracked) counter.updateVehicle(v.id, v.bcy)
+    for (const v of tracked) counter.updateVehicle(v.id, v.bcx / actualWidth, v.bcy / actualHeight)
     const counts = counter.getCounts()
 
     const boxes: WorkerResultMsg['boxes'] = []
@@ -131,9 +150,23 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       if (speedCalc) {
         speedCalc.addPosition(v.id, v.bcx, v.bcy, msg.frameTime)
         speedKmh = speedCalc.getSpeed(v.id)
-        if (speedCalc.isSpeeder(v.id) && !countedSpeeders.has(v.id)) {
-          countedSpeeders.add(v.id)
-          speeders++
+        const nx = v.bcx / actualWidth
+        const ny = v.bcy / actualHeight
+        const lineAY = lineYAtX(lineAPoints, nx, lineA)
+        const lineBY = lineYAtX(lineBPoints, nx, lineB)
+        const inZone = ny >= Math.min(lineAY, lineBY) && ny <= Math.max(lineAY, lineBY)
+
+        if (inZone && speedKmh !== null) {
+          // Vehicle is between the lines — track its peak speed
+          vehicleZoneSpeed.set(v.id, Math.max(vehicleZoneSpeed.get(v.id) ?? 0, speedKmh))
+        } else if (!inZone && vehicleZoneSpeed.has(v.id)) {
+          // Vehicle just left the zone — evaluate whether it was a speeder
+          const maxZoneSpd = vehicleZoneSpeed.get(v.id)!
+          if (maxSpeedKmh !== null && maxZoneSpd > maxSpeedKmh && !countedSpeeders.has(v.id)) {
+            countedSpeeders.add(v.id)
+            speeders++
+          }
+          vehicleZoneSpeed.delete(v.id)
         }
       }
       boxes.push({ id: v.id, class: v.class, speedKmh, x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2 })

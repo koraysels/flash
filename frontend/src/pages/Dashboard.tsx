@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useCameras } from '../hooks/useCameras'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 import { CameraStream } from '../components/CameraStream'
-import { Camera } from '../lib/api'
+import { Camera, resetCounts } from '../lib/api'
 
 function CameraCard({ cam }: { cam: Camera }) {
+  const [resetting, setResetting] = useState(false)
   const { aiFps, videoFps, counts, avgSpeedKmh, vehicles, frameSize, active } = useCameraFeed(cam.id)
   const totalVehicles = counts.AB + counts.BA
 
@@ -33,6 +35,9 @@ function CameraCard({ cam }: { cam: Camera }) {
         frameSize={frameSize}
         lineA={cam.countingLineA}
         lineB={cam.countingLineB}
+        lineAPoints={cam.countingLineAPoints}
+        lineBPoints={cam.countingLineBPoints}
+        maxSpeedKmh={cam.maxSpeedKmh}
         className="aspect-[4/3]"
       />
 
@@ -65,6 +70,17 @@ function CameraCard({ cam }: { cam: Camera }) {
             <a href={`/display/${cam.id}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
               Pi display →
             </a>
+            <button
+              onClick={async () => {
+                setResetting(true)
+                try { await resetCounts(cam.id) } finally { setResetting(false) }
+              }}
+              disabled={resetting}
+              className="text-gray-500 hover:text-red-400 disabled:opacity-40 transition-colors"
+              title="Reset counts"
+            >
+              Reset
+            </button>
           </div>
         </div>
       </div>

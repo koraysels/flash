@@ -39,10 +39,13 @@ interface Props {
   frameSize: { width: number; height: number } | null
   lineA?: number
   lineB?: number
+  lineAPoints?: number[]   // [x1,y1,x2,y2] normalised 0-1; overrides lineA if length===4
+  lineBPoints?: number[]   // same for B
+  maxSpeedKmh?: number | null
   className?: string
 }
 
-export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, className }: Props) {
+export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, className }: Props) {
   const imgRef = useRef<HTMLImageElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const lastActivityRef = useRef(0)
@@ -62,10 +65,14 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, clas
   const frameSizeRef = useRef(frameSize)
   const lineARef = useRef(lineA)
   const lineBRef = useRef(lineB)
+  const lineAPointsRef = useRef(lineAPoints)
+  const lineBPointsRef = useRef(lineBPoints)
 
   useEffect(() => { frameSizeRef.current = frameSize }, [frameSize])
   useEffect(() => { lineARef.current = lineA }, [lineA])
   useEffect(() => { lineBRef.current = lineB }, [lineB])
+  useEffect(() => { lineAPointsRef.current = lineAPoints }, [lineAPoints])
+  useEffect(() => { lineBPointsRef.current = lineBPoints }, [lineBPoints])
 
   // Recompute canvas size and layout whenever the container changes
   const recomputeLayout = () => {
@@ -158,21 +165,29 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, clas
 
       const { offsetX, offsetY, renderW, renderH, scaleX, scaleY } = layout
 
-      // Counting lines
-      for (const [line, label] of [
-        [lineARef.current, 'A'],
-        [lineBRef.current, 'B'],
-      ] as [number | undefined, string][]) {
-        if (line === undefined) continue
-        const y = offsetY + line * renderH
+      // Counting lines (horizontal fallback or angled via normalised 4-point spec)
+      for (const [pts, frac, label] of [
+        [lineAPointsRef.current, lineARef.current, 'A'],
+        [lineBPointsRef.current, lineBRef.current, 'B'],
+      ] as [number[] | undefined, number | undefined, string][]) {
+        let x1c: number, y1c: number, x2c: number, y2c: number
+        if (pts?.length === 4) {
+          x1c = offsetX + pts[0] * renderW; y1c = offsetY + pts[1] * renderH
+          x2c = offsetX + pts[2] * renderW; y2c = offsetY + pts[3] * renderH
+        } else if (frac !== undefined) {
+          const y = offsetY + frac * renderH
+          x1c = offsetX; y1c = y; x2c = offsetX + renderW; y2c = y
+        } else {
+          continue
+        }
         ctx.strokeStyle = 'rgba(255,220,0,0.85)'
         ctx.lineWidth = 2
         ctx.setLineDash([10, 5])
-        ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + renderW, y); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(x1c, y1c); ctx.lineTo(x2c, y2c); ctx.stroke()
         ctx.setLineDash([])
         ctx.fillStyle = 'rgba(255,220,0,0.9)'
         ctx.font = 'bold 11px monospace'
-        ctx.fillText(label, offsetX + 4, y - 3)
+        ctx.fillText(label, x1c + 4, y1c - 3)
       }
 
       // Lerp and draw each tracked vehicle
@@ -263,6 +278,29 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, clas
         className="absolute inset-0 pointer-events-none"
         style={{ width: '100%', height: '100%' }}
       />
+      {maxSpeedKmh != null && (
+        <div className="absolute top-2 right-2 pointer-events-none select-none flex flex-col items-center">
+          <svg width="54" height="54" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg"
+            style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))' }}>
+            {/* White fill */}
+            <circle cx="27" cy="27" r="27" fill="white" />
+            {/* Red border ring */}
+            <circle cx="27" cy="27" r="27" fill="none" stroke="#cc0000" strokeWidth="7" />
+            {/* Speed number */}
+            <text
+              x="27" y="27"
+              dominantBaseline="central"
+              textAnchor="middle"
+              fontFamily="'Arial Narrow', Arial, sans-serif"
+              fontWeight="900"
+              fontSize={maxSpeedKmh >= 100 ? 17 : 20}
+              fill="#111"
+            >
+              {maxSpeedKmh}
+            </text>
+          </svg>
+        </div>
+      )}
       {stale && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
           <span className="flex items-center gap-2 text-white text-sm font-medium">

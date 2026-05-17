@@ -109,6 +109,8 @@ export class CameraWorkerManager {
         camera.countingLineB,
         camera.maxSpeedKmh,
         (camera.homographyMatrix as number[] | null) ?? [],
+        (camera.countingLineAPoints as number[] | null) ?? [],
+        (camera.countingLineBPoints as number[] | null) ?? [],
       )
       await streamer.init()
       streamer.start()

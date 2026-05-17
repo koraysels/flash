@@ -66,6 +66,8 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly lineB: number,
     private readonly maxSpeedKmh: number | null,
     private readonly homographyMatrix: number[] = [],
+    private readonly lineAPoints: number[] = [],
+    private readonly lineBPoints: number[] = [],
   ) {
     super()
   }
@@ -82,6 +84,8 @@ export class MJPEGStreamer extends EventEmitter {
         cameraId: this.cameraId,
         lineA: this.lineA,
         lineB: this.lineB,
+        lineAPoints: this.lineAPoints,
+        lineBPoints: this.lineBPoints,
         maxSpeedKmh: this.maxSpeedKmh,
         homographyMatrix: this.homographyMatrix,
         outputFps: OUTPUT_FPS,

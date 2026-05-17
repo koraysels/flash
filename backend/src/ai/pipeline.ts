@@ -102,7 +102,7 @@ export class CameraPipeline {
 
     for (const v of tracked) {
       // Use bottom-center y for counting — ground contact point crosses line more accurately
-      this.counter.updateVehicle(v.id, v.bcy)
+      this.counter.updateVehicle(v.id, v.bcx / this.actualWidth, v.bcy / this.actualHeight)
     }
 
     const counts = this.counter.getCounts()

@@ -74,15 +74,16 @@ describe('Camera routes', () => {
   })
 
   describe('POST /api/cameras/:id/calibration', () => {
-    it('returns 400 if fewer than 4 pairs', async () => {
+    it('saves line-only update (fewer than 4 pairs) with 200', async () => {
       const cam = await db.camera.create({ data: { name: 'Cal Test', location: 'X', streamUrl: 'http://x' } })
 
       const res = await app.inject({
         method: 'POST',
         url: `/api/cameras/${cam.id}/calibration`,
-        payload: { pairs: [{ px: 0, py: 0, wx: 0, wy: 0 }] },
+        payload: { pairs: [], countingLineA: 0.45, countingLineB: 0.55 },
       })
-      expect(res.statusCode).toBe(400)
+      expect(res.statusCode).toBe(200)
+      expect(JSON.parse(res.body).countingLineA).toBeCloseTo(0.45)
       await db.camera.delete({ where: { id: cam.id } })
     })
 
