@@ -17,9 +17,9 @@ const LERP = 0.2
 // Keep a box alive this many detection cycles after it stops being detected,
 // then fade and remove. At ~5fps AI this gives ~2s of tolerance before removal.
 const MAX_MISSED = 10
-// EMA weight for displayed speed — blends new readings toward the current display
-// value so the number doesn't jump on every AI frame (~5fps).
-const SPEED_ALPHA = 0.25
+// Per-rAF lerp factor for displayed speed — drifts the number continuously at 60fps
+// rather than jumping at AI frame rate (~5fps). Reaches ~90% of target in ~56 frames (~0.9s).
+const SPEED_LERP = 0.04
 
 type SmoothVehicle = {
   id: number
@@ -122,12 +122,6 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, line
         s.tx1 = v.x1; s.ty1 = v.y1; s.tx2 = v.x2; s.ty2 = v.y2
         s.speedKmh = v.speedKmh
         s.missed = 0
-        // EMA-blend the displayed speed to stop it jumping each AI frame
-        if (v.speedKmh !== null) {
-          s.displaySpeed = s.displaySpeed === null
-            ? v.speedKmh
-            : SPEED_ALPHA * v.speedKmh + (1 - SPEED_ALPHA) * s.displaySpeed
-        }
       } else {
         // New vehicle: start display position at target (no initial jump)
         smooth.set(v.id, {
@@ -196,6 +190,11 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, line
         s.y1 += (s.ty1 - s.y1) * LERP
         s.x2 += (s.tx2 - s.x2) * LERP
         s.y2 += (s.ty2 - s.y2) * LERP
+        if (s.speedKmh !== null) {
+          s.displaySpeed = s.displaySpeed === null
+            ? s.speedKmh
+            : s.displaySpeed + (s.speedKmh - s.displaySpeed) * SPEED_LERP
+        }
 
         const color = CLASS_COLORS[s.class] ?? '#fff'
         const x1 = offsetX + s.x1 * scaleX
