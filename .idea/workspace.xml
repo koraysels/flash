@@ -5,15 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update speed display logic to use lerp factor for smoother transitions">
-      <change afterPath="$PROJECT_DIR$/backend/prisma/migrations/20260517185636_add_trap_speed/migration.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/analysis/trap-speed.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/ai/tracker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/tracker.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/socket/server.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/socket/server.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/hooks/useCameraFeed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/hooks/useCameraFeed.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/analysis/trap-speed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/analysis/trap-speed.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -95,7 +87,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="67335000" />
+      <workItem from="1778661338564" duration="68224000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -321,7 +313,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779046940564</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="feat: add recent trap measurements display to dashboard and update related components">
+      <option name="closed" value="true" />
+      <created>1779047780220</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1779047780220</updated>
+    </task>
+    <option name="localTasksCounter" value="30" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

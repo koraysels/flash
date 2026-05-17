@@ -32,7 +32,17 @@ export class TrapSpeedCalculator {
     const entry = this.entries.get(id)
 
     if (!entry) {
-      this.entries.set(id, { tA: null, tB: null, prevBelowA: belowA, prevBelowB: belowB, speed: null })
+      // If the vehicle first appears BETWEEN the lines, it's already past the first line.
+      // Use the current timestamp as an approximation of the first crossing so we can
+      // still measure the time to the second line — better than no measurement at all.
+      const betweenLines = belowA !== belowB
+      this.entries.set(id, {
+        tA: betweenLines ? timestamp : null,
+        tB: null,
+        prevBelowA: belowA,
+        prevBelowB: belowB,
+        speed: null,
+      })
       return
     }
 
