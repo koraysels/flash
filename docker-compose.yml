@@ -3,17 +3,28 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: unless-stopped
     env_file:
       - ./backend/.env
-    ports:
-      - "3001:3001"
-    command: sh -c "pnpm --filter flash-backend exec prisma migrate deploy && node dist/src/index.js"
+    # Not exposed to the host — nginx reaches it via the flash network.
+    # Exposing 3001 directly would bypass UFW (Docker writes iptables directly).
+    networks:
+      - flash
 
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+    restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:3000:80"   # bind to loopback only; your reverse proxy (Caddy/nginx) forwards here
     depends_on:
       - backend
+    networks:
+      - flash
+
+networks:
+  flash:
+    driver: bridge

@@ -1,39 +1,35 @@
 FROM node:20-slim
-RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm
+
+# ffmpeg for HLS capture, openssl for Prisma
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable
+
 WORKDIR /app
 
-# Copy root workspace files
-COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Copy package.json files for all workspace packages
+# Workspace manifests — all three needed for pnpm workspace resolution
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install backend deps only (frontend skipped)
+RUN pnpm install --frozen-lockfile --filter flash-backend
 
-# Copy backend scripts for model download
-COPY backend/scripts ./backend/scripts
+# Source + assets
+COPY backend/src ./backend/src
 COPY backend/tsconfig.json ./backend/
-
-# Download ML model
-RUN pnpm --filter flash-backend run download-model
-
-# Copy prisma schema
 COPY backend/prisma ./backend/prisma
+COPY backend/models ./backend/models
 
-# Generate prisma client
+# Generate Prisma client for debian-openssl-3.0.x (already in binaryTargets)
 RUN pnpm --filter flash-backend exec prisma generate
 
-# Copy backend source
-COPY backend/src ./backend/src
-
-# Build backend
-RUN pnpm --filter flash-backend run build
-
 WORKDIR /app/backend
+
 EXPOSE 3001
-RUN chown -R node:node /app
-USER node
-CMD ["node", "dist/src/index.js"]
+
+# Migrate then start. DATABASE_URL must be set at runtime.
+# tsx is used at runtime because the AI worker is spawned as a .ts file.
+CMD ["sh", "-c", "npx prisma migrate deploy && node /app/node_modules/.bin/tsx src/index.ts"]

@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="perf: add error handling for image loading in CameraStream component">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/camera-worker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/camera-worker.ts" afterDir="false" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: enhance CameraWorkerManager with init queue for better camera initialization handling">
+      <change afterPath="$PROJECT_DIR$/backend/prisma/migrations/20260516131337_add_line_points/migration.sql" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,7 +87,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="52274000" />
+      <workItem from="1778661338564" duration="56376000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -234,7 +233,23 @@
       <option name="project" value="LOCAL" />
       <updated>1778931399440</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="feat: enhance CameraWorkerManager with init queue for better camera initialization handling">
+      <option name="closed" value="true" />
+      <created>1778936882503</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1778936882503</updated>
+    </task>
+    <task id="LOCAL-00020" summary="feat: enhance camera calibration with support for counting line endpoints and speed tracking">
+      <option name="closed" value="true" />
+      <created>1779015242382</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1779015242382</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -252,6 +267,7 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
     <MESSAGE value="Initialize project structure and configuration files" />
     <MESSAGE value="feat: enhance camera calibration interface with guidance and HLS streaming support" />
     <MESSAGE value="feat: enhance camera calibration UI with guidance and HLS streaming support" />
@@ -271,7 +287,8 @@
     <MESSAGE value="feat: implement CameraStream component for enhanced vehicle tracking and display" />
     <MESSAGE value="feat: update workspace configuration for CameraStream component implementation" />
     <MESSAGE value="perf: add error handling for image loading in CameraStream component" />
-    <option name="LAST_COMMIT_MESSAGE" value="perf: add error handling for image loading in CameraStream component" />
+    <MESSAGE value="feat: enhance CameraWorkerManager with init queue for better camera initialization handling" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: enhance CameraWorkerManager with init queue for better camera initialization handling" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
