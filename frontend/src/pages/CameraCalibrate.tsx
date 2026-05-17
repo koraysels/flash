@@ -92,17 +92,14 @@ function LineEditor({ frameBase64, lineA, lineB, onChangeA, onChangeB, width = 6
 
 function CalibrationHelp() {
   return (
-    <div className="bg-blue-950 border border-blue-900 rounded-xl p-4 mb-6 text-sm text-blue-200">
-      <h3 className="font-semibold mb-2 text-blue-100">How to calibrate (4 steps)</h3>
-      <ol className="space-y-1.5 list-decimal list-inside text-blue-300">
-        <li><strong className="text-blue-100">Find a real-world landmark</strong> visible in the camera image — a road marking, corner, pole, etc.</li>
-        <li><strong className="text-blue-100">Click it in the camera image</strong> (left panel). A numbered pin appears.</li>
-        <li><strong className="text-blue-100">Click the exact same spot on the satellite map</strong> (right panel). Use the search bar to navigate first.</li>
-        <li><strong className="text-blue-100">Repeat ≥4 times</strong> — spread across the frame for accuracy.</li>
+    <div className="border-2 border-black p-4 mb-6 text-xs">
+      <p className="font-bold uppercase tracking-widest mb-2">How to calibrate</p>
+      <ol className="space-y-1 list-decimal list-inside text-stone-600">
+        <li><strong className="text-black">Find a real-world landmark</strong> visible in the camera image — road marking, corner, pole.</li>
+        <li><strong className="text-black">Click it in the camera image</strong> (left). A numbered pin appears.</li>
+        <li><strong className="text-black">Click the exact same spot on the satellite map</strong> (right). Search first to navigate.</li>
+        <li><strong className="text-black">Repeat ≥4 times</strong> — spread across the frame for accuracy.</li>
       </ol>
-      <p className="mt-2 text-blue-400 text-xs">
-        The homography matrix computed from these pairs maps pixel positions to real-world metres — enabling accurate speed calculation.
-      </p>
     </div>
   )
 }
@@ -117,6 +114,7 @@ export default function CameraCalibrate() {
   const [imagePoints, setImagePoints] = useState<Pt[]>([])
   const [mapPoints, setMapPoints] = useState<LatLng[]>([])
   const [maxSpeedKmh, setMaxSpeedKmh] = useState('')
+  const [trapSpeedEnabled, setTrapSpeedEnabled] = useState(false)
   // Counting lines: two endpoints each in normalised [0,1] coords
   const [lineA, setLineA] = useState<[Pt, Pt]>([{ x: 0, y: 0.4 }, { x: 1, y: 0.4 }])
   const [lineB, setLineB] = useState<[Pt, Pt]>([{ x: 0, y: 0.6 }, { x: 1, y: 0.6 }])
@@ -143,6 +141,7 @@ export default function CameraCalibrate() {
       if (!cam) return
       setCamera(cam)
       setMaxSpeedKmh(cam.maxSpeedKmh?.toString() ?? '')
+      setTrapSpeedEnabled(cam.trapSpeedEnabled ?? false)
 
       // Restore counting lines from saved state
       if (cam.countingLineAPoints?.length === 4) {
@@ -240,6 +239,7 @@ export default function CameraCalibrate() {
         maxSpeedKmh ? parseInt(maxSpeedKmh, 10) : null,
         lineAFrac(), lineBFrac(),
         lineAFlat(), lineBFlat(),
+        trapSpeedEnabled,
       )
       navigate('/cameras')
     } catch (err) {
@@ -257,10 +257,11 @@ export default function CameraCalibrate() {
     <div className="max-w-screen-2xl">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Calibrate: {camera?.name ?? '...'}</h1>
-          <p className="text-sm text-gray-400 mt-1">{camera?.location}</p>
+          <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Calibrate</p>
+          <h1 className="text-lg font-bold uppercase">{camera?.name ?? '...'}</h1>
+          <p className="text-xs text-stone-500">{camera?.location}</p>
         </div>
-        <button onClick={() => navigate('/cameras')} className="text-gray-400 hover:text-white px-3 py-1 border border-gray-700 rounded-lg text-sm">
+        <button onClick={() => navigate('/cameras')} className="text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors">
           ← Back
         </button>
       </div>
@@ -268,45 +269,40 @@ export default function CameraCalibrate() {
       <CalibrationHelp />
 
       {error && (
-        <div className="bg-red-950 border border-red-800 text-red-300 rounded-lg p-3 mb-4 text-sm">{error}</div>
+        <div className="border-2 border-red-600 text-red-600 p-3 mb-4 text-xs uppercase">{error}</div>
       )}
       {snapshotMissing && !snapshot && (
-        <div className="bg-yellow-950 border border-yellow-800 text-yellow-300 rounded-lg p-3 mb-4 text-sm">
-          No live snapshot yet — camera may still be starting. Upload a screenshot to calibrate now.
+        <div className="border-2 border-black p-3 mb-4 text-xs">
+          No live snapshot — camera may still be starting. Upload a screenshot to calibrate now.
         </div>
       )}
       {hasExistingHomography && (
-        <div className="bg-green-950 border border-green-900 text-green-300 rounded-lg p-3 mb-4 text-sm">
-          Speed calibration already saved. You can update lines and speed limit, or re-pick all points to recalibrate.
+        <div className="border-2 border-black p-3 mb-4 text-xs">
+          Calibration saved. Update lines and speed limit, or re-pick all points to recalibrate.
         </div>
       )}
 
       {/* Status bar */}
-      <div className="flex items-center gap-4 mb-3">
-        <span className={`text-sm font-medium ${pairsCount >= 4 ? 'text-green-400' : hasExistingHomography ? 'text-gray-400' : 'text-yellow-400'}`}>
-          {pairsCount} / 4+ point pairs {pairsCount >= 4 ? '✓' : hasExistingHomography ? '(using saved calibration)' : ''}
+      <div className="flex items-center gap-4 mb-3 text-xs">
+        <span className={`uppercase tracking-widest font-bold ${pairsCount >= 4 ? 'text-black' : hasExistingHomography ? 'text-stone-400' : 'text-stone-600'}`}>
+          {pairsCount} / 4+ pairs {pairsCount >= 4 ? '✓' : hasExistingHomography ? '(saved)' : ''}
         </span>
-        {awaitingMapPoint && <span className="text-sm text-blue-400 animate-pulse">→ Now click the same spot on the map</span>}
-        {awaitingFramePoint && <span className="text-sm text-yellow-400 animate-pulse">← Now click the same spot on the camera image</span>}
-        {!awaitingMapPoint && !awaitingFramePoint && pairsCount > 0 && !hasExistingHomography && (
-          <span className="text-sm text-gray-500">Click a point on the camera image to continue</span>
-        )}
-        <button onClick={removeLastPair} disabled={pairsCount === 0} className="ml-auto text-sm text-gray-400 hover:text-red-400 disabled:opacity-40 px-3 py-1 border border-gray-700 rounded-lg">
+        {awaitingMapPoint && <span className="animate-pulse uppercase tracking-widest">→ Click same spot on map</span>}
+        {awaitingFramePoint && <span className="animate-pulse uppercase tracking-widest">← Click same spot on image</span>}
+        <button onClick={removeLastPair} disabled={pairsCount === 0} className="ml-auto border border-black px-2 py-1 uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-30 transition-colors">
           Remove last pair
         </button>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
-        {/* Camera image */}
         <div>
-          <p className="text-sm font-medium text-gray-300 mb-2">① Camera image — click landmarks</p>
+          <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">① Camera image — click landmarks</p>
           {snapshot ? (
             <FramePointPicker frameBase64={snapshot} points={imagePoints} onChange={handleFramePoint} width={640} />
           ) : snapshotMissing ? (
-            <label className="bg-gray-900 border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-lg aspect-video flex flex-col items-center justify-center text-gray-400 text-sm cursor-pointer gap-2">
+            <label className="border-2 border-black border-dashed aspect-video flex flex-col items-center justify-center text-stone-400 text-sm cursor-pointer gap-2 hover:border-solid">
               <span className="text-3xl">↑</span>
-              <span>Upload camera screenshot</span>
-              <span className="text-xs text-gray-600">PNG, JPG — any screenshot of the camera view</span>
+              <span className="text-xs uppercase tracking-widest">Upload screenshot</span>
               <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (!file) return
@@ -319,26 +315,25 @@ export default function CameraCalibrate() {
               }} />
             </label>
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-lg aspect-video flex items-center justify-center text-gray-500 text-sm">
+            <div className="border-2 border-black aspect-video flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
               Loading snapshot...
             </div>
           )}
         </div>
 
-        {/* Map */}
         <div>
-          <p className="text-sm font-medium text-gray-300 mb-2">② Satellite map — click same locations</p>
+          <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">② Satellite map — click same locations</p>
           {isLoaded ? (
             <div>
               <StandaloneSearchBox onLoad={onSearchBoxLoad} onPlacesChanged={onPlacesChanged}>
                 <input
                   type="text"
-                  placeholder="Search for a street or location..."
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:border-blue-500"
+                  placeholder="Search location..."
+                  className="w-full border-2 border-black px-3 py-2 text-xs mb-2 focus:outline-none bg-white"
                 />
               </StandaloneSearchBox>
               <GoogleMap
-                mapContainerClassName="w-full rounded-lg"
+                mapContainerClassName="w-full"
                 mapContainerStyle={{ height: '460px' }}
                 center={mapCenter}
                 zoom={mapZoom}
@@ -352,11 +347,11 @@ export default function CameraCalibrate() {
               </GoogleMap>
             </div>
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-lg aspect-video flex items-center justify-center text-gray-500 text-sm">
+            <div className="border-2 border-black aspect-video flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
               {GOOGLE_MAPS_API_KEY ? 'Loading map...' : (
                 <div className="text-center px-4">
-                  <p className="mb-1">Google Maps not configured</p>
-                  <p className="text-xs text-gray-600">Add VITE_GOOGLE_MAPS_API_KEY to frontend/.env</p>
+                  <p>Google Maps not configured</p>
+                  <p className="text-stone-400 mt-1">Add VITE_GOOGLE_MAPS_API_KEY to frontend/.env</p>
                 </div>
               )}
             </div>
@@ -365,11 +360,11 @@ export default function CameraCalibrate() {
       </div>
 
       {/* Counting lines + settings */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
-        <h3 className="text-sm font-semibold text-gray-300 mb-1">Counting lines</h3>
-        <p className="text-xs text-gray-500 mb-3">
-          Drag the endpoints to align each line with a fixed point across the road.
-          Vehicles crossing A then B count as <strong className="text-gray-300">A→B</strong>; crossing B then A counts as <strong className="text-gray-300">B→A</strong>.
+      <div className="border-2 border-black p-4 mb-6">
+        <p className="text-xs font-bold uppercase tracking-widest mb-1">Counting Lines</p>
+        <p className="text-xs text-stone-500 mb-3">
+          Drag endpoints to align each line across the road.
+          A→B: crosses A then B. B→A: crosses B then A.
         </p>
         {snapshot ? (
           <LineEditor
@@ -381,32 +376,51 @@ export default function CameraCalibrate() {
             width={640}
           />
         ) : (
-          <div className="bg-gray-800 rounded-lg h-32 flex items-center justify-center text-gray-500 text-sm">
-            Waiting for camera snapshot…
+          <div className="border border-stone-200 h-32 flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
+            Waiting for snapshot…
           </div>
         )}
 
-        <div className="mt-4">
-          <label className="block text-sm text-gray-400 mb-1">Max speed limit (km/h)</label>
-          <input
-            type="number"
-            value={maxSpeedKmh}
-            onChange={(e) => setMaxSpeedKmh(e.target.value)}
-            placeholder="e.g. 120"
-            className="w-40 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">Vehicles above this are flagged as speeders</p>
+        <div className="mt-4 flex flex-wrap gap-6 items-start">
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Max speed (km/h)</label>
+            <input
+              type="number"
+              value={maxSpeedKmh}
+              onChange={(e) => setMaxSpeedKmh(e.target.value)}
+              placeholder="120"
+              className="w-32 border-2 border-black px-3 py-2 text-sm focus:outline-none bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Speed Method</label>
+            <button
+              type="button"
+              onClick={() => setTrapSpeedEnabled((v) => !v)}
+              className={`flex items-center gap-3 px-3 py-2 border-2 text-xs uppercase tracking-widest transition-colors ${
+                trapSpeedEnabled ? 'border-black bg-black text-white' : 'border-black bg-white text-black'
+              }`}
+            >
+              <span className={`w-8 h-4 border border-current flex items-center px-0.5 transition-colors ${trapSpeedEnabled ? 'bg-white' : 'bg-transparent'}`}>
+                <span className={`w-3 h-3 transition-transform ${trapSpeedEnabled ? 'bg-black translate-x-4' : 'bg-current translate-x-0'}`} />
+              </span>
+              {trapSpeedEnabled ? 'Trap (A→B time)' : 'Continuous (homography)'}
+            </button>
+            <p className="text-xs text-stone-400 mt-1">
+              {trapSpeedEnabled ? 'Exact — like trajectcontrole' : 'Real-time per-frame estimate'}
+            </p>
+          </div>
         </div>
       </div>
 
       <button
         onClick={handleSave}
         disabled={!canSave || saving}
-        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed px-6 py-2 rounded-lg font-medium"
+        className="text-xs uppercase tracking-widest border-2 border-black px-6 py-2 hover:bg-black hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         {saving ? 'Saving…' : canSave
-          ? pairsCount >= 4 ? `Save calibration (${pairsCount} pairs)` : 'Save lines & speed limit'
-          : `Need ${Math.max(0, 4 - pairsCount)} more point pairs`}
+          ? pairsCount >= 4 ? `Save (${pairsCount} pairs)` : 'Save lines & speed limit'
+          : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
       </button>
     </div>
   )

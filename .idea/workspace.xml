@@ -4,13 +4,22 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update tracker update method to include frame time for improved detection accuracy with kalman filter">
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update speed display logic to use lerp factor for smoother transitions">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/backend/prisma/schema.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/scripts/download-model.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/scripts/download-model.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/ai/tracker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/tracker.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/analysis/speed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/analysis/speed.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/camera-worker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/camera-worker.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/routes/cameras.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/routes/cameras.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/tests/analysis/speed.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/tests/analysis/speed.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/index.css" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/index.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/lib/api.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/lib/api.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/CameraCalibrate.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/CameraCalibrate.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Cameras.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Cameras.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,7 +37,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="master" />
+        <entry key="$PROJECT_DIR$" value="rust-optimize" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -60,7 +69,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "rust-optimize",
+    "git-widget-placeholder": "new-tactic",
     "junie.onboarding.icon.badge.shown": "true",
     "last_opened_file_path": "/Users/koraysels/work/flash/frontend",
     "node.js.detected.package.eslint": "true",
@@ -92,7 +101,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="59128000" />
+      <workItem from="1778661338564" duration="66735000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -286,7 +295,31 @@
       <option name="project" value="LOCAL" />
       <updated>1779018337667</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="feat: remove outputFps from SpeedCalculator and related components for streamlined processing">
+      <option name="closed" value="true" />
+      <created>1779019365272</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1779019365272</updated>
+    </task>
+    <task id="LOCAL-00026" summary="feat: update speed display logic to use lerp factor for smoother transitions">
+      <option name="closed" value="true" />
+      <created>1779019605854</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1779019605854</updated>
+    </task>
+    <task id="LOCAL-00027" summary="feat: increase MAX_QUEUE and OUTPUT_FPS for improved streaming performance">
+      <option name="closed" value="true" />
+      <created>1779020114337</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1779020114337</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -305,7 +338,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
-    <MESSAGE value="Initialize project structure and configuration files" />
     <MESSAGE value="feat: enhance camera calibration interface with guidance and HLS streaming support" />
     <MESSAGE value="feat: enhance camera calibration UI with guidance and HLS streaming support" />
     <MESSAGE value="feat: update camera calibration UI and improve HLS player buffering logic" />
@@ -329,7 +361,9 @@
     <MESSAGE value="feat: update Docker configuration for improved service management and build process" />
     <MESSAGE value="feat: add deployment documentation and update Docker configuration for Traefik integration" />
     <MESSAGE value="feat: update tracker update method to include frame time for improved detection accuracy with kalman filter" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: update tracker update method to include frame time for improved detection accuracy with kalman filter" />
+    <MESSAGE value="feat: remove outputFps from SpeedCalculator and related components for streamlined processing" />
+    <MESSAGE value="feat: update speed display logic to use lerp factor for smoother transitions" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update speed display logic to use lerp factor for smoother transitions" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

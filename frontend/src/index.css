@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  * {
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'Courier New', monospace;
+  }
+  body {
+    background: white;
+    color: black;
+  }
+  input, textarea, select {
+    font-family: inherit;
+  }
+}

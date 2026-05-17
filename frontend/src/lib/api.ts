@@ -13,6 +13,7 @@ export type Camera = {
   countingLineB: number
   countingLineAPoints: number[]  // [x1,y1,x2,y2] normalised 0-1, or []
   countingLineBPoints: number[]  // same for B
+  trapSpeedEnabled: boolean
   createdAt: string
   updatedAt: string
 }
@@ -63,11 +64,12 @@ export async function saveCalibration(
   countingLineB: number,
   countingLineAPoints?: number[],
   countingLineBPoints?: number[],
+  trapSpeedEnabled?: boolean,
 ): Promise<Camera> {
   const res = await fetch(`${BASE}/cameras/${id}/calibration`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints }),
+    body: JSON.stringify({ pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints, trapSpeedEnabled }),
   })
   if (!res.ok) throw new Error('Failed to save calibration')
   return res.json()

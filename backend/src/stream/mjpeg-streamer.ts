@@ -70,6 +70,7 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly homographyMatrix: number[] = [],
     private readonly lineAPoints: number[] = [],
     private readonly lineBPoints: number[] = [],
+    private readonly trapSpeedEnabled: boolean = false,
   ) {
     super()
   }
@@ -90,6 +91,7 @@ export class MJPEGStreamer extends EventEmitter {
         lineBPoints: this.lineBPoints,
         maxSpeedKmh: this.maxSpeedKmh,
         homographyMatrix: this.homographyMatrix,
+        trapSpeedEnabled: this.trapSpeedEnabled,
       }
 
       // tsx/cjs registers the CommonJS TypeScript hook, enabling extensionless
@@ -256,6 +258,8 @@ export class MJPEGStreamer extends EventEmitter {
     const SOI = Buffer.from([0xff, 0xd8])
     const EOI = Buffer.from([0xff, 0xd9])
     let buf = Buffer.alloc(0)
+
+    pass.on('error', () => { /* ffmpeg pipe closed on stop/restart — suppress EPIPE */ })
 
     pass.on('data', (chunk: Buffer) => {
       buf = Buffer.concat([buf, chunk])

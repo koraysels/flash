@@ -73,11 +73,13 @@ export class CameraWorkerManager {
       for (const camera of cameras) {
         const inInitQueue = this.initQueue.some(q => q.cameraId === camera.id)
         if (!streamers.has(camera.id) && !this.retryTimers.has(camera.id) && !this.starting.has(camera.id) && !inInitQueue) {
-          this.startWorker(camera.id, camera.streamUrl)
+          void this.startWorker(camera.id, camera.streamUrl)
         }
       }
 
       console.log(`[camera-manager] active: ${streamers.size} running, ${this.starting.size} starting, ${this.initSlots} init slots used`)
+    } catch (err) {
+      console.error('[camera-manager] syncWorkers error:', err)
     } finally {
       this.syncing = false
     }
@@ -111,6 +113,7 @@ export class CameraWorkerManager {
         (camera.homographyMatrix as number[] | null) ?? [],
         (camera.countingLineAPoints as number[] | null) ?? [],
         (camera.countingLineBPoints as number[] | null) ?? [],
+        camera.trapSpeedEnabled,
       )
       await streamer.init()
       streamer.start()

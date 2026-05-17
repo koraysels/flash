@@ -3,7 +3,7 @@ import { join } from 'path'
 import { pipeline } from 'stream/promises'
 
 const MODEL_URL = 'https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.onnx'
-const MODEL_PATH = join(__dirname, '../models/yolov8n.onnx')
+const MODEL_PATH = join(__dirname, '../models/yolov8s.onnx')
 
 async function download() {
   if (existsSync(MODEL_PATH)) {

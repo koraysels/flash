@@ -26,6 +26,7 @@ model Camera {
   countingLineB     Float     @default(0.6)
   countingLineAPoints Float[] // [x1,y1,x2,y2] normalised 0-1; overrides countingLineA if length==4
   countingLineBPoints Float[] // same for line B
+  trapSpeedEnabled    Boolean  @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

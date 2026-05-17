@@ -5,7 +5,7 @@ import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
 import { join } from 'path'
 
-const MODEL_PATH = join(process.cwd(), 'models/yolov8n.onnx')
+const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
 
 export type VehicleInfo = {
   id: number

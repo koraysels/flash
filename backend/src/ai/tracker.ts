@@ -23,13 +23,13 @@ const Q_VEL  = 0.05  // velocity process noise ((px/s)²/s) — low: highway = c
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56  // [4 px² … 60 px²]
 
 // ── ByteTrack matching parameters ────────────────────────────────────────────
-const HIGH_CONF  = 0.55   // detections at/above this go into the first association stage
-const IOU_STAGE1 = 0.35   // strict IoU minimum — KF prediction is accurate, so we can be choosy
-const IOU_STAGE2 = 0.12   // lenient — recover tracks lost to occlusion/low-conf detections
+const HIGH_CONF  = 0.45   // detections at/above this go into the first association stage
+const IOU_STAGE1 = 0.25   // IoU minimum — relaxed slightly to handle edge-of-frame angle changes
+const IOU_STAGE2 = 0.10   // lenient — recover tracks lost to occlusion/low-conf detections
 
 // ── Track lifecycle ───────────────────────────────────────────────────────────
 const BOX_EMA       = 0.6   // EMA weight for width/height updates
-const MAX_MISSED    = 15    // frames before a track is dropped (~1.5 s at 10 fps AI)
+const MAX_MISSED    = 30    // frames before a track is dropped (~6 s at 5 fps AI)
 const MIN_CONFIRMED = 2     // frames before a track is reported
 
 // ── 1-D Kalman filter: state = [position, velocity] ──────────────────────────

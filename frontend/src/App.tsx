@@ -6,19 +6,27 @@ import PiDisplay from './pages/PiDisplay'
 
 function Layout() {
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <nav className="border-b border-gray-800 px-6 py-3 flex gap-6 items-center">
-        <span className="font-bold text-lg tracking-tight">Flash</span>
+    <div className="min-h-screen bg-white text-black">
+      <nav className="border-b-2 border-black px-6 py-3 flex items-center gap-8">
+        <span className="font-bold text-sm tracking-widest uppercase">FLASH</span>
         <NavLink
           to="/"
           end
-          className={({ isActive }) => isActive ? 'text-blue-400' : 'text-gray-400 hover:text-white'}
+          className={({ isActive }) =>
+            isActive
+              ? 'text-xs tracking-widest uppercase bg-black text-white px-2 py-1'
+              : 'text-xs tracking-widest uppercase text-stone-400 hover:text-black px-2 py-1'
+          }
         >
           Dashboard
         </NavLink>
         <NavLink
           to="/cameras"
-          className={({ isActive }) => isActive ? 'text-blue-400' : 'text-gray-400 hover:text-white'}
+          className={({ isActive }) =>
+            isActive
+              ? 'text-xs tracking-widest uppercase bg-black text-white px-2 py-1'
+              : 'text-xs tracking-widest uppercase text-stone-400 hover:text-black px-2 py-1'
+          }
         >
           Cameras
         </NavLink>

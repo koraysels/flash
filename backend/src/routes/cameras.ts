@@ -49,6 +49,7 @@ export async function cameraRoutes(app: FastifyInstance) {
       calibrationPoints: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput
       countingLineA: number
       countingLineB: number
+      trapSpeedEnabled: boolean
     }>
   }>('/api/cameras/:id', async (req, reply) => {
     try {
@@ -89,6 +90,7 @@ export async function cameraRoutes(app: FastifyInstance) {
       countingLineB?: number
       countingLineAPoints?: number[]
       countingLineBPoints?: number[]
+      trapSpeedEnabled?: boolean
     }
   }>('/api/cameras/:id/calibration', {
     schema: {
@@ -115,11 +117,12 @@ export async function cameraRoutes(app: FastifyInstance) {
           countingLineB: { type: 'number', minimum: 0, maximum: 1 },
           countingLineAPoints: { type: 'array', items: { type: 'number' } },
           countingLineBPoints: { type: 'array', items: { type: 'number' } },
+          trapSpeedEnabled: { type: 'boolean' },
         },
       },
     },
   }, async (req, reply) => {
-    const { pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints } = req.body
+    const { pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints, trapSpeedEnabled } = req.body
 
     // Homography only computed when at least 4 point pairs are provided
     let H: number[] | undefined
@@ -144,6 +147,7 @@ export async function cameraRoutes(app: FastifyInstance) {
           ...(countingLineB !== undefined && { countingLineB }),
           ...(countingLineAPoints !== undefined && { countingLineAPoints }),
           ...(countingLineBPoints !== undefined && { countingLineBPoints }),
+          ...(trapSpeedEnabled !== undefined && { trapSpeedEnabled }),
         },
       })
       // Restart the streamer so the worker picks up the new calibration
