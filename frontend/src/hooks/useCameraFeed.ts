@@ -32,6 +32,7 @@ export function useCameraFeed(cameraId: string) {
   const [active, setActive] = useState(false)
   const aiFrameCount = useRef(0)
   const lastFpsTime = useRef(Date.now())
+  const avgSpeedRef = useRef<number | null>(null)
 
   useEffect(() => {
     setAiFps(0)
@@ -43,6 +44,7 @@ export function useCameraFeed(cameraId: string) {
     setActive(false)
     aiFrameCount.current = 0
     lastFpsTime.current = Date.now()
+    avgSpeedRef.current = null
 
     socket.emit('subscribe', cameraId)
 
@@ -57,7 +59,11 @@ export function useCameraFeed(cameraId: string) {
       if (event.videoFps) setVideoFps(event.videoFps)
 
       const speeds = event.vehicles.map((v) => v.speedKmh).filter((s): s is number => s !== null)
-      if (speeds.length > 0) setAvgSpeedKmh(speeds.reduce((a, b) => a + b, 0) / speeds.length)
+      if (speeds.length > 0) {
+        const raw = speeds.reduce((a, b) => a + b, 0) / speeds.length
+        avgSpeedRef.current = avgSpeedRef.current === null ? raw : 0.15 * raw + 0.85 * avgSpeedRef.current
+        setAvgSpeedKmh(Math.round(avgSpeedRef.current))
+      }
 
       aiFrameCount.current++
       const now = Date.now()

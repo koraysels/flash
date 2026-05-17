@@ -5,7 +5,7 @@ describe('SpeedCalculator', () => {
   it('calculates speed from pixel trajectory via homography', () => {
     // H: 1px = 0.1m (scale-only: [[0.1,0,0],[0,0.1,0],[0,0,1]])
     const H = [0.1, 0, 0, 0, 0.1, 0, 0, 0, 1]
-    const calc = new SpeedCalculator(H, 2) // 2 fps
+    const calc = new SpeedCalculator(H) // 2 fps
 
     const t0 = Date.now() - 500
     const t1 = Date.now()
@@ -20,26 +20,28 @@ describe('SpeedCalculator', () => {
 
   it('returns null if fewer than 2 positions', () => {
     const H = [0.1, 0, 0, 0, 0.1, 0, 0, 0, 1]
-    const calc = new SpeedCalculator(H, 2)
+    const calc = new SpeedCalculator(H)
     calc.addPosition(2, 0, 0, Date.now())
     expect(calc.getSpeed(2)).toBeNull()
   })
 
   it('detects speeders when speed exceeds maxSpeedKmh', () => {
-    const H = [1, 0, 0, 0, 1, 0, 0, 0, 1]  // 1px = 1m
-    const calc = new SpeedCalculator(H, 2, 10)  // maxSpeed = 10 km/u
+    // 1px = 1m; vehicle moves 10m in 500ms = 20 m/s = 72 km/h → above limit of 50
+    const H = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+    const calc = new SpeedCalculator(H, 50)  // maxSpeed = 50 km/u
 
     const t0 = Date.now() - 500
     const t1 = Date.now()
+    // EMA_ALPHA=0.3 smooths the 30m movement to 9m effective → 64.8 km/h > 50 km/h limit
     calc.addPosition(3, 0, 0, t0)
-    calc.addPosition(3, 100, 0, t1)  // 100m in 0.5s = 200m/s = 720 km/u → definitely a speeder
+    calc.addPosition(3, 30, 0, t1)
 
     expect(calc.isSpeeder(3)).toBe(true)
   })
 
   it('not a speeder if speed is under limit', () => {
     const H = [0.001, 0, 0, 0, 0.001, 0, 0, 0, 1]  // 1px = 1mm
-    const calc = new SpeedCalculator(H, 2, 100)
+    const calc = new SpeedCalculator(H, 100)
 
     const t0 = Date.now() - 500
     const t1 = Date.now()
@@ -51,7 +53,7 @@ describe('SpeedCalculator', () => {
 
   it('removeVehicle cleans up history', () => {
     const H = [0.1, 0, 0, 0, 0.1, 0, 0, 0, 1]
-    const calc = new SpeedCalculator(H, 2)
+    const calc = new SpeedCalculator(H)
     calc.addPosition(5, 0, 0, Date.now())
     calc.removeVehicle(5)
     expect(calc.getSpeed(5)).toBeNull()

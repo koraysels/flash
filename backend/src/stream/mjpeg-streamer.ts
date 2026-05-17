@@ -90,7 +90,6 @@ export class MJPEGStreamer extends EventEmitter {
         lineBPoints: this.lineBPoints,
         maxSpeedKmh: this.maxSpeedKmh,
         homographyMatrix: this.homographyMatrix,
-        outputFps: OUTPUT_FPS,
       }
 
       // tsx/cjs registers the CommonJS TypeScript hook, enabling extensionless

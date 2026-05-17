@@ -23,7 +23,6 @@ export type WorkerInitData = {
   lineBPoints: number[]   // same for B
   maxSpeedKmh: number | null
   homographyMatrix: number[]
-  outputFps: number
 }
 
 export type WorkerAnalyseMsg = {
@@ -49,13 +48,13 @@ export type WorkerResultMsg = {
 
 const MODEL_PATH = join(process.cwd(), 'models/yolov8n.onnx')
 
-const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, outputFps } = workerData as WorkerInitData
+const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix } = workerData as WorkerInitData
 
 const detector = new Detector(MODEL_PATH)
 const tracker = new Tracker()
 let counter = new DirectionCounter(576, lineA, lineB, lineAPoints, lineBPoints)
 const speedCalc = homographyMatrix.length === 9
-  ? new SpeedCalculator(homographyMatrix, outputFps, maxSpeedKmh ?? undefined)
+  ? new SpeedCalculator(homographyMatrix, maxSpeedKmh ?? undefined)
   : null
 
 let actualWidth = 768

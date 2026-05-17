@@ -53,7 +53,7 @@ export class CameraPipeline {
     this.tracker = new Tracker()
     this.counter = new DirectionCounter(initialHeight, lineA, lineB)
     if (homographyMatrix.length === 9) {
-      this.speedCalc = new SpeedCalculator(homographyMatrix, fps, maxSpeedKmh ?? undefined)
+      this.speedCalc = new SpeedCalculator(homographyMatrix, maxSpeedKmh ?? undefined)
     }
   }
 

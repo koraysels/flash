@@ -4,9 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: add deployment documentation and update Docker configuration for Traefik integration">
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update tracker update method to include frame time for improved detection accuracy with kalman filter">
+      <change beforePath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/ai/tracker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/tracker.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/analysis/speed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/analysis/speed.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/mjpeg-streamer.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/tests/analysis/speed.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/tests/analysis/speed.test.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,7 +92,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="58627000" />
+      <workItem from="1778661338564" duration="59128000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -274,7 +278,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779017816758</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="feat: update tracker update method to include frame time for improved detection accuracy with kalman filter">
+      <option name="closed" value="true" />
+      <created>1779018337666</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1779018337667</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -316,7 +328,8 @@
     <MESSAGE value="feat: add counting line points columns to Camera table for enhanced tracking capabilities" />
     <MESSAGE value="feat: update Docker configuration for improved service management and build process" />
     <MESSAGE value="feat: add deployment documentation and update Docker configuration for Traefik integration" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add deployment documentation and update Docker configuration for Traefik integration" />
+    <MESSAGE value="feat: update tracker update method to include frame time for improved detection accuracy with kalman filter" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update tracker update method to include frame time for improved detection accuracy with kalman filter" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

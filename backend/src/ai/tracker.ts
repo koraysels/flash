@@ -173,7 +173,7 @@ export class Tracker {
       t.x1 = t.kfX.pos - t.w / 2; t.y1 = t.kfY.pos - t.h / 2
       t.x2 = t.kfX.pos + t.w / 2; t.y2 = t.kfY.pos + t.h / 2
       t.cx = t.kfX.pos; t.cy = t.kfY.pos
-      t.bcx = t.cx;     t.bcy = t.y2
+      t.bcx = t.cx;     t.bcy = t.y2 - t.h * 0.05   // 5% inset: avoids bonnet of car below
 
       t.confidence = det.confidence
       t.history.push({ cx: t.cx, cy: t.cy, timestamp })
@@ -206,7 +206,7 @@ export class Tracker {
       this.tracks.push({
         ...det,
         id: this.nextId++,
-        cx, cy, bcx: cx, bcy: det.y2,
+        cx, cy, bcx: cx, bcy: det.y2 - h * 0.05,
         kfX: new KF1D(cx), kfY: new KF1D(cy),
         w, h, lastTs: timestamp,
         history: [{ cx, cy, timestamp }],
