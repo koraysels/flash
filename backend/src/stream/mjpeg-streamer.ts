@@ -10,8 +10,8 @@ import type { WorkerInitData, WorkerResultMsg } from './ai-worker'
 
 // With -re, frames arrive at ~source fps (~25) and drain at OUTPUT_FPS (17).
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
-const MAX_QUEUE = 34   // ~2 s at OUTPUT_FPS
-const OUTPUT_FPS = 17
+const MAX_QUEUE = 48   // ~2 s at OUTPUT_FPS
+const OUTPUT_FPS = 24
 
 function resolveFfmpegPath(): string {
   if (process.platform === 'darwin') {
