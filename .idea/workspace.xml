@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update Docker configuration for improved service management and build process">
-      <change afterPath="$PROJECT_DIR$/docs/deployment.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: add deployment documentation and update Docker configuration for Traefik integration">
+      <change beforePath="$PROJECT_DIR$/backend/src/ai/tracker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/tracker.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,7 +88,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
-      <workItem from="1778661338564" duration="58241000" />
+      <workItem from="1778661338564" duration="58627000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -266,7 +266,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779016177921</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="feat: add deployment documentation and update Docker configuration for Traefik integration">
+      <option name="closed" value="true" />
+      <created>1779017816758</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1779017816758</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -307,7 +315,8 @@
     <MESSAGE value="feat: enhance CameraWorkerManager with init queue for better camera initialization handling" />
     <MESSAGE value="feat: add counting line points columns to Camera table for enhanced tracking capabilities" />
     <MESSAGE value="feat: update Docker configuration for improved service management and build process" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: update Docker configuration for improved service management and build process" />
+    <MESSAGE value="feat: add deployment documentation and update Docker configuration for Traefik integration" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add deployment documentation and update Docker configuration for Traefik integration" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

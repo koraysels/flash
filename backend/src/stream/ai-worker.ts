@@ -123,7 +123,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
     const detections = await detector.detect(rgba640, padX, padY, scale, width, height)
     const t3 = performance.now()
 
-    const tracked = tracker.update(detections)
+    const tracked = tracker.update(detections, msg.frameTime)
     const currentIds = new Set(tracked.map((v) => v.id))
 
     // Clean up vehicles that disappeared
