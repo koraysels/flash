@@ -50,7 +50,7 @@ export type WorkerResultMsg = {
 
 // ----------------------------------------------------------------------------------
 
-const MODEL_PATH = join(process.cwd(), 'models/yolov8s.onnx')
+const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
 
 const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, trapSpeedEnabled } = workerData as WorkerInitData
 

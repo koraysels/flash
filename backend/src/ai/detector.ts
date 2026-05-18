@@ -9,18 +9,18 @@ export type DetectionResult = {
   class: string
 }
 
-// COCO class indices: 2=car, 3=motorcycle, 5=bus, 7=truck
+// UA-DETRAC class indices for traffic_detector.onnx
 const VEHICLE_CLASSES: Record<number, string> = {
-  2: 'car',
-  3: 'motorcycle',
-  5: 'bus',
-  7: 'truck',
+  0: 'truck',
+  1: 'car',
+  2: 'truck',
+  3: 'van',
 }
 
 const INPUT_SIZE = 640
 const CONF_THRESHOLD = 0.35   // lower than default: traffic cams have small/distant vehicles
 const IOU_THRESHOLD = 0.4     // slightly tighter than default: side-by-side vehicles in lanes
-const NUM_CLASSES = 80
+const NUM_CLASSES = 4
 const NUM_DETECTIONS = 8400
 
 export class Detector {
