@@ -236,9 +236,9 @@ export class MJPEGStreamer extends EventEmitter {
         '-q:v', '4',
       ])
       .output(pass as unknown as string)
-      .on('start', (cmd) => {
+      .on('start', () => {
         this.spawnedAt = Date.now()
-        console.log(`[mjpeg:${this.cameraId}] ffmpeg: ${cmd}`)
+        console.log(`[mjpeg:${this.cameraId}] ffmpeg started → ${this.streamUrl}`)
       })
       .on('error', (err: Error) => {
         if (!this.running) return

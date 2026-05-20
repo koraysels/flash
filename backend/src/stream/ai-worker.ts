@@ -94,7 +94,6 @@ function initTrapCalc(): void {
 
 // Periodic timing summary — log to stderr every 100 frames so you can see per-stage costs
 let frameCount = 0
-const timingAccum = { decodeMs: 0, canvasMs: 0, inferenceMs: 0, trackMs: 0, totalMs: 0 }
 
 // Returns the normalised Y of a counting line at a given normalised X.
 // For angled lines ([x1,y1,x2,y2]); falls back to the scalar fraction for horizontal ones.
@@ -225,18 +224,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       totalMs: Math.round(t4 - t0),
     }
 
-    // Accumulate for periodic log
     frameCount++
-    for (const k of Object.keys(timing) as (keyof typeof timing)[]) {
-      timingAccum[k] += timing[k]
-    }
-    if (frameCount % 100 === 0) {
-      const avg = Object.fromEntries(
-        Object.entries(timingAccum).map(([k, v]) => [k, Math.round(v / 100)])
-      )
-      process.stderr.write(`[ai-worker:${cameraId}] avg over 100 frames: ${JSON.stringify(avg)}\n`)
-      for (const k of Object.keys(timingAccum) as (keyof typeof timingAccum)[]) timingAccum[k] = 0
-    }
 
     parentPort!.postMessage({
       type: 'result',
