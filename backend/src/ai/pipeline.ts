@@ -102,7 +102,9 @@ export class CameraPipeline {
 
     for (const v of tracked) {
       // Use bottom-center y for counting — ground contact point crosses line more accurately
-      this.counter.updateVehicle(v.id, v.bcx / this.actualWidth, v.bcy / this.actualHeight)
+      if (!v.isPredicted) {
+        this.counter.updateVehicle(v.id, v.bcx / this.actualWidth, v.bcy / this.actualHeight)
+      }
     }
 
     const counts = this.counter.getCounts()
@@ -112,7 +114,9 @@ export class CameraPipeline {
 
       if (this.speedCalc) {
         // Bottom-center projects correctly through homography (calibrated to ground plane)
-        this.speedCalc.addPosition(v.id, v.bcx, v.bcy, Date.now())
+        if (!v.isPredicted) {
+          this.speedCalc.addPosition(v.id, v.bcx, v.bcy, Date.now())
+        }
         speedKmh = this.speedCalc.getSpeed(v.id)
         if (this.speedCalc.isSpeeder(v.id) && !this.countedSpeeders.has(v.id)) {
           this.countedSpeeders.add(v.id)

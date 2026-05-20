@@ -54,10 +54,26 @@ describe('Tracker', () => {
     tracker.update([car(100, 100)])
     tracker.update([car(100, 100)])
 
-    // Miss enough frames to expire the track (maxMissedFrames = 12, so 13 misses evict)
+    // Miss enough frames that the track is no longer emitted
     for (let i = 0; i < 13; i++) tracker.update([])
 
     expect(tracker.update([])).toHaveLength(0)
+  })
+
+  it('keeps a confirmed track visible for short detector dropouts', () => {
+    tracker.update([car(100, 100)])
+    const confirmed = tracker.update([car(110, 100)])
+    expect(confirmed).toHaveLength(1)
+
+    const missed1 = tracker.update([])
+    expect(missed1).toHaveLength(1)
+    expect(missed1[0].id).toBe(confirmed[0].id)
+    expect(missed1[0].isPredicted).toBe(true)
+
+    const recovered = tracker.update([car(130, 100)])
+    expect(recovered).toHaveLength(1)
+    expect(recovered[0].id).toBe(confirmed[0].id)
+    expect(recovered[0].isPredicted).toBe(false)
   })
 
   it('reset clears all tracks', () => {

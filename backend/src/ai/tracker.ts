@@ -10,6 +10,8 @@ export type TrackedVehicle = DetectionResult & {
   history: Array<{ cx: number; cy: number; timestamp: number }>
   missedFrames: number
   confirmedFrames: number
+  /** True when this frame is model-predicted (no detector match this frame). */
+  isPredicted: boolean
 }
 
 // ── Kalman noise parameters (highway-tuned) ───────────────────────────────────
@@ -31,6 +33,7 @@ const IOU_STAGE2 = 0.12   // lenient — recover tracks lost to occlusion/low-co
 const BOX_EMA       = 0.6   // EMA weight for width/height updates
 const MAX_MISSED    = 30    // frames before a track is dropped (~6 s at 5 fps AI)
 const MIN_CONFIRMED = 2     // frames before a track is reported
+const MAX_PREDICTED_GAP = 3 // still emit short dropouts so UI boxes stay stable
 
 // ── 1-D Kalman filter: state = [position, velocity] ──────────────────────────
 // The 2×2 covariance matrix is stored as three scalars (symmetric: p00, p01, p11).
@@ -135,6 +138,8 @@ export class Tracker {
       const dt = Math.max(0.01, Math.min((timestamp - t.lastTs) / 1000, 2.0))
       t.kfX.predict(dt)
       t.kfY.predict(dt)
+      // Advance per frame; otherwise dt accumulates across misses and causes overshoot.
+      t.lastTs = timestamp
       return {
         x1: t.kfX.pos - t.w / 2, y1: t.kfY.pos - t.h / 2,
         x2: t.kfX.pos + t.w / 2, y2: t.kfY.pos + t.h / 2,
@@ -181,12 +186,24 @@ export class Tracker {
 
       t.missedFrames = 0
       t.confirmedFrames++
-      t.lastTs = timestamp
+      t.isPredicted = false
     }
 
     // ── 6. Increment missed frames for unmatched tracks ──────────────────────
     for (let ti = 0; ti < this.tracks.length; ti++) {
-      if (!matchedTSet.has(ti)) this.tracks[ti].missedFrames++
+      if (!matchedTSet.has(ti)) {
+        const t = this.tracks[ti]
+        t.missedFrames++
+        t.cx = t.kfX.pos
+        t.cy = t.kfY.pos
+        t.x1 = t.cx - t.w / 2
+        t.y1 = t.cy - t.h / 2
+        t.x2 = t.cx + t.w / 2
+        t.y2 = t.cy + t.h / 2
+        t.bcx = t.cx
+        t.bcy = t.y2 - t.h * 0.05
+        t.isPredicted = true
+      }
     }
 
     // ── 7. Drop lost tracks ───────────────────────────────────────────────────
@@ -211,10 +228,11 @@ export class Tracker {
         w, h, lastTs: timestamp,
         history: [{ cx, cy, timestamp }],
         missedFrames: 0, confirmedFrames: 1,
+        isPredicted: false,
       })
     }
 
-    return this.tracks.filter(t => t.missedFrames === 0 && t.confirmedFrames >= MIN_CONFIRMED)
+    return this.tracks.filter((t) => t.confirmedFrames >= MIN_CONFIRMED && t.missedFrames <= MAX_PREDICTED_GAP)
   }
 
   reset(): void {
