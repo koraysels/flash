@@ -52,7 +52,9 @@ export function useCameraFeed(cameraId: string) {
     lastFpsTime.current = Date.now()
     avgSpeedRef.current = null
 
-    socket.emit('subscribe', cameraId)
+    const subscribe = () => socket.emit('subscribe', cameraId)
+    subscribe()
+    socket.on('connect', subscribe)  // re-subscribe after socket reconnect
 
     const handler = (event: FrameEvent) => {
       if (event.cameraId !== cameraId) return
@@ -83,6 +85,7 @@ export function useCameraFeed(cameraId: string) {
 
     socket.on('frame', handler)
     return () => {
+      socket.off('connect', subscribe)
       socket.off('frame', handler)
       socket.emit('unsubscribe', cameraId)
     }
