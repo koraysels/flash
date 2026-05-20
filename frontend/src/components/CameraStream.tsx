@@ -291,12 +291,17 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
         alt=""
         onLoad={(e) => {
           const seq = parseInt((e.target as HTMLImageElement).dataset.seq ?? '0')
-          const vehicles = vehicleBufferRef.current.get(seq)
-          if (vehicles) {
-            applyVehicles(vehicles)
-            // Drop buffer entries older than current seq
+          // AI processes only some frames, so exact seq match is rare.
+          // Find the latest buffered result at or before the current frame.
+          let best: VehicleInfo[] | undefined
+          let bestSeq = -1
+          for (const [k, v] of vehicleBufferRef.current) {
+            if (k <= seq && k > bestSeq) { bestSeq = k; best = v }
+          }
+          if (best) {
+            applyVehicles(best)
             for (const k of vehicleBufferRef.current.keys()) {
-              if (k <= seq) vehicleBufferRef.current.delete(k)
+              if (k <= bestSeq) vehicleBufferRef.current.delete(k)
             }
           }
           recomputeLayout()
