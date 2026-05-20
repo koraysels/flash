@@ -247,7 +247,7 @@ docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 
 With the default compose setup Flash binds to port 80 on the host. Once deployed, open `http://<ryzen-tailscale-ip>` from any device on your Tailscale network.
 
-To use a different port set `FLASH_PORT` in the Stack environment, e.g. `FLASH_PORT=8080`.
+To use a different port set `FLASH_PORT` in the Stack environment, e.g. `FLASH_PORT=3000`.
 
 ### Setting up Komodo
 

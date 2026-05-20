@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
 # Node.js 20 + ffmpeg for HLS capture + openssl for Prisma
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates ffmpeg openssl \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
