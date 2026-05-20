@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update workspace.xml to reflect changes for python-is-python3 compatibility">
-      <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update settings.local.json and workspace.xml for improved compatibility and task management">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -91,7 +91,7 @@
       <updated>1778661337110</updated>
       <workItem from="1778661338564" duration="68389000" />
       <workItem from="1779049980339" duration="10352000" />
-      <workItem from="1779265192196" duration="4024000" />
+      <workItem from="1779265192196" duration="7948000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -405,7 +405,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779269033717</updated>
     </task>
-    <option name="localTasksCounter" value="40" />
+    <task id="LOCAL-00040" summary="feat: update settings.local.json and workspace.xml for improved compatibility and task management">
+      <option name="closed" value="true" />
+      <created>1779269333127</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1779269333127</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -424,7 +432,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
-    <MESSAGE value="feat: update CameraCard to display both AI and video FPS metrics" />
     <MESSAGE value="feat: implement frame queue management and improve video fps tracking in MJPEGStreamer" />
     <MESSAGE value="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer" />
     <MESSAGE value="feat: adjust output FPS and improve frame annotation handling in MJPEGStreamer" />
@@ -449,7 +456,8 @@
     <MESSAGE value="feat: update Dockerfile to install pnpm globally" />
     <MESSAGE value="feat: add python-is-python3 to Dockerfile for compatibility" />
     <MESSAGE value="feat: update workspace.xml to reflect changes for python-is-python3 compatibility" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: update workspace.xml to reflect changes for python-is-python3 compatibility" />
+    <MESSAGE value="feat: update settings.local.json and workspace.xml for improved compatibility and task management" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update settings.local.json and workspace.xml for improved compatibility and task management" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
