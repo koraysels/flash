@@ -74,7 +74,8 @@
       "Bash(timeout 60 node_modules/.bin/vitest run tests/routes/cameras.test.ts)",
       "Bash(timeout 90 ./node_modules/.bin/vitest run tests/routes/cameras.test.ts)",
       "Bash(timeout 90 /Users/koraysels/work/flash/backend/node_modules/.bin/vitest run tests/routes/cameras.test.ts)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(gh release *)"
     ]
   }
 }

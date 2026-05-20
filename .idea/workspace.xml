@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: add python-is-python3 to Dockerfile for compatibility" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update workspace.xml to reflect changes for python-is-python3 compatibility">
+      <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -89,7 +91,7 @@
       <updated>1778661337110</updated>
       <workItem from="1778661338564" duration="68389000" />
       <workItem from="1779049980339" duration="10352000" />
-      <workItem from="1779265192196" duration="3526000" />
+      <workItem from="1779265192196" duration="4024000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -395,7 +397,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779268514708</updated>
     </task>
-    <option name="localTasksCounter" value="39" />
+    <task id="LOCAL-00039" summary="feat: update workspace.xml to reflect changes for python-is-python3 compatibility">
+      <option name="closed" value="true" />
+      <created>1779269033717</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1779269033717</updated>
+    </task>
+    <option name="localTasksCounter" value="40" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -414,7 +424,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
-    <MESSAGE value="feat: add video fps tracking to MJPEGStreamer and update related components" />
     <MESSAGE value="feat: update CameraCard to display both AI and video FPS metrics" />
     <MESSAGE value="feat: implement frame queue management and improve video fps tracking in MJPEGStreamer" />
     <MESSAGE value="feat: implement retry mechanism for ffmpeg errors in MJPEGStreamer" />
@@ -439,7 +448,8 @@
     <MESSAGE value="feat: update pnpm workspace to include only built dependencies" />
     <MESSAGE value="feat: update Dockerfile to install pnpm globally" />
     <MESSAGE value="feat: add python-is-python3 to Dockerfile for compatibility" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add python-is-python3 to Dockerfile for compatibility" />
+    <MESSAGE value="feat: update workspace.xml to reflect changes for python-is-python3 compatibility" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update workspace.xml to reflect changes for python-is-python3 compatibility" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
