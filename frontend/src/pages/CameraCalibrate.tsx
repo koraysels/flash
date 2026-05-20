@@ -4,13 +4,257 @@ import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-g
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text as KonvaText } from 'react-konva'
 import useImage from 'use-image'
 import { FramePointPicker } from '../components/FramePointPicker'
-import { getCameraSnapshot, saveCalibration, getCameras, type Camera, type CalibrationPoint } from '../lib/api'
+import {
+  getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig,
+  type Camera, type CalibrationPoint, type TrackerConfig, DEFAULT_TRACKER_CONFIG,
+} from '../lib/api'
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string
 const LIBRARIES: ('places')[] = ['places']
 
 type LatLng = { lat: number; lng: number }
 type Pt = { x: number; y: number }  // normalised 0-1
+
+// ─── Tracking Tuning ────────────────────────────────────────────────────────
+
+type SliderDef = {
+  key: keyof TrackerConfig
+  label: string
+  description: string
+  symptomLow: string
+  symptomHigh: string
+  min: number
+  max: number
+  step: number
+  format?: (v: number) => string
+}
+
+const SLIDER_DEFS: SliderDef[] = [
+  {
+    key: 'highConfidence',
+    label: 'Min. detectie zekerheid',
+    description: 'Minimale confidence score voordat een detectie meegaat in matching.',
+    symptomLow: 'Veel ghost-boxes / vals positieven',
+    symptomHigh: 'Te veel dropouts bij slechter zicht',
+    min: 0.40, max: 0.75, step: 0.01,
+    format: (v) => v.toFixed(2),
+  },
+  {
+    key: 'iouStage1',
+    label: 'IoU drempel (stage 1)',
+    description: 'Hoe sterk een box moet overlappen met de KF-voorspelling voor de eerste matching.',
+    symptomLow: 'ID-wissels tussen dicht bij elkaar rijdende voertuigen',
+    symptomHigh: 'Tracks verdwijnen kort (bvb. bij occlusie)',
+    min: 0.20, max: 0.55, step: 0.01,
+    format: (v) => v.toFixed(2),
+  },
+  {
+    key: 'iouStage2',
+    label: 'IoU drempel (stage 2 recovery)',
+    description: 'Lossere drempel om tracks te redden via zwakke / gedeeltelijke detecties.',
+    symptomLow: 'ID-wissels bij occlusie',
+    symptomHigh: 'Weinig effect zichtbaar',
+    min: 0.05, max: 0.25, step: 0.01,
+    format: (v) => v.toFixed(2),
+  },
+  {
+    key: 'maxPredictedGap',
+    label: 'Max. voorspelde frames',
+    description: 'Hoeveel frames een box zichtbaar blijft via KF-voorspelling als de detector niks ziet.',
+    symptomLow: 'Box knippert elke gemiste detectie',
+    symptomHigh: 'Box drijft weg bij lange occlusie',
+    min: 1, max: 8, step: 1,
+    format: (v) => `${v} fr`,
+  },
+  {
+    key: 'maxMissedFrames',
+    label: 'Max. gemiste frames (track leven)',
+    description: 'Na hoeveel opeenvolgende missers verdwijnt een track definitief.',
+    symptomLow: 'Voertuigen verdwijnen te snel (bvb. stilstaand)',
+    symptomHigh: 'Spooktracks bij camera-artefacten',
+    min: 10, max: 60, step: 1,
+    format: (v) => `${v} fr`,
+  },
+  {
+    key: 'minConfirmedFrames',
+    label: 'Min. bevestigde frames',
+    description: 'Hoeveel frames een nieuw object zichtbaar moet zijn voor het gerapporteerd wordt.',
+    symptomLow: 'Eenmalige ghost-detecties worden getoond',
+    symptomHigh: 'Trage verschijning van snelle voertuigen',
+    min: 2, max: 4, step: 1,
+    format: (v) => `${v} fr`,
+  },
+  {
+    key: 'boxEmaAlpha',
+    label: 'Box-afmeting smoothing (α)',
+    description: 'EMA-gewicht voor breedte/hoogte van de bounding box. Hoger = sneller, lager = stabieler.',
+    symptomLow: 'Box reageert traag op grootte-verandering',
+    symptomHigh: 'Box trilt of is jittery',
+    min: 0.40, max: 0.80, step: 0.01,
+    format: (v) => v.toFixed(2),
+  },
+  {
+    key: 'qPos',
+    label: 'Kalman positieruis (Q pos)',
+    description: 'Procesruis voor positie. Hoger = filter volgt detector sneller, lager = meer voorspelling.',
+    symptomLow: 'Track reageert traag op scherpe koerswijziging',
+    symptomHigh: 'KF-voorspelling drijft snel weg',
+    min: 0.3, max: 3.0, step: 0.1,
+    format: (v) => v.toFixed(1),
+  },
+  {
+    key: 'qVel',
+    label: 'Kalman snelheidsruis (Q vel)',
+    description: 'Procesruis voor snelheid. Hoger = snellere aanpassing bij versnelling/remmen.',
+    symptomLow: 'Box loopt achter bij sterk remmende vrachtwagens',
+    symptomHigh: 'Snelheidsschatting jittery, drijft weg',
+    min: 0.01, max: 0.30, step: 0.01,
+    format: (v) => v.toFixed(2),
+  },
+  {
+    key: 'speedPlausibilityKmh',
+    label: 'Max. plausibele snelheid (km/h)',
+    description: 'Snelheidswaarden boven dit getal worden gefilterd als meetfout (homografie-artefact).',
+    symptomLow: 'Echte hoge snelheden worden weggefilterd',
+    symptomHigh: 'Onrealistische uitschieters verschijnen in de feed',
+    min: 120, max: 200, step: 5,
+    format: (v) => `${v} km/h`,
+  },
+]
+
+const PRESETS: Record<string, Partial<TrackerConfig> & { label: string; description: string }> = {
+  balanced: {
+    label: 'Balanced',
+    description: 'Standaard — geschikt voor de meeste snelwegcamera\'s',
+    ...DEFAULT_TRACKER_CONFIG,
+  },
+  highway: {
+    label: 'Snelweg',
+    description: 'Vaste hoek, weinig occlusie, hoge snelheid',
+    highConfidence: 0.60,
+    iouStage1: 0.40,
+    iouStage2: 0.10,
+    maxPredictedGap: 2,
+    qVel: 0.03,
+    speedPlausibilityKmh: 170,
+  },
+  congested: {
+    label: 'Ring / file',
+    description: 'Veel overlap, occlusie, wisselende snelheden',
+    highConfidence: 0.50,
+    iouStage1: 0.28,
+    iouStage2: 0.10,
+    maxPredictedGap: 4,
+    maxMissedFrames: 40,
+    qVel: 0.08,
+    speedPlausibilityKmh: 150,
+  },
+  lowvis: {
+    label: 'Slecht zicht',
+    description: 'Regen / nacht / lage scherpte',
+    highConfidence: 0.45,
+    iouStage1: 0.25,
+    iouStage2: 0.08,
+    minConfirmedFrames: 3,
+    boxEmaAlpha: 0.55,
+    speedPlausibilityKmh: 160,
+  },
+}
+
+interface TrackingTuningProps {
+  config: TrackerConfig
+  onChange: (cfg: TrackerConfig) => void
+  onSave: () => void
+  saving: boolean
+}
+
+function TrackingTuning({ config, onChange, onSave, saving }: TrackingTuningProps) {
+  const set = (key: keyof TrackerConfig, value: number) =>
+    onChange({ ...config, [key]: value })
+
+  const applyPreset = (preset: Partial<TrackerConfig>) =>
+    onChange({ ...DEFAULT_TRACKER_CONFIG, ...preset })
+
+  const isDefault = JSON.stringify(config) === JSON.stringify(DEFAULT_TRACKER_CONFIG)
+
+  return (
+    <div className="border-2 border-black p-4 mb-6">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest">Tracking Tuning</p>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Pas de tracker-parameters aan voor deze camera. Sla op → camera herstart direct.
+          </p>
+        </div>
+        <button
+          onClick={() => onChange({ ...DEFAULT_TRACKER_CONFIG })}
+          disabled={isDefault}
+          className="text-xs uppercase tracking-widest border border-stone-300 px-2 py-1 hover:border-black disabled:opacity-30 transition-colors"
+        >
+          Reset
+        </button>
+      </div>
+
+      {/* Presets */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {Object.entries(PRESETS).map(([key, preset]) => (
+          <button
+            key={key}
+            onClick={() => applyPreset(preset)}
+            className="text-xs border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
+            title={preset.description}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sliders */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+        {SLIDER_DEFS.map((def) => {
+          const val = config[def.key] as number
+          const fmt = def.format ?? String
+          const pct = ((val - def.min) / (def.max - def.min)) * 100
+          return (
+            <div key={def.key}>
+              <div className="flex justify-between items-baseline mb-1">
+                <label className="text-xs font-bold uppercase tracking-widest">{def.label}</label>
+                <span className="text-xs font-mono tabular-nums text-black">{fmt(val)}</span>
+              </div>
+              <input
+                type="range"
+                min={def.min}
+                max={def.max}
+                step={def.step}
+                value={val}
+                onChange={(e) => set(def.key, parseFloat(e.target.value))}
+                className="w-full accent-black h-1.5 cursor-pointer"
+                style={{ background: `linear-gradient(to right,#000 ${pct}%,#d6d3d1 ${pct}%)` }}
+              />
+              <div className="flex justify-between text-[10px] text-stone-400 mt-0.5 mb-1.5">
+                <span>{def.min}</span>
+                <span>{def.max}</span>
+              </div>
+              <p className="text-[11px] text-stone-500">{def.description}</p>
+              <div className="mt-1 flex gap-3 text-[10px]">
+                <span className="text-stone-400">↓ {def.symptomLow}</span>
+                <span className="text-stone-400">↑ {def.symptomHigh}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="mt-5 text-xs uppercase tracking-widest border-2 border-black px-5 py-2 hover:bg-black hover:text-white disabled:opacity-30 transition-colors"
+      >
+        {saving ? 'Opslaan…' : 'Tracking opslaan & camera herstarten'}
+      </button>
+    </div>
+  )
+}
 
 // ─── Line Editor ────────────────────────────────────────────────────────────
 // Shows the camera snapshot with two draggable lines overlaid.
@@ -115,6 +359,8 @@ export default function CameraCalibrate() {
   const [mapPoints, setMapPoints] = useState<LatLng[]>([])
   const [maxSpeedKmh, setMaxSpeedKmh] = useState('')
   const [trapSpeedEnabled, setTrapSpeedEnabled] = useState(false)
+  const [trackingConfig, setTrackingConfig] = useState<TrackerConfig>({ ...DEFAULT_TRACKER_CONFIG })
+  const [savingTracking, setSavingTracking] = useState(false)
   // Counting lines: two endpoints each in normalised [0,1] coords
   const [lineA, setLineA] = useState<[Pt, Pt]>([{ x: 0, y: 0.4 }, { x: 1, y: 0.4 }])
   const [lineB, setLineB] = useState<[Pt, Pt]>([{ x: 0, y: 0.6 }, { x: 1, y: 0.6 }])
@@ -143,6 +389,7 @@ export default function CameraCalibrate() {
       setCamera(cam)
       setMaxSpeedKmh(cam.maxSpeedKmh?.toString() ?? '')
       setTrapSpeedEnabled(cam.trapSpeedEnabled ?? false)
+      setTrackingConfig({ ...DEFAULT_TRACKER_CONFIG, ...(cam.trackingConfig ?? {}) })
 
       // Restore counting lines from saved state
       if (cam.countingLineAPoints?.length === 4) {
@@ -229,6 +476,18 @@ export default function CameraCalibrate() {
   // Fallback Y fraction (midpoint Y of the line)
   const lineAFrac = () => (lineA[0].y + lineA[1].y) / 2
   const lineBFrac = () => (lineB[0].y + lineB[1].y) / 2
+
+  async function handleSaveTracking() {
+    if (!id) return
+    setSavingTracking(true)
+    try {
+      await saveTrackingConfig(id, trackingConfig)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save tracking config failed')
+    } finally {
+      setSavingTracking(false)
+    }
+  }
 
   async function handleSave() {
     if (!id) return
@@ -440,6 +699,13 @@ export default function CameraCalibrate() {
           </div>
         </div>
       </div>
+
+      <TrackingTuning
+        config={trackingConfig}
+        onChange={setTrackingConfig}
+        onSave={handleSaveTracking}
+        saving={savingTracking}
+      />
 
       <button
         onClick={handleSave}

@@ -2,6 +2,7 @@ import { db } from './db'
 import { extractStreamUrl } from './stream/extractor'
 import { MJPEGStreamer } from './stream/mjpeg-streamer'
 import { evictCameraFrame } from './socket/server'
+import { DEFAULT_TRACKER_CONFIG, type TrackerConfig } from './ai/tracker'
 
 // Hard cap — each camera spawns an OS thread (AI worker) and a ffmpeg process.
 // Beyond this number, resource contention (CoreML, network, memory) outweighs benefit.
@@ -103,6 +104,10 @@ export class CameraWorkerManager {
     try {
       const camera = await db.camera.findUniqueOrThrow({ where: { id: cameraId } })
       const streamUrl = await extractStreamUrl(pageUrl)
+      const trackingConfig: TrackerConfig = {
+        ...DEFAULT_TRACKER_CONFIG,
+        ...(camera.trackingConfig as Partial<TrackerConfig> | null ?? {}),
+      }
 
       const streamer = new MJPEGStreamer(
         cameraId,
@@ -114,6 +119,7 @@ export class CameraWorkerManager {
         (camera.countingLineAPoints as number[] | null) ?? [],
         (camera.countingLineBPoints as number[] | null) ?? [],
         camera.trapSpeedEnabled,
+        trackingConfig,
       )
       await streamer.init()
       streamer.start()

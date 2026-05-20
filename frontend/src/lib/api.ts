@@ -1,5 +1,31 @@
 const BASE = '/api'
 
+export type TrackerConfig = {
+  highConfidence: number
+  iouStage1: number
+  iouStage2: number
+  maxPredictedGap: number
+  maxMissedFrames: number
+  minConfirmedFrames: number
+  boxEmaAlpha: number
+  qPos: number
+  qVel: number
+  speedPlausibilityKmh: number
+}
+
+export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
+  highConfidence: 0.55,
+  iouStage1: 0.35,
+  iouStage2: 0.12,
+  maxPredictedGap: 3,
+  maxMissedFrames: 30,
+  minConfirmedFrames: 2,
+  boxEmaAlpha: 0.60,
+  qPos: 1.0,
+  qVel: 0.05,
+  speedPlausibilityKmh: 170,
+}
+
 export type Camera = {
   id: string
   name: string
@@ -11,9 +37,10 @@ export type Camera = {
   calibrationPoints: Array<{ px: number; py: number; wx: number; wy: number; lat?: number; lng?: number }> | null
   countingLineA: number
   countingLineB: number
-  countingLineAPoints: number[]  // [x1,y1,x2,y2] normalised 0-1, or []
-  countingLineBPoints: number[]  // same for B
+  countingLineAPoints: number[]
+  countingLineBPoints: number[]
   trapSpeedEnabled: boolean
+  trackingConfig: TrackerConfig | null
   createdAt: string
   updatedAt: string
 }
@@ -80,6 +107,16 @@ export async function saveCalibration(
 export async function resetCounts(id: string): Promise<void> {
   const res = await fetch(`${BASE}/cameras/${id}/reset-counts`, { method: 'POST' })
   if (!res.ok) throw new Error('Failed to reset counts')
+}
+
+export async function saveTrackingConfig(id: string, config: TrackerConfig): Promise<Camera> {
+  const res = await fetch(`${BASE}/cameras/${id}/tracking-config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) throw new Error('Failed to save tracking config')
+  return res.json()
 }
 
 export async function getCameraSnapshot(id: string): Promise<string> {

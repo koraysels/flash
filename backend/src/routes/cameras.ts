@@ -4,6 +4,7 @@ import { db } from '../db'
 import { Prisma } from '@prisma/client'
 import { extractStreamUrl } from '../stream/extractor'
 import { getStreamer, getManager } from '../camera-worker'
+import type { TrackerConfig } from '../ai/tracker'
 
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
 const hlsUrlCache = new Map<string, string>()
@@ -159,6 +160,19 @@ export async function cameraRoutes(app: FastifyInstance) {
   })
 
   // MJPEG stream — multipart/x-mixed-replace; server annotates every frame server-side
+  app.post<{ Params: { id: string }; Body: Partial<TrackerConfig> }>('/api/cameras/:id/tracking-config', async (req, reply) => {
+    try {
+      const camera = await db.camera.update({
+        where: { id: req.params.id },
+        data: { trackingConfig: req.body as Prisma.InputJsonValue },
+      })
+      getManager()?.restartCamera(req.params.id)
+      return camera
+    } catch (err) {
+      handlePrismaError(err, reply)
+    }
+  })
+
   app.post<{ Params: { id: string } }>('/api/cameras/:id/reset-counts', (req, reply) => {
     const streamer = getStreamer(req.params.id)
     if (!streamer) { reply.code(404).send({ error: 'Camera not found or not running' }); return }

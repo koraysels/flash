@@ -7,6 +7,8 @@ import { Worker } from 'worker_threads'
 import { join } from 'path'
 import { emitFrame } from '../socket/server'
 import type { WorkerInitData, WorkerResultMsg } from './ai-worker'
+import type { TrackerConfig } from '../ai/tracker'
+import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 
 // With -re, frames arrive at ~source fps (~25) and drain at OUTPUT_FPS (17).
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
@@ -71,6 +73,7 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly lineAPoints: number[] = [],
     private readonly lineBPoints: number[] = [],
     private readonly trapSpeedEnabled: boolean = false,
+    private readonly trackingConfig: TrackerConfig = DEFAULT_TRACKER_CONFIG,
   ) {
     super()
   }
@@ -92,6 +95,7 @@ export class MJPEGStreamer extends EventEmitter {
         maxSpeedKmh: this.maxSpeedKmh,
         homographyMatrix: this.homographyMatrix,
         trapSpeedEnabled: this.trapSpeedEnabled,
+        trackingConfig: this.trackingConfig,
       }
 
       // tsx/cjs registers the CommonJS TypeScript hook, enabling extensionless

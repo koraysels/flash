@@ -9,7 +9,7 @@ import { parentPort, workerData } from 'worker_threads'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { join } from 'path'
 import { Detector } from '../ai/detector'
-import { Tracker } from '../ai/tracker'
+import { Tracker, type TrackerConfig, DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
 import { TrapSpeedCalculator, type TrapMeasurement } from '../analysis/trap-speed'
@@ -21,11 +21,12 @@ export type WorkerInitData = {
   cameraId: string
   lineA: number
   lineB: number
-  lineAPoints: number[]   // [x1,y1,x2,y2] normalised 0-1, or [] for horizontal
-  lineBPoints: number[]   // same for B
+  lineAPoints: number[]
+  lineBPoints: number[]
   maxSpeedKmh: number | null
   homographyMatrix: number[]
   trapSpeedEnabled: boolean
+  trackingConfig: TrackerConfig
 }
 
 export type WorkerAnalyseMsg = {
@@ -54,13 +55,14 @@ export type WorkerResultMsg = {
 
 const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
 
-const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, trapSpeedEnabled } = workerData as WorkerInitData
+const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, trapSpeedEnabled, trackingConfig: rawTrackingConfig } = workerData as WorkerInitData
+const trackingConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG, ...rawTrackingConfig }
 
 const detector = new Detector(MODEL_PATH)
-const tracker = new Tracker()
+const tracker = new Tracker(trackingConfig)
 let counter = new DirectionCounter(576, lineA, lineB, lineAPoints, lineBPoints)
 const speedCalc = !trapSpeedEnabled && homographyMatrix.length === 9
-  ? new SpeedCalculator(homographyMatrix, maxSpeedKmh ?? undefined)
+  ? new SpeedCalculator(homographyMatrix, maxSpeedKmh ?? undefined, trackingConfig.speedPlausibilityKmh)
   : null
 
 // Trap speed calculator — created lazily after first frame when frame dimensions are known
@@ -87,7 +89,7 @@ function initTrapCalc(): void {
   const dy = wB.wy - wA.wy
   const distM = Math.sqrt(dx * dx + dy * dy)
   if (distM > 0) {
-    trapCalc = new TrapSpeedCalculator(distM, maxSpeedKmh ?? undefined)
+    trapCalc = new TrapSpeedCalculator(distM, maxSpeedKmh ?? undefined, trackingConfig.speedPlausibilityKmh)
     process.stderr.write(`[ai-worker:${cameraId}] trap speed enabled, line distance = ${distM.toFixed(2)}m\n`)
   }
 }
