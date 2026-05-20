@@ -372,6 +372,8 @@ export default function CameraCalibrate() {
   const mapRef = useRef<google.maps.Map | null>(null)
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
   const pendingFitRef = useRef<LatLng[] | null>(null)
+  const [needsGeocode, setNeedsGeocode] = useState(false)
+  const [mapLoaded, setMapLoaded] = useState(false)
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY ?? '',
@@ -422,7 +424,11 @@ export default function CameraCalibrate() {
             fitMapToPoints(mapRef.current, latLngs)
             pendingFitRef.current = null
           }
+        } else {
+          setNeedsGeocode(true)
         }
+      } else {
+        setNeedsGeocode(true)
       }
     })
 
@@ -469,7 +475,24 @@ export default function CameraCalibrate() {
     const bounds = new window.google.maps.LatLngBounds()
     points.forEach((p) => bounds.extend(p))
     map.fitBounds(bounds, 80)
+    // 3D tilt after bounds settle
+    setTimeout(() => { map.setTilt(45) }, 300)
   }
+
+  // Geocode the camera name/location and center + tilt the map
+  useEffect(() => {
+    if (!needsGeocode || !isLoaded || !camera || !mapLoaded || !mapRef.current) return
+    const query = camera.location || camera.name
+    const geocoder = new window.google.maps.Geocoder()
+    geocoder.geocode({ address: query }, (results, status) => {
+      if (status === 'OK' && results?.[0] && mapRef.current) {
+        mapRef.current.setCenter(results[0].geometry.location)
+        mapRef.current.setZoom(18)
+        mapRef.current.setTilt(45)
+      }
+    })
+    setNeedsGeocode(false)
+  }, [needsGeocode, isLoaded, camera, mapLoaded])
 
   const lineAFlat = (): number[] => [lineA[0].x, lineA[0].y, lineA[1].x, lineA[1].y]
   const lineBFlat = (): number[] => [lineB[0].x, lineB[0].y, lineB[1].x, lineB[1].y]
@@ -621,13 +644,15 @@ export default function CameraCalibrate() {
               </StandaloneSearchBox>
               <GoogleMap
                 mapContainerClassName="w-full"
-                mapContainerStyle={{ height: '460px' }}
+                mapContainerStyle={{ height: '600px' }}
                 center={mapCenter}
                 zoom={mapZoom}
                 mapTypeId="satellite"
+                options={{ tilt: 45, mapTypeId: 'satellite' }}
                 onClick={handleMapClick}
                 onLoad={(map) => {
                   mapRef.current = map
+                  setMapLoaded(true)
                   if (pendingFitRef.current) {
                     fitMapToPoints(map, pendingFitRef.current)
                     pendingFitRef.current = null
