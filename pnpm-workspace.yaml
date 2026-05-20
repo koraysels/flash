@@ -1,3 +1,13 @@
 packages:
   - 'backend'
   - 'frontend'
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - canvas
+  - esbuild
+  - ffmpeg-static
+  - onnxruntime-node
+  - prisma
+  - yt-dlp-exec
