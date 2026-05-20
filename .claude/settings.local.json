@@ -75,7 +75,15 @@
       "Bash(timeout 90 ./node_modules/.bin/vitest run tests/routes/cameras.test.ts)",
       "Bash(timeout 90 /Users/koraysels/work/flash/backend/node_modules/.bin/vitest run tests/routes/cameras.test.ts)",
       "Bash(xargs cat)",
-      "Bash(gh release *)"
+      "Bash(gh release *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(claude mcp *)",
+      "Bash(KOMODO_URL=https://komodo.cursorpointer.be KOMODO_API_KEY=K_oCnPxhcCmYDRIiaSTAQ9lN759hSuB3tRya3OrLFS_K KOMODO_API_SECRET=S_NS49htj9wEv2QTcGoAZdnYmaWn8fTaCapdhgaSDx_S docker run --rm -i -e KOMODO_URL=https://komodo.cursorpointer.be -e KOMODO_API_KEY=K_oCnPxhcCmYDRIiaSTAQ9lN759hSuB3tRya3OrLFS_K -e KOMODO_API_SECRET=S_NS49htj9wEv2QTcGoAZdnYmaWn8fTaCapdhgaSDx_S ghcr.io/samik081/mcp-komodo)",
+      "mcp__komodo__komodo_list_stacks",
+      "mcp__komodo__komodo_list_deployments",
+      "mcp__komodo__komodo_list_stack_services",
+      "mcp__komodo__komodo_get_stack_log",
+      "Bash(xargs ls)"
     ]
   }
 }

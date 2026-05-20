@@ -239,10 +239,23 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       recentTrapMeasurements: trapCalc?.getRecentMeasurements() ?? [],
     } satisfies WorkerResultMsg)
   } catch (err) {
-    const msg = String(err)
+    const errMsg = String(err)
     // Corrupt/non-JPEG frames from the stream are silently skipped
-    if (!msg.includes('SVG') && !msg.includes('Invalid image')) {
-      process.stderr.write(`[ai-worker:${cameraId}] error: ${msg}\n`)
+    if (!errMsg.includes('SVG') && !errMsg.includes('Invalid image')) {
+      process.stderr.write(`[ai-worker:${cameraId}] error: ${errMsg}\n`)
     }
+    // Always post back a result so the main thread resets workerBusy.
+    // Without this, a single corrupt frame permanently locks the pipeline.
+    const counts = counter.getCounts()
+    parentPort!.postMessage({
+      type: 'result',
+      seq: msg.seq,
+      boxes: [],
+      counts: { ...counts, speeders },
+      frameWidth: actualWidth,
+      frameHeight: actualHeight,
+      timing: { decodeMs: 0, canvasMs: 0, inferenceMs: 0, trackMs: 0, totalMs: 0 },
+      recentTrapMeasurements: trapCalc?.getRecentMeasurements() ?? [],
+    } satisfies WorkerResultMsg)
   }
 })
