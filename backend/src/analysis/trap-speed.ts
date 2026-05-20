@@ -10,7 +10,7 @@ const MIN_CROSSING_S = 0.3
 const MAX_CROSSING_S = 30
 const MAX_RECENT = 10
 
-export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: boolean }
+export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: boolean; direction: 'AB' | 'BA' }
 
 /**
  * Measures vehicle speed by timing how long it takes to travel between two
@@ -58,7 +58,8 @@ export class TrapSpeedCalculator {
         const speedKmh = (this.lineDistanceM / dtS) * 3.6
         if (speedKmh > this.plausibilityKmh) return
         entry.speed = speedKmh
-        this.recent.push({ speedKmh, timestamp, isSpeeder: this.maxSpeedKmh !== undefined && speedKmh > this.maxSpeedKmh })
+        const direction: 'AB' | 'BA' = entry.tA! <= entry.tB! ? 'AB' : 'BA'
+        this.recent.push({ speedKmh, timestamp, isSpeeder: this.maxSpeedKmh !== undefined && speedKmh > this.maxSpeedKmh, direction })
         if (this.recent.length > MAX_RECENT) this.recent.shift()
       }
     }

@@ -5,36 +5,51 @@ import { CameraStream } from '../components/CameraStream'
 import { Camera, resetCounts } from '../lib/api'
 import type { TrapMeasurement } from '../hooks/useCameraFeed'
 
+function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null; label: string }) {
+  const now = Date.now()
+  return (
+    <div className="flex-1 min-w-0">
+      <p className="px-2 pt-2 pb-1 text-xs uppercase tracking-widest text-stone-400 font-bold">{label}</p>
+      {measurements.length === 0 ? (
+        <p className="px-2 pb-2 text-xs text-stone-300">—</p>
+      ) : (
+        <div className="divide-y divide-stone-100">
+          {measurements.slice(0, 5).map((m, i) => {
+            const agoS = Math.round((now - m.timestamp) / 1000)
+            const agoStr = agoS < 60 ? `${agoS}s` : `${Math.round(agoS / 60)}m`
+            return (
+              <div key={i} className="flex items-center justify-between px-2 py-1 text-xs tabular-nums">
+                <span className={`font-bold ${m.isSpeeder ? 'text-red-600' : ''}`}>
+                  {Math.round(m.speedKmh)}
+                  {m.isSpeeder && maxSpeedKmh && (
+                    <span className="font-normal text-red-500 ml-0.5">+{Math.round(m.speedKmh - maxSpeedKmh)}</span>
+                  )}
+                  <span className="font-normal text-stone-400 ml-0.5">km/h</span>
+                </span>
+                <span className="text-stone-300 text-xs">{agoStr}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TrapLog({ measurements, maxSpeedKmh }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null }) {
   if (!measurements.length) return (
     <div className="border-t-2 border-black px-3 py-2 text-xs text-stone-400 uppercase tracking-widest">
       No measurements yet — waiting for vehicles to cross both lines
     </div>
   )
-  const now = Date.now()
+  const ab = measurements.filter((m) => m.direction === 'AB')
+  const ba = measurements.filter((m) => m.direction === 'BA')
   return (
     <div className="border-t-2 border-black">
       <p className="px-3 pt-2 text-xs uppercase tracking-widest text-stone-400 font-bold">Recent trap measurements</p>
-      <div className="divide-y divide-stone-200">
-        {measurements.slice(0, 5).map((m, i) => {
-          const agoS = Math.round((now - m.timestamp) / 1000)
-          const agoStr = agoS < 60 ? `${agoS}s ago` : `${Math.round(agoS / 60)}m ago`
-          return (
-            <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs tabular-nums">
-              <span className={`font-bold text-sm ${m.isSpeeder ? 'text-red-600' : ''}`}>
-                {Math.round(m.speedKmh)} km/h
-              </span>
-              <div className="flex items-center gap-3 text-stone-400">
-                {m.isSpeeder && maxSpeedKmh && (
-                  <span className="text-red-600 font-bold uppercase tracking-widest text-xs">
-                    +{Math.round(m.speedKmh - maxSpeedKmh)}
-                  </span>
-                )}
-                <span>{agoStr}</span>
-              </div>
-            </div>
-          )
-        })}
+      <div className="flex divide-x divide-stone-200">
+        <TrapCol measurements={ab} maxSpeedKmh={maxSpeedKmh} label="A→B" />
+        <TrapCol measurements={ba} maxSpeedKmh={maxSpeedKmh} label="B→A" />
       </div>
     </div>
   )

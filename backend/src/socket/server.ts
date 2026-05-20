@@ -12,7 +12,7 @@ export type VehicleInfo = {
   y2: number
 }
 
-export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: boolean }
+export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: boolean; direction: 'AB' | 'BA' }
 
 export type FrameEvent = {
   cameraId: string
