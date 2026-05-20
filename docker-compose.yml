@@ -4,8 +4,17 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${PORT:-3001}
+      NODE_ENV: ${NODE_ENV:-production}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     networks:
       - flash                 # internal only — never exposed to host or Traefik
 

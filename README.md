@@ -213,6 +213,207 @@ The model is downloaded automatically during the Docker build.
 
 ---
 
+## Deploying with Komodo (NVIDIA GPU server)
+
+Flash ships with a Docker Compose setup designed for Komodo + Traefik. The backend runs ONNX inference via the CUDA execution provider; it falls back to CPU if no GPU is present.
+
+### Prerequisites on the target server
+
+**1. NVIDIA Container Toolkit**
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+On WSL2, also generate CDI specs after installing the toolkit:
+
+```bash
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+```
+
+Verify GPU passthrough works:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
+```
+
+**2. Traefik** (reverse proxy + TLS)
+
+Flash expects an external Docker network named `traefik` and a running Traefik instance on the server. A minimal Traefik setup:
+
+```yaml
+# ~/traefik/compose.yaml
+services:
+  traefik:
+    image: traefik:v3
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=you@example.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - acme:/acme
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    name: traefik
+
+volumes:
+  acme:
+```
+
+```bash
+cd ~/traefik && docker compose up -d
+```
+
+### Setting up Komodo
+
+**1. Run Komodo Core** (the management UI — can be on the same server)
+
+```yaml
+# ~/komodo/compose.yaml
+services:
+  komodo:
+    image: ghcr.io/moghtech/komodo/core:latest
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - 9120:9120
+    env_file: ./core.env
+    volumes:
+      - repo-cache:/repo-cache
+
+  mongo:
+    image: mongo
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: changeme
+
+volumes:
+  repo-cache:
+  mongo-data:
+```
+
+```
+# ~/komodo/core.env
+KOMODO_DATABASE_ADDRESS=mongodb://admin:changeme@mongo:27017
+KOMODO_PASSKEY=pick-a-strong-passkey
+KOMODO_JWT_SECRET=pick-a-jwt-secret
+```
+
+```bash
+cd ~/komodo && docker compose up -d
+```
+
+Open `http://<server-ip>:9120` and create your admin account.
+
+**2. Run Komodo Periphery** on each managed server
+
+```yaml
+# ~/komodo-periphery/compose.yaml
+services:
+  periphery:
+    image: ghcr.io/moghtech/komodo/periphery:latest
+    restart: unless-stopped
+    ports:
+      - 8120:8120
+    env_file: ./periphery.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - stacks:/stacks
+
+volumes:
+  stacks:
+```
+
+```
+# ~/komodo-periphery/periphery.env
+PERIPHERY_PASSKEY=same-passkey-as-core
+PERIPHERY_ROOT_DIRECTORY=/stacks
+```
+
+```bash
+cd ~/komodo-periphery && docker compose up -d
+```
+
+### Deploying Flash as a Komodo Stack
+
+1. In the Komodo UI go to **Servers** → **New Server**, set address to `http://<server-ip>:8120` and the passkey.
+2. Go to **Stacks** → **New Stack** and configure:
+   - **Server**: the server you just added
+   - **Repo**: this repository's URL
+   - **Branch**: `main`
+   - **Compose file path**: `docker-compose.yml`
+3. Under **Environment** add:
+   ```
+   DATABASE_URL=postgresql://user:pass@host/dbname
+   FLASH_DOMAIN=flash.yourdomain.com
+   NODE_ENV=production
+   VITE_GOOGLE_MAPS_API_KEY=        # optional
+   ```
+4. Click **Deploy**. Komodo clones the repo, builds both images on the server, and starts the stack.
+
+The backend image is built from `nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04` and uses the CUDA execution provider for ONNX inference. GPU utilisation should be visible in `nvidia-smi` while a camera is active.
+
+### Automatic deploys on push
+
+Komodo can redeploy the stack automatically whenever you push to `main`.
+
+**1. Enable webhook in Komodo**
+
+In the Stack settings, open the **Webhooks** tab. Komodo shows you a generated URL in this format:
+
+```
+https://<komodo-core-url>/listener/github/<stack-id>?secret=<webhook-secret>
+```
+
+Copy that URL and the secret.
+
+**2. Add the webhook in GitHub**
+
+Go to your repo → **Settings** → **Webhooks** → **Add webhook**:
+
+| Field | Value |
+|---|---|
+| Payload URL | the URL from Komodo |
+| Content type | `application/json` |
+| Secret | the secret from Komodo |
+| Events | Just the **push** event |
+
+**3. Enable auto-redeploy on the Stack**
+
+In the Stack settings, turn on **Auto redeploy**. Komodo will trigger a `docker compose up --build --pull` on every push to the configured branch.
+
+**What happens on each push:**
+1. GitHub sends a webhook to Komodo Core (on the VPS)
+2. Komodo Core instructs the Periphery on the Ryzen machine
+3. Periphery pulls the latest commit, rebuilds both images, and restarts the stack
+4. Logs are visible live in the Komodo UI under the Stack's **Logs** tab
+
+**Tip:** if a deploy breaks the app, the **Stack** page has a one-click **Redeploy** that lets you pick any previous commit to roll back to.
+
+---
+
 ## Known limitations / next steps
 
 - Speed measurement requires calibration — uncalibrated cameras show "calibrate for speed" in the dashboard

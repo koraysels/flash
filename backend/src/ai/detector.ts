@@ -30,8 +30,7 @@ export class Detector {
 
   async init(): Promise<void> {
     this.session = await ort.InferenceSession.create(this.modelPath, {
-      // CoreML uses the Neural Engine / GPU on Apple Silicon — falls back to CPU gracefully
-      executionProviders: ['coreml', 'cpu'],
+      executionProviders: ['cuda', 'cpu'],
     })
   }
 
