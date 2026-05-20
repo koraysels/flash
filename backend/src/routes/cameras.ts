@@ -179,12 +179,12 @@ export async function cameraRoutes(app: FastifyInstance) {
 
     const pass = new PassThrough()
 
-    const onFrame = (jpeg: Buffer) => {
+    const onFrame = (jpeg: Buffer, seq: number) => {
       if (pass.destroyed) return
       // Client is not reading fast enough — drop this frame rather than buffer indefinitely
       if (pass.readableLength > MJPEG_DROP_WATERMARK) return
-      const hdr = Buffer.from(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`)
-      pass.push(Buffer.concat([hdr, jpeg, Buffer.from('\r\n')]))
+      const hdr = Buffer.from(`--frame\r\nContent-Type: image/jpeg\r\nX-Frame-Seq: ${seq}\r\nContent-Length: ${jpeg.length}\r\n\r\n`)
+      pass.push(Buffer.concat([hdr, jpeg]))
     }
 
     streamer.on('frame', onFrame)

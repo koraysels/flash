@@ -7,7 +7,7 @@ import { getCameras, type Camera } from '../lib/api'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 
 function PiDisplayInner({ camera }: { camera: Camera }) {
-  const { counts, avgSpeedKmh, aiFps, videoFps, vehicles, frameSize, active } = useCameraFeed(camera.id)
+  const { counts, avgSpeedKmh, aiFps, videoFps, active } = useCameraFeed(camera.id)
 
   return (
     <div className="h-screen bg-black flex flex-col p-4">
@@ -30,8 +30,6 @@ function PiDisplayInner({ camera }: { camera: Camera }) {
       <div className="flex-1">
         <CameraStream
           cameraId={camera.id}
-          vehicles={vehicles}
-          frameSize={frameSize}
           lineA={camera.countingLineA}
           lineB={camera.countingLineB}
           lineAPoints={camera.countingLineAPoints}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { socket } from '../lib/socket'
 import type { FrameEvent, VehicleInfo } from '../hooks/useCameraFeed'
+import { useMjpegStream } from '../hooks/useMjpegStream'
 
 const CLASS_COLORS: Record<string, string> = {
   car: '#3b82f6',
@@ -11,8 +12,6 @@ const CLASS_COLORS: Record<string, string> = {
 
 const STALE_THRESHOLD_MS = 5_000
 const WATCHDOG_INTERVAL_MS = 2_000
-// Delay box updates to match MJPEG stream buffering latency (~2 frames at 25fps)
-const DETECTION_DELAY_MS = 80
 // Position lerp per rAF frame (~60fps). 0.2 → box reaches 96% of new position within 250ms,
 // settling smoothly between AI detections (~5fps = 200ms apart).
 const LERP = 0.2
@@ -37,8 +36,6 @@ type SmoothVehicle = {
 
 interface Props {
   cameraId: string
-  vehicles: VehicleInfo[]
-  frameSize: { width: number; height: number } | null
   lineA?: number
   lineB?: number
   lineAPoints?: number[]   // [x1,y1,x2,y2] normalised 0-1; overrides lineA if length===4
@@ -47,12 +44,20 @@ interface Props {
   className?: string
 }
 
-export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, className }: Props) {
+export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, className }: Props) {
   const imgRef = useRef<HTMLImageElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const lastActivityRef = useRef(0)
-  const [imgKey, setImgKey] = useState(0)
   const [stale, setStale] = useState(false)
+
+  // MJPEG stream parsed client-side so we know exact seq for each rendered frame
+  const mjpegFrame = useMjpegStream(cameraId)
+
+  // frameSize learned from socket events
+  const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null)
+
+  // Buffer of vehicles indexed by frameSeq — applied only when matching MJPEG frame renders
+  const vehicleBufferRef = useRef<Map<number, VehicleInfo[]>>(new Map())
 
   // Persisted smooth state — survives re-renders, updated by detection events
   const smoothRef = useRef<Map<number, SmoothVehicle>>(new Map())
@@ -113,38 +118,53 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, line
     }
   }
 
-  // Update smooth vehicle targets whenever the AI sends new detections, delayed to match MJPEG latency
+  // Buffer incoming socket detections by frameSeq; apply them when the matching MJPEG frame loads
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const smooth = smoothRef.current
-      const seen = new Set(vehicles.map(v => v.id))
-
-      for (const v of vehicles) {
-        const s = smooth.get(v.id)
-        if (s) {
-          s.tx1 = v.x1; s.ty1 = v.y1; s.tx2 = v.x2; s.ty2 = v.y2
-          s.speedKmh = v.speedKmh
-          s.missed = 0
-        } else {
-          smooth.set(v.id, {
-            id: v.id, class: v.class, speedKmh: v.speedKmh,
-            displaySpeed: v.speedKmh,
-            x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2,
-            tx1: v.x1, ty1: v.y1, tx2: v.x2, ty2: v.y2,
-            missed: 0,
-          })
-        }
+    const handler = (event: FrameEvent) => {
+      if (event.cameraId !== cameraId) return
+      vehicleBufferRef.current.set(event.frameSeq, event.vehicles)
+      if (event.frameWidth && event.frameHeight) {
+        setFrameSize({ width: event.frameWidth, height: event.frameHeight })
       }
-
-      for (const [id, s] of smooth) {
-        if (!seen.has(id)) {
-          s.missed++
-          if (s.missed > MAX_MISSED) smooth.delete(id)
-        }
+      // Keep buffer small — only the most recent 60 entries
+      if (vehicleBufferRef.current.size > 60) {
+        const oldest = [...vehicleBufferRef.current.keys()].sort((a, b) => a - b)[0]
+        vehicleBufferRef.current.delete(oldest)
       }
-    }, DETECTION_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [vehicles])
+    }
+    socket.on('frame', handler)
+    return () => { socket.off('frame', handler) }
+  }, [cameraId])
+
+  // Apply vehicles from the buffer when the corresponding MJPEG frame renders
+  const applyVehicles = (vehicles: VehicleInfo[]) => {
+    const smooth = smoothRef.current
+    const seen = new Set(vehicles.map(v => v.id))
+
+    for (const v of vehicles) {
+      const s = smooth.get(v.id)
+      if (s) {
+        s.tx1 = v.x1; s.ty1 = v.y1; s.tx2 = v.x2; s.ty2 = v.y2
+        s.speedKmh = v.speedKmh
+        s.missed = 0
+      } else {
+        smooth.set(v.id, {
+          id: v.id, class: v.class, speedKmh: v.speedKmh,
+          displaySpeed: v.speedKmh,
+          x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2,
+          tx1: v.x1, ty1: v.y1, tx2: v.x2, ty2: v.y2,
+          missed: 0,
+        })
+      }
+    }
+
+    for (const [id, s] of smooth) {
+      if (!seen.has(id)) {
+        s.missed++
+        if (s.missed > MAX_MISSED) smooth.delete(id)
+      }
+    }
+  }
 
   // rAF loop: lerp box positions toward targets, redraw at ~60fps
   useEffect(() => {
@@ -242,7 +262,7 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, line
 
   useEffect(() => { recomputeLayout() }, [frameSize])
 
-  // Stale watchdog: reconnect MJPEG when socket goes quiet
+  // Stale overlay: show reconnecting when socket goes quiet
   useEffect(() => {
     const handler = (event: FrameEvent) => {
       if (event.cameraId !== cameraId) return
@@ -256,11 +276,7 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, line
   useEffect(() => {
     const id = setInterval(() => {
       if (lastActivityRef.current === 0) return
-      if (Date.now() - lastActivityRef.current > STALE_THRESHOLD_MS) {
-        setStale(true)
-        setImgKey(k => k + 1)
-        lastActivityRef.current = Date.now()
-      }
+      if (Date.now() - lastActivityRef.current > STALE_THRESHOLD_MS) setStale(true)
     }, WATCHDOG_INTERVAL_MS)
     return () => clearInterval(id)
   }, [])
@@ -268,13 +284,23 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, line
   return (
     <div className={`relative overflow-hidden bg-black ${className ?? ''}`}>
       <img
-        key={imgKey}
         ref={imgRef}
-        src={`/api/cameras/${cameraId}/mjpeg`}
+        src={mjpegFrame.src || undefined}
+        data-seq={mjpegFrame.seq}
         className="w-full h-full object-contain"
         alt=""
-        onLoad={recomputeLayout}
-        onError={() => setTimeout(() => setImgKey(k => k + 1), 2_000)}
+        onLoad={(e) => {
+          const seq = parseInt((e.target as HTMLImageElement).dataset.seq ?? '0')
+          const vehicles = vehicleBufferRef.current.get(seq)
+          if (vehicles) {
+            applyVehicles(vehicles)
+            // Drop buffer entries older than current seq
+            for (const k of vehicleBufferRef.current.keys()) {
+              if (k <= seq) vehicleBufferRef.current.delete(k)
+            }
+          }
+          recomputeLayout()
+        }}
       />
       <canvas
         ref={canvasRef}

@@ -124,6 +124,7 @@ export class MJPEGStreamer extends EventEmitter {
           emitFrame({
             cameraId: this.cameraId,
             timestamp: Date.now(),
+            frameSeq: msg.seq,
             vehicles: msg.boxes.map((b) => ({ ...b, direction: null })),
             counts: msg.counts,
             frameWidth: msg.frameWidth,
@@ -282,13 +283,13 @@ export class MJPEGStreamer extends EventEmitter {
 
   private onRawFrame(jpeg: Buffer, isNewFrame: boolean, frameTime: number): void {
     this.frameIdx++
-    // Emit raw frame for the MJPEG debug endpoint; store base64 for the snapshot endpoint.
+    const seq = this.frameIdx
     this.latestRawBase64 = jpeg.toString('base64')
-    this.emit('frame', jpeg)
+    this.emit('frame', jpeg, seq)
 
     if (isNewFrame && this.workerReady && !this.workerBusy) {
       this.workerBusy = true
-      this.aiWorker!.postMessage({ type: 'analyse', jpeg, frameTime })
+      this.aiWorker!.postMessage({ type: 'analyse', jpeg, frameTime, seq })
     }
   }
 

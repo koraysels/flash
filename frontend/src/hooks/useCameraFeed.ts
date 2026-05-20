@@ -17,6 +17,7 @@ export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: 
 export type FrameEvent = {
   cameraId: string
   timestamp: number
+  frameSeq: number
   vehicles: VehicleInfo[]
   counts: { AB: number; BA: number; speeders: number }
   frameWidth: number

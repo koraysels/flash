@@ -32,6 +32,7 @@ export type WorkerAnalyseMsg = {
   type: 'analyse'
   jpeg: Buffer
   frameTime: number
+  seq: number
 }
 
 export type WorkerResetMsg = {
@@ -40,6 +41,7 @@ export type WorkerResetMsg = {
 
 export type WorkerResultMsg = {
   type: 'result'
+  seq: number
   boxes: Array<{ id: number; class: string; speedKmh: number | null; x1: number; y1: number; x2: number; y2: number }>
   counts: { AB: number; BA: number; speeders: number }
   frameWidth: number
@@ -238,6 +240,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
 
     parentPort!.postMessage({
       type: 'result',
+      seq: msg.seq,
       boxes,
       counts: { ...counts, speeders },
       frameWidth: width,

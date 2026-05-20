@@ -42,7 +42,7 @@ function TrapLog({ measurements, maxSpeedKmh }: { measurements: TrapMeasurement[
 
 function CameraCard({ cam }: { cam: Camera }) {
   const [resetting, setResetting] = useState(false)
-  const { aiFps, videoFps, counts, avgSpeedKmh, vehicles, frameSize, active, recentTrapMeasurements } = useCameraFeed(cam.id)
+  const { aiFps, videoFps, counts, avgSpeedKmh, active, recentTrapMeasurements } = useCameraFeed(cam.id)
   const totalVehicles = counts.AB + counts.BA
 
   return (
@@ -67,8 +67,6 @@ function CameraCard({ cam }: { cam: Camera }) {
 
       <CameraStream
         cameraId={cam.id}
-        vehicles={vehicles}
-        frameSize={frameSize}
         lineA={cam.countingLineA}
         lineB={cam.countingLineB}
         lineAPoints={cam.countingLineAPoints}
