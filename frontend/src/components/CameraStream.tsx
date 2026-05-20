@@ -10,7 +10,7 @@ const CLASS_COLORS: Record<string, string> = {
   motorcycle: '#8b5cf6',
 }
 
-const STALE_THRESHOLD_MS = 5_000
+const STALE_THRESHOLD_MS = 15_000
 const WATCHDOG_INTERVAL_MS = 2_000
 // Position lerp per rAF frame (~60fps). 0.2 → box reaches 96% of new position within 250ms,
 // settling smoothly between AI detections (~5fps = 200ms apart).

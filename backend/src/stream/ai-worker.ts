@@ -239,6 +239,10 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       recentTrapMeasurements: trapCalc?.getRecentMeasurements() ?? [],
     } satisfies WorkerResultMsg)
   } catch (err) {
-    process.stderr.write(`[ai-worker:${cameraId}] error: ${err}\n`)
+    const msg = String(err)
+    // Corrupt/non-JPEG frames from the stream are silently skipped
+    if (!msg.includes('SVG') && !msg.includes('Invalid image')) {
+      process.stderr.write(`[ai-worker:${cameraId}] error: ${msg}\n`)
+    }
   }
 })

@@ -41,6 +41,8 @@ export function initSocketServer(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: { origin: '*' },
     maxHttpBufferSize: 2e6,
+    pingInterval: 10_000,
+    pingTimeout: 5_000,
   })
 
   io.on('connection', (socket) => {

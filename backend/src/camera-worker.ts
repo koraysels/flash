@@ -78,7 +78,6 @@ export class CameraWorkerManager {
         }
       }
 
-      console.log(`[camera-manager] active: ${streamers.size} running, ${this.starting.size} starting, ${this.initSlots} init slots used`)
     } catch (err) {
       console.error('[camera-manager] syncWorkers error:', err)
     } finally {

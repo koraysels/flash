@@ -21,7 +21,7 @@ function handlePrismaError(err: unknown, reply: FastifyReply) {
 }
 
 export async function cameraRoutes(app: FastifyInstance) {
-  app.get('/api/cameras', async () => {
+  app.get('/api/cameras', { logLevel: 'warn' }, async () => {
     return db.camera.findMany({ orderBy: { createdAt: 'asc' } })
   })
 
