@@ -4,11 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: enhance trap speed measurement logic to account for vehicles crossing between lines">
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update model path for traffic detection in AI worker">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/ai/detector.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/detector.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/ai/pipeline.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/stream/ai-worker.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -93,7 +90,7 @@
       <option name="presentableId" value="Default" />
       <updated>1778661337110</updated>
       <workItem from="1778661338564" duration="68389000" />
-      <workItem from="1779049980339" duration="7307000" />
+      <workItem from="1779049980339" duration="10352000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -335,7 +332,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779048678440</updated>
     </task>
-    <option name="localTasksCounter" value="31" />
+    <task id="LOCAL-00031" summary="feat: update model path for traffic detection in AI worker">
+      <option name="closed" value="true" />
+      <created>1779135203396</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1779135203396</updated>
+    </task>
+    <option name="localTasksCounter" value="32" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -354,7 +359,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
-    <MESSAGE value="feat: enhance camera calibration UI with guidance and HLS streaming support" />
     <MESSAGE value="feat: update camera calibration UI and improve HLS player buffering logic" />
     <MESSAGE value="feat: add fps parameter to FrameCapturer and update frame emission structure" />
     <MESSAGE value="feat: refactor CameraWorkerManager to use MJPEGStreamer and streamline worker management" />
@@ -379,7 +383,8 @@
     <MESSAGE value="feat: remove outputFps from SpeedCalculator and related components for streamlined processing" />
     <MESSAGE value="feat: update speed display logic to use lerp factor for smoother transitions" />
     <MESSAGE value="feat: enhance trap speed measurement logic to account for vehicles crossing between lines" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: enhance trap speed measurement logic to account for vehicles crossing between lines" />
+    <MESSAGE value="feat: update model path for traffic detection in AI worker" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update model path for traffic detection in AI worker" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
