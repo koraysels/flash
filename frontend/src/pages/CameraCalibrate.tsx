@@ -409,13 +409,13 @@ export default function CameraCalibrate() {
         setLineB([{ x: 0, y }, { x: 1, y }])
       }
 
-      // Restore calibration points — only when lat/lng is present (saved after this feature was added).
-      // Old calibrations without lat/lng: don't restore image points to avoid the
-      // "awaitingMapPoint" state pointing at the wrong map location.
+      // Restore calibration points. When lat/lng is present, also restore map markers.
+      // Without lat/lng (old calibrations): restore image points only so they're visible;
+      // the user can click matching map points to complete re-calibration.
       if (Array.isArray(cam.calibrationPoints) && cam.calibrationPoints.length >= 4) {
+        setImagePoints(cam.calibrationPoints.map((p) => ({ x: p.px, y: p.py })))
         const withLatLng = cam.calibrationPoints.filter((p) => p.lat !== undefined && p.lng !== undefined)
         if (withLatLng.length === cam.calibrationPoints.length) {
-          setImagePoints(cam.calibrationPoints.map((p) => ({ x: p.px, y: p.py })))
           const latLngs = withLatLng.map((p) => ({ lat: p.lat!, lng: p.lng! }))
           setMapPoints(latLngs)
           setMapCenter(latLngs[0])
