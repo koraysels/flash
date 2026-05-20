@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update model path for traffic detection in AI worker">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-    </list>
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update Dockerfile to install pnpm globally" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -92,7 +89,7 @@
       <updated>1778661337110</updated>
       <workItem from="1778661338564" duration="68389000" />
       <workItem from="1779049980339" duration="10352000" />
-      <workItem from="1779265192196" duration="2208000" />
+      <workItem from="1779265192196" duration="3209000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -366,7 +363,31 @@
       <option name="project" value="LOCAL" />
       <updated>1779266593125</updated>
     </task>
-    <option name="localTasksCounter" value="35" />
+    <task id="LOCAL-00035" summary="feat: update Docker configuration and README for port changes">
+      <option name="closed" value="true" />
+      <created>1779267478547</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1779267478547</updated>
+    </task>
+    <task id="LOCAL-00036" summary="feat: update pnpm workspace to include only built dependencies">
+      <option name="closed" value="true" />
+      <created>1779267874487</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1779267874487</updated>
+    </task>
+    <task id="LOCAL-00037" summary="feat: update Dockerfile to install pnpm globally">
+      <option name="closed" value="true" />
+      <created>1779268229928</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1779268229928</updated>
+    </task>
+    <option name="localTasksCounter" value="38" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -385,9 +406,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
-    <MESSAGE value="feat: update camera calibration UI and improve HLS player buffering logic" />
-    <MESSAGE value="feat: add fps parameter to FrameCapturer and update frame emission structure" />
-    <MESSAGE value="feat: refactor CameraWorkerManager to use MJPEGStreamer and streamline worker management" />
     <MESSAGE value="feat: optimize MJPEGStreamer to analyze every frame and remove analysis stride" />
     <MESSAGE value="feat: add video fps tracking to MJPEGStreamer and update related components" />
     <MESSAGE value="feat: update CameraCard to display both AI and video FPS metrics" />
@@ -410,7 +428,10 @@
     <MESSAGE value="feat: update speed display logic to use lerp factor for smoother transitions" />
     <MESSAGE value="feat: enhance trap speed measurement logic to account for vehicles crossing between lines" />
     <MESSAGE value="feat: update model path for traffic detection in AI worker" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: update model path for traffic detection in AI worker" />
+    <MESSAGE value="feat: update Docker configuration and README for port changes" />
+    <MESSAGE value="feat: update pnpm workspace to include only built dependencies" />
+    <MESSAGE value="feat: update Dockerfile to install pnpm globally" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update Dockerfile to install pnpm globally" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
