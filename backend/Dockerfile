@@ -23,7 +23,11 @@ RUN pnpm install --frozen-lockfile --filter flash-backend
 COPY backend/src ./backend/src
 COPY backend/tsconfig.json ./backend/
 COPY backend/prisma ./backend/prisma
-COPY backend/models ./backend/models
+
+# Model weights (gitignored — download from GitHub release)
+RUN mkdir -p /app/backend/models && \
+    curl -fsSL -o /app/backend/models/traffic_detector.onnx \
+    https://github.com/koraysels/flash/releases/download/v0.1.0-models/traffic_detector.onnx
 
 # Generate Prisma client for debian-openssl-3.0.x (already in binaryTargets)
 RUN pnpm --filter flash-backend exec prisma generate
