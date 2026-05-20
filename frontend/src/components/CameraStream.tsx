@@ -11,6 +11,8 @@ const CLASS_COLORS: Record<string, string> = {
 
 const STALE_THRESHOLD_MS = 5_000
 const WATCHDOG_INTERVAL_MS = 2_000
+// Delay box updates to match MJPEG stream buffering latency (~2 frames at 25fps)
+const DETECTION_DELAY_MS = 80
 // Position lerp per rAF frame (~60fps). 0.2 → box reaches 96% of new position within 250ms,
 // settling smoothly between AI detections (~5fps = 200ms apart).
 const LERP = 0.2
@@ -111,35 +113,37 @@ export function CameraStream({ cameraId, vehicles, frameSize, lineA, lineB, line
     }
   }
 
-  // Update smooth vehicle targets whenever the AI sends new detections
+  // Update smooth vehicle targets whenever the AI sends new detections, delayed to match MJPEG latency
   useEffect(() => {
-    const smooth = smoothRef.current
-    const seen = new Set(vehicles.map(v => v.id))
+    const timer = setTimeout(() => {
+      const smooth = smoothRef.current
+      const seen = new Set(vehicles.map(v => v.id))
 
-    for (const v of vehicles) {
-      const s = smooth.get(v.id)
-      if (s) {
-        s.tx1 = v.x1; s.ty1 = v.y1; s.tx2 = v.x2; s.ty2 = v.y2
-        s.speedKmh = v.speedKmh
-        s.missed = 0
-      } else {
-        // New vehicle: start display position at target (no initial jump)
-        smooth.set(v.id, {
-          id: v.id, class: v.class, speedKmh: v.speedKmh,
-          displaySpeed: v.speedKmh,
-          x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2,
-          tx1: v.x1, ty1: v.y1, tx2: v.x2, ty2: v.y2,
-          missed: 0,
-        })
+      for (const v of vehicles) {
+        const s = smooth.get(v.id)
+        if (s) {
+          s.tx1 = v.x1; s.ty1 = v.y1; s.tx2 = v.x2; s.ty2 = v.y2
+          s.speedKmh = v.speedKmh
+          s.missed = 0
+        } else {
+          smooth.set(v.id, {
+            id: v.id, class: v.class, speedKmh: v.speedKmh,
+            displaySpeed: v.speedKmh,
+            x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2,
+            tx1: v.x1, ty1: v.y1, tx2: v.x2, ty2: v.y2,
+            missed: 0,
+          })
+        }
       }
-    }
 
-    for (const [id, s] of smooth) {
-      if (!seen.has(id)) {
-        s.missed++
-        if (s.missed > MAX_MISSED) smooth.delete(id)
+      for (const [id, s] of smooth) {
+        if (!seen.has(id)) {
+          s.missed++
+          if (s.missed > MAX_MISSED) smooth.delete(id)
+        }
       }
-    }
+    }, DETECTION_DELAY_MS)
+    return () => clearTimeout(timer)
   }, [vehicles])
 
   // rAF loop: lerp box positions toward targets, redraw at ~60fps
