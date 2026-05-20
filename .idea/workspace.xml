@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: update Dockerfile to install pnpm globally" />
+    <list default="true" id="9fed80db-a199-490e-b0b6-46adb1844b90" name="Changes" comment="feat: add python-is-python3 to Dockerfile for compatibility" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -89,7 +89,7 @@
       <updated>1778661337110</updated>
       <workItem from="1778661338564" duration="68389000" />
       <workItem from="1779049980339" duration="10352000" />
-      <workItem from="1779265192196" duration="3209000" />
+      <workItem from="1779265192196" duration="3526000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize project structure and configuration files">
       <option name="closed" value="true" />
@@ -387,7 +387,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779268229928</updated>
     </task>
-    <option name="localTasksCounter" value="38" />
+    <task id="LOCAL-00038" summary="feat: add python-is-python3 to Dockerfile for compatibility">
+      <option name="closed" value="true" />
+      <created>1779268514707</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1779268514708</updated>
+    </task>
+    <option name="localTasksCounter" value="39" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -406,7 +414,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
-    <MESSAGE value="feat: optimize MJPEGStreamer to analyze every frame and remove analysis stride" />
     <MESSAGE value="feat: add video fps tracking to MJPEGStreamer and update related components" />
     <MESSAGE value="feat: update CameraCard to display both AI and video FPS metrics" />
     <MESSAGE value="feat: implement frame queue management and improve video fps tracking in MJPEGStreamer" />
@@ -431,7 +438,8 @@
     <MESSAGE value="feat: update Docker configuration and README for port changes" />
     <MESSAGE value="feat: update pnpm workspace to include only built dependencies" />
     <MESSAGE value="feat: update Dockerfile to install pnpm globally" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: update Dockerfile to install pnpm globally" />
+    <MESSAGE value="feat: add python-is-python3 to Dockerfile for compatibility" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add python-is-python3 to Dockerfile for compatibility" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

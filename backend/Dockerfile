@@ -34,4 +34,4 @@ EXPOSE 3001
 
 # Migrate then start. DATABASE_URL must be set at runtime.
 # tsx is used at runtime because the AI worker is spawned as a .ts file.
-CMD ["sh", "-c", "npx prisma migrate deploy && node /app/node_modules/.bin/tsx src/index.ts"]
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && pnpm exec tsx src/index.ts"]
