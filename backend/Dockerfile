@@ -24,11 +24,6 @@ COPY backend/src ./backend/src
 COPY backend/tsconfig.json ./backend/
 COPY backend/prisma ./backend/prisma
 
-# Model weights (gitignored — download from GitHub release)
-RUN mkdir -p /app/backend/models && \
-    curl -fsSL -o /app/backend/models/traffic_detector.onnx \
-    https://github.com/koraysels/flash/releases/download/v0.1.0-models/traffic_detector.onnx
-
 # Generate Prisma client for debian-openssl-3.0.x (already in binaryTargets)
 RUN pnpm --filter flash-backend exec prisma generate
 
@@ -36,6 +31,11 @@ WORKDIR /app/backend
 
 EXPOSE 3001
 
+# models/ is a named volume — download traffic_detector.onnx on first start if absent.
 # Migrate then start. DATABASE_URL must be set at runtime.
-# tsx is used at runtime because the AI worker is spawned as a .ts file.
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && pnpm exec tsx src/index.ts"]
+CMD ["sh", "-c", "\
+  mkdir -p models && \
+  [ -f models/traffic_detector.onnx ] || curl -fsSL -o models/traffic_detector.onnx \
+    https://github.com/koraysels/flash/releases/download/v0.1.0-models/traffic_detector.onnx && \
+  pnpm exec prisma migrate deploy && \
+  pnpm exec tsx src/index.ts"]
