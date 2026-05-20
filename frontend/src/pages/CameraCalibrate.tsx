@@ -407,12 +407,13 @@ export default function CameraCalibrate() {
         setLineB([{ x: 0, y }, { x: 1, y }])
       }
 
-      // Restore image calibration points (px, py) from saved pairs
+      // Restore calibration points — only when lat/lng is present (saved after this feature was added).
+      // Old calibrations without lat/lng: don't restore image points to avoid the
+      // "awaitingMapPoint" state pointing at the wrong map location.
       if (Array.isArray(cam.calibrationPoints) && cam.calibrationPoints.length >= 4) {
-        setImagePoints(cam.calibrationPoints.map((p) => ({ x: p.px, y: p.py })))
-        // Restore map points if lat/lng were saved
         const withLatLng = cam.calibrationPoints.filter((p) => p.lat !== undefined && p.lng !== undefined)
         if (withLatLng.length === cam.calibrationPoints.length) {
+          setImagePoints(cam.calibrationPoints.map((p) => ({ x: p.px, y: p.py })))
           const latLngs = withLatLng.map((p) => ({ lat: p.lat!, lng: p.lng! }))
           setMapPoints(latLngs)
           setMapCenter(latLngs[0])
@@ -557,7 +558,12 @@ export default function CameraCalibrate() {
           No live snapshot — camera may still be starting. Upload a screenshot to calibrate now.
         </div>
       )}
-      {hasExistingHomography && (
+      {hasExistingHomography && mapPoints.length === 0 && (
+        <div className="border-2 border-black p-3 mb-4 text-xs">
+          Calibration saved. Speed measurement active. To restore map markers: search the camera location, re-pick 4+ point pairs, and save once.
+        </div>
+      )}
+      {hasExistingHomography && mapPoints.length > 0 && (
         <div className="border-2 border-black p-3 mb-4 text-xs">
           Calibration saved. Update lines and speed limit, or re-pick all points to recalibrate.
         </div>
