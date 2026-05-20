@@ -374,6 +374,9 @@ export default function CameraCalibrate() {
   const pendingFitRef = useRef<LatLng[] | null>(null)
   const [needsGeocode, setNeedsGeocode] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
+  // Calibration points without lat/lng — computed approximately from geocode + wx/wy
+  const pendingWxWyRef = useRef<Array<{ wx: number; wy: number }> | null>(null)
+  const [approximateMapPoints, setApproximateMapPoints] = useState(false)
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY ?? '',
@@ -425,6 +428,8 @@ export default function CameraCalibrate() {
             pendingFitRef.current = null
           }
         } else {
+          // No lat/lng — store wx/wy so geocode useEffect can compute approximate positions
+          pendingWxWyRef.current = cam.calibrationPoints.map((p) => ({ wx: p.wx, wy: p.wy }))
           setNeedsGeocode(true)
         }
       } else {
@@ -479,16 +484,36 @@ export default function CameraCalibrate() {
     setTimeout(() => { map.setTilt(45) }, 300)
   }
 
-  // Geocode the camera name/location and center + tilt the map
+  // Geocode the camera name/location and center + tilt the map.
+  // If wx/wy calibration points are pending, compute approximate lat/lng from them.
   useEffect(() => {
     if (!needsGeocode || !isLoaded || !camera || !mapLoaded || !mapRef.current) return
     const query = camera.location || camera.name
     const geocoder = new window.google.maps.Geocoder()
     geocoder.geocode({ address: query }, (results, status) => {
       if (status === 'OK' && results?.[0] && mapRef.current) {
-        mapRef.current.setCenter(results[0].geometry.location)
+        const loc = results[0].geometry.location
+        mapRef.current.setCenter(loc)
         mapRef.current.setZoom(18)
         mapRef.current.setTilt(45)
+
+        // Reconstruct approximate map markers from wx/wy using geocoded location as origin.
+        // wx/wy are meters east/north from the first calibration point; relative positions
+        // are exact, but the absolute anchor is approximated from the geocoded address.
+        const wxwy = pendingWxWyRef.current
+        if (wxwy && wxwy.length > 0) {
+          const R = 6371000
+          const originLat = loc.lat()
+          const originLng = loc.lng()
+          const latLngs = wxwy.map(({ wx, wy }) => ({
+            lat: originLat + (-wy / R) * (180 / Math.PI),
+            lng: originLng + (wx / (R * Math.cos(originLat * Math.PI / 180))) * (180 / Math.PI),
+          }))
+          setMapPoints(latLngs)
+          setApproximateMapPoints(true)
+          pendingWxWyRef.current = null
+          fitMapToPoints(mapRef.current, latLngs)
+        }
       }
     })
     setNeedsGeocode(false)
@@ -586,7 +611,12 @@ export default function CameraCalibrate() {
           Calibration saved. Speed measurement active. To restore map markers: search the camera location, re-pick 4+ point pairs, and save once.
         </div>
       )}
-      {hasExistingHomography && mapPoints.length > 0 && (
+      {approximateMapPoints && (
+        <div className="border-2 border-amber-500 bg-amber-50 p-3 mb-4 text-xs">
+          Kaarposities zijn berekend uit de opgeslagen afstanden (wx/wy) via geocoding van de cameranaam — ze kunnen een paar meter naast de echte positie liggen. Controleer de markers op de kaart, verplaats ze indien nodig, en sla opnieuw op.
+        </div>
+      )}
+      {hasExistingHomography && mapPoints.length > 0 && !approximateMapPoints && (
         <div className="border-2 border-black p-3 mb-4 text-xs">
           Calibration saved. Update lines and speed limit, or re-pick all points to recalibrate.
         </div>
