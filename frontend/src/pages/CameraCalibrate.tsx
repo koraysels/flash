@@ -125,6 +125,7 @@ export default function CameraCalibrate() {
   const [mapZoom, setMapZoom] = useState(18)
   const mapRef = useRef<google.maps.Map | null>(null)
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
+  const pendingFitRef = useRef<LatLng[] | null>(null)
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY ?? '',
@@ -162,6 +163,18 @@ export default function CameraCalibrate() {
       // Restore image calibration points (px, py) from saved pairs
       if (Array.isArray(cam.calibrationPoints) && cam.calibrationPoints.length >= 4) {
         setImagePoints(cam.calibrationPoints.map((p) => ({ x: p.px, y: p.py })))
+        // Restore map points if lat/lng were saved
+        const withLatLng = cam.calibrationPoints.filter((p) => p.lat !== undefined && p.lng !== undefined)
+        if (withLatLng.length === cam.calibrationPoints.length) {
+          const latLngs = withLatLng.map((p) => ({ lat: p.lat!, lng: p.lng! }))
+          setMapPoints(latLngs)
+          setMapCenter(latLngs[0])
+          pendingFitRef.current = latLngs
+          if (mapRef.current) {
+            fitMapToPoints(mapRef.current, latLngs)
+            pendingFitRef.current = null
+          }
+        }
       }
     })
 
@@ -203,6 +216,13 @@ export default function CameraCalibrate() {
     mapRef.current?.setZoom(18)
   }
 
+  function fitMapToPoints(map: google.maps.Map, points: LatLng[]) {
+    if (points.length === 0) return
+    const bounds = new window.google.maps.LatLngBounds()
+    points.forEach((p) => bounds.extend(p))
+    map.fitBounds(bounds, 80)
+  }
+
   const lineAFlat = (): number[] => [lineA[0].x, lineA[0].y, lineA[1].x, lineA[1].y]
   const lineBFlat = (): number[] => [lineB[0].x, lineB[0].y, lineB[1].x, lineB[1].y]
 
@@ -231,6 +251,8 @@ export default function CameraCalibrate() {
             px: ip.x, py: ip.y,
             wx: dLng * R * Math.cos((origin.lat * Math.PI) / 180),
             wy: dLat * R,
+            lat: mp.lat,
+            lng: mp.lng,
           }
         })
       }
@@ -339,7 +361,13 @@ export default function CameraCalibrate() {
                 zoom={mapZoom}
                 mapTypeId="satellite"
                 onClick={handleMapClick}
-                onLoad={(map) => { mapRef.current = map }}
+                onLoad={(map) => {
+                  mapRef.current = map
+                  if (pendingFitRef.current) {
+                    fitMapToPoints(map, pendingFitRef.current)
+                    pendingFitRef.current = null
+                  }
+                }}
               >
                 {mapPoints.map((p, i) => (
                   <Marker key={i} position={p} label={{ text: String(i + 1), color: 'white', fontWeight: 'bold' }} />

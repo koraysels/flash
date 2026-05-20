@@ -8,7 +8,7 @@ export type Camera = {
   active: boolean
   maxSpeedKmh: number | null
   homographyMatrix: number[]
-  calibrationPoints: Array<{ px: number; py: number; wx: number; wy: number }> | null
+  calibrationPoints: Array<{ px: number; py: number; wx: number; wy: number; lat?: number; lng?: number }> | null
   countingLineA: number
   countingLineB: number
   countingLineAPoints: number[]  // [x1,y1,x2,y2] normalised 0-1, or []
@@ -54,6 +54,8 @@ export type CalibrationPoint = {
   py: number
   wx: number
   wy: number
+  lat?: number
+  lng?: number
 }
 
 export async function saveCalibration(

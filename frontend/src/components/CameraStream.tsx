@@ -315,12 +315,10 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
       {maxSpeedKmh != null && (
         <div className="absolute top-2 right-2 pointer-events-none select-none flex flex-col items-center">
           <svg width="54" height="54" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg"
+            overflow="visible"
             style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))' }}>
-            {/* White fill */}
-            <circle cx="27" cy="27" r="27" fill="white" />
-            {/* Red border ring */}
-            <circle cx="27" cy="27" r="27" fill="none" stroke="#cc0000" strokeWidth="7" />
-            {/* Speed number */}
+            <circle cx="27" cy="27" r="23" fill="white" />
+            <circle cx="27" cy="27" r="23" fill="none" stroke="#cc0000" strokeWidth="7" />
             <text
               x="27" y="27"
               dominantBaseline="central"
