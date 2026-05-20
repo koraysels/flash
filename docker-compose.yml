@@ -16,7 +16,7 @@ services:
               count: 1
               capabilities: [gpu]
     networks:
-      - flash                 # internal only — never exposed to host or Traefik
+      - flash
 
   frontend:
     build:
@@ -27,20 +27,11 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    ports:
+      - "${FLASH_PORT:-80}:80"
     networks:
-      - flash                 # talks to backend
-      - traefik               # reachable by the shared Traefik instance
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=traefik
-      - traefik.http.routers.flash.rule=Host(`${FLASH_DOMAIN}`)
-      - traefik.http.routers.flash.entrypoints=websecure
-      - traefik.http.routers.flash.tls.certresolver=letsencrypt
-      - traefik.http.services.flash.loadbalancer.server.port=80
+      - flash
 
 networks:
   flash:
     driver: bridge
-  traefik:
-    external: true            # created by the shared Traefik stack
-    name: traefik

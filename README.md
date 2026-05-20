@@ -243,43 +243,11 @@ Verify GPU passthrough works:
 docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
 
-**2. Traefik** (reverse proxy + TLS)
+### Accessing Flash via Tailscale
 
-Flash expects an external Docker network named `traefik` and a running Traefik instance on the server. A minimal Traefik setup:
+With the default compose setup Flash binds to port 80 on the host. Once deployed, open `http://<ryzen-tailscale-ip>` from any device on your Tailscale network.
 
-```yaml
-# ~/traefik/compose.yaml
-services:
-  traefik:
-    image: traefik:v3
-    restart: unless-stopped
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
-      - --certificatesresolvers.letsencrypt.acme.email=you@example.com
-      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
-    ports:
-      - 80:80
-      - 443:443
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - acme:/acme
-    networks:
-      - traefik
-
-networks:
-  traefik:
-    name: traefik
-
-volumes:
-  acme:
-```
-
-```bash
-cd ~/traefik && docker compose up -d
-```
+To use a different port set `FLASH_PORT` in the Stack environment, e.g. `FLASH_PORT=8080`.
 
 ### Setting up Komodo
 
