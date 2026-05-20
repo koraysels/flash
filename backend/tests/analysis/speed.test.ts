@@ -58,4 +58,17 @@ describe('SpeedCalculator', () => {
     calc.removeVehicle(5)
     expect(calc.getSpeed(5)).toBeNull()
   })
+
+  it('filters implausible speeds above 170 km/h', () => {
+    // 1px = 1m; 30m in 0.5s => 216 km/h (above plausibility cap)
+    const H = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+    const calc = new SpeedCalculator(H)
+
+    const t0 = Date.now() - 500
+    const t1 = Date.now()
+    calc.addPosition(6, 0, 0, t0)
+    calc.addPosition(6, 100, 0, t1)
+
+    expect(calc.getSpeed(6)).toBeNull()
+  })
 })

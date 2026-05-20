@@ -4,7 +4,7 @@ type Position = { wx: number; wy: number; timestamp: number }
 
 const EMA_ALPHA           = 0.3    // world-position smoothing — low = smooth but laggier
 const MIN_DT_S            = 0.04   // ignore pairs < 40 ms apart (KF update noise)
-const MAX_SPEED_KMH       = 200    // discard outliers above this
+const MAX_SPEED_KMH       = 170    // discard implausible outliers above this
 const MAX_HISTORY         = 12
 
 export class SpeedCalculator {

@@ -8,6 +8,7 @@ type TrapEntry = {
 
 const MIN_CROSSING_S = 0.3
 const MAX_CROSSING_S = 30
+const MAX_VALID_SPEED_KMH = 170
 const MAX_RECENT = 10
 
 export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: boolean }
@@ -55,6 +56,7 @@ export class TrapSpeedCalculator {
       const dtS = Math.abs(entry.tB - entry.tA) / 1000
       if (dtS >= MIN_CROSSING_S && dtS <= MAX_CROSSING_S) {
         const speedKmh = (this.lineDistanceM / dtS) * 3.6
+        if (speedKmh > MAX_VALID_SPEED_KMH) return
         entry.speed = speedKmh
         this.recent.push({ speedKmh, timestamp, isSpeeder: this.maxSpeedKmh !== undefined && speedKmh > this.maxSpeedKmh })
         if (this.recent.length > MAX_RECENT) this.recent.shift()
