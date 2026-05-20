@@ -1,0 +1,32 @@
+.git
+.gitignore
+
+# Dependencies (installed inside Docker)
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+frontend/dist
+
+# Env files (injected at runtime)
+.env
+**/.env
+*.env
+
+# Test files
+**/*.test.ts
+**/__tests__
+
+# Dev tooling
+*.log
+.DS_Store
+.vscode
+.idea
+
+# Docker itself
+**/Dockerfile
+docker-compose*.yml
+.dockerignore
+**/.dockerignore
