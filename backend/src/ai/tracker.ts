@@ -49,36 +49,6 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
-class KF1D {
-  pos: number; vel: number
-  p00: number; p01: number; p11: number
-
-  constructor(pos: number, private readonly qPos: number, private readonly qVel: number) {
-    this.pos = pos; this.vel = 0
-    this.p00 = 200; this.p01 = 0; this.p11 = 10_000
-  }
-
-  predict(dt: number): void {
-    this.pos += this.vel * dt
-    const p00 = this.p00 + 2 * dt * this.p01 + dt * dt * this.p11 + this.qPos * dt
-    const p01 = this.p01 + dt * this.p11
-    this.p11 += this.qVel * dt
-    this.p00 = p00; this.p01 = p01
-  }
-
-  update(z: number, r: number): void {
-    const S  = this.p00 + r
-    const K0 = this.p00 / S
-    const K1 = this.p01 / S
-    const innov = z - this.pos
-    this.pos += K0 * innov
-    this.vel += K1 * innov
-    const p01 = this.p01
-    this.p00 = (1 - K0) * this.p00
-    this.p01 = (1 - K0) * p01
-    this.p11 -= K1 * p01
-  }
-}
 
 export class KF2D {
   cx: number; cy: number
@@ -142,7 +112,7 @@ export class KF2D {
 type Box = { x1: number; y1: number; x2: number; y2: number }
 
 type KFTrack = TrackedVehicle & {
-  kfX: KF1D; kfY: KF1D
+  kf: KF2D
   w: number; h: number
   lastTs: number
 }
@@ -197,12 +167,11 @@ export class Tracker {
 
     const predicted: Box[] = this.tracks.map((t) => {
       const dt = Math.max(0.01, Math.min((timestamp - t.lastTs) / 1000, 2.0))
-      t.kfX.predict(dt)
-      t.kfY.predict(dt)
+      t.kf.predict(dt)
       t.lastTs = timestamp
       return {
-        x1: t.kfX.pos - t.w / 2, y1: t.kfY.pos - t.h / 2,
-        x2: t.kfX.pos + t.w / 2, y2: t.kfY.pos + t.h / 2,
+        x1: t.kf.cx - t.w / 2, y1: t.kf.cy - t.h / 2,
+        x2: t.kf.cx + t.w / 2, y2: t.kf.cy + t.h / 2,
       }
     })
 
@@ -223,14 +192,13 @@ export class Tracker {
       const det = detections[di]
       const r   = rMeas(det.confidence)
 
-      t.kfX.update((det.x1 + det.x2) / 2, r)
-      t.kfY.update((det.y1 + det.y2) / 2, r)
+      t.kf.update((det.x1 + det.x2) / 2, (det.y1 + det.y2) / 2, r)
       t.w = boxEmaAlpha * (det.x2 - det.x1) + (1 - boxEmaAlpha) * t.w
       t.h = boxEmaAlpha * (det.y2 - det.y1) + (1 - boxEmaAlpha) * t.h
 
-      t.x1 = t.kfX.pos - t.w / 2; t.y1 = t.kfY.pos - t.h / 2
-      t.x2 = t.kfX.pos + t.w / 2; t.y2 = t.kfY.pos + t.h / 2
-      t.cx = t.kfX.pos; t.cy = t.kfY.pos
+      t.x1 = t.kf.cx - t.w / 2; t.y1 = t.kf.cy - t.h / 2
+      t.x2 = t.kf.cx + t.w / 2; t.y2 = t.kf.cy + t.h / 2
+      t.cx = t.kf.cx; t.cy = t.kf.cy
       t.bcx = t.cx; t.bcy = t.y2 - t.h * 0.05
 
       t.confidence = det.confidence
@@ -246,7 +214,7 @@ export class Tracker {
       if (!matchedTSet.has(ti)) {
         const t = this.tracks[ti]
         t.missedFrames++
-        t.cx = t.kfX.pos; t.cy = t.kfY.pos
+        t.cx = t.kf.cx; t.cy = t.kf.cy
         t.x1 = t.cx - t.w / 2; t.y1 = t.cy - t.h / 2
         t.x2 = t.cx + t.w / 2; t.y2 = t.cy + t.h / 2
         t.bcx = t.cx; t.bcy = t.y2 - t.h * 0.05
@@ -268,8 +236,7 @@ export class Tracker {
         ...det,
         id: this.nextId++,
         cx, cy, bcx: cx, bcy: det.y2 - h * 0.05,
-        kfX: new KF1D(cx, this.cfg.qPos, this.cfg.qVel),
-        kfY: new KF1D(cy, this.cfg.qPos, this.cfg.qVel),
+        kf: new KF2D(cx, cy, this.cfg.qPos, this.cfg.qVel),
         w, h, lastTs: timestamp,
         history: [{ cx, cy, timestamp }],
         missedFrames: 0, confirmedFrames: 1,
