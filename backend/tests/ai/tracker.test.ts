@@ -89,24 +89,42 @@ describe('Tracker', () => {
   })
 
   it('does not swap IDs when two vehicles move in opposite directions', () => {
+    const localTracker = new Tracker({ iouStage1: 0.05 })
     const t = [0, 200, 400, 600, 800]
 
-    tracker.update([car(100, 300), car(400, 300)], t[0])
-    const frame2 = tracker.update([car(110, 300), car(390, 300)], t[1])
+    localTracker.update([car(100, 300), car(400, 300)], t[0])
+    const frame2 = localTracker.update([car(110, 300), car(390, 300)], t[1])
     expect(frame2).toHaveLength(2)
     const idA = frame2.find(v => v.cx < 250)!.id
     const idB = frame2.find(v => v.cx >= 250)!.id
 
-    tracker.update([car(200, 300), car(300, 300)], t[2])
-    tracker.update([car(280, 300), car(220, 300)], t[3])
+    localTracker.update([car(200, 300), car(300, 300)], t[2])
+    localTracker.update([car(280, 300), car(220, 300)], t[3])
 
-    const frame5 = tracker.update([car(350, 300), car(150, 300)], t[4])
+    const frame5 = localTracker.update([car(350, 300), car(150, 300)], t[4])
     expect(frame5).toHaveLength(2)
 
     const rightTrack = frame5.find(v => v.cx > 250)
     const leftTrack  = frame5.find(v => v.cx <= 250)
     expect(rightTrack?.id).toBe(idA)
     expect(leftTrack?.id).toBe(idB)
+  })
+
+  it('uses only IoU when track velocity is below threshold', () => {
+    // Track with low velocity (< VEL_MAG_THRESHOLD = 20 px/s)
+    // Direction score should be neutral (0.5) and not affect outcome
+    const localTracker = new Tracker()
+    // Frame 1 & 2: confirm a slow-moving track (1px per 200ms = 5 px/s)
+    localTracker.update([car(100, 100)], 0)
+    const confirmed = localTracker.update([car(101, 100)], 200)
+    expect(confirmed).toHaveLength(1)
+    const id = confirmed[0].id
+
+    // Frame 3: detection is slightly off in an unexpected direction — should still match
+    // because direction score is neutral at low speed
+    const frame3 = localTracker.update([car(99, 100)], 400)
+    expect(frame3).toHaveLength(1)
+    expect(frame3[0].id).toBe(id)
   })
 })
 
