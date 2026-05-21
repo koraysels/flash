@@ -158,6 +158,6 @@ describe('KF2D', () => {
   it('velAngle returns correct direction', () => {
     const kf = new KF2D(0, 0, 1.0, 0.05)
     for (let i = 1; i <= 5; i++) kf.update(i * 10, 0, 4)
-    expect(Math.abs(kf.velAngle())).toBeLessThan(0.5)
+    expect(Math.abs(kf.velAngle())).toBeLessThan(0.1)
   })
 })

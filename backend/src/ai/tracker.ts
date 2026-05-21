@@ -49,7 +49,7 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
 
 const VEL_MAG_THRESHOLD = 20
 const MIN_FRAMES_FOR_DIRECTION = 3
-const DIRECTION_IOU_WEIGHT = 0.7
+const IOU_WEIGHT = 0.7   // IoU fraction in combined score; direction gets 1 - IOU_WEIGHT
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
@@ -155,7 +155,7 @@ function greedyMatch(
       const iouScore = iou(predicted[ti], detections[di])
       if (iouScore < threshold) continue
       const ds = dirScore(velocities[ti], predicted[ti], detections[di])
-      const score = iouScore * DIRECTION_IOU_WEIGHT + ds * (1 - DIRECTION_IOU_WEIGHT)
+      const score = iouScore * IOU_WEIGHT + ds * (1 - IOU_WEIGHT)
       candidates.push({ ti, di, score })
     }
   }
