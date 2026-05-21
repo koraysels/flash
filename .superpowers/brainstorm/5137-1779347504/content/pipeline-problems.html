@@ -1,0 +1,64 @@
+<h2>Huidige tracking pipeline — waar loopt het mis?</h2>
+<p class="subtitle">Elk rood blok is een gekend pijnpunt in de huidige code</p>
+
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto;">
+
+  <!-- Stage 1 -->
+  <div style="background:#1a1a2e;border-radius:8px;padding:16px 20px;border-left:4px solid #4ade80">
+    <div class="label" style="color:#4ade80">STAP 1 — DETECTIE (YOLOv8n @ 5fps)</div>
+    <p style="margin:8px 0 0;font-size:14px;color:#ccc">Elke 200ms wordt een frame geanalyseerd. Outputt bounding boxes met confidence score.</p>
+    <div style="margin-top:10px;background:#0f3460;border-radius:6px;padding:10px 14px;font-size:13px;color:#f87171">
+      ⚠️ <strong>Probleem:</strong> YOLOv8<em>n</em> is het kleinste model — meer false positives (spoken die tel mee) en false negatives (gemiste voertuigen). Bij slechte belichting of regen verergert dit.
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div style="text-align:center;font-size:20px;color:#555">↓</div>
+
+  <!-- Stage 2 -->
+  <div style="background:#1a1a2e;border-radius:8px;padding:16px 20px;border-left:4px solid #facc15">
+    <div class="label" style="color:#facc15">STAP 2 — MATCHING (IoU greedy, 2 fasen)</div>
+    <p style="margin:8px 0 0;font-size:14px;color:#ccc">Detecties worden gekoppeld aan bestaande tracks via <em>Intersection over Union</em>. Hoge confidence eerst, dan lage confidence als herstel.</p>
+    <div style="margin-top:10px;background:#3d2800;border-radius:6px;padding:10px 14px;font-size:13px;color:#f87171">
+      ⚠️ <strong>ID-switches:</strong> Twee voertuigen naast elkaar → overlappende boxes → IoU-matching verwisselt hun IDs. Gevolg: elk verliest zijn snelheidsgeschiedenis en de trap-meting valt weg.
+    </div>
+    <div style="margin-top:8px;background:#3d2800;border-radius:6px;padding:10px 14px;font-size:13px;color:#f87171">
+      ⚠️ <strong>Dubbele tellingen:</strong> ID-switch = de auto "verdwijnt" en "verschijnt opnieuw" → kruist de lijn twee keer in de boekhouding.
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div style="text-align:center;font-size:20px;color:#555">↓</div>
+
+  <!-- Stage 3 -->
+  <div style="background:#1a1a2e;border-radius:8px;padding:16px 20px;border-left:4px solid #facc15">
+    <div class="label" style="color:#facc15">STAP 3 — KALMAN FILTER (1D x + 1D y)</div>
+    <p style="margin:8px 0 0;font-size:14px;color:#ccc">Positie en snelheid worden gefilterd via twee onafhankelijke 1D Kalman filters (x en y apart).</p>
+    <div style="margin-top:10px;background:#3d2800;border-radius:6px;padding:10px 14px;font-size:13px;color:#f87171">
+      ⚠️ <strong>X en Y zijn niet gekoppeld:</strong> Een auto rijdt diagonaal maar de filter behandelt x en y als onafhankelijk. Bij snelle bochten of perspectief-distorsie geeft dit een onnauwkeurige voorspelling — waardoor de volgende matching ook slechter wordt.
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div style="text-align:center;font-size:20px;color:#555">↓</div>
+
+  <!-- Stage 4 -->
+  <div style="background:#1a1a2e;border-radius:8px;padding:16px 20px;border-left:4px solid #f87171">
+    <div class="label" style="color:#f87171">STAP 4 — LIJNKRUISING & SNELHEID</div>
+    <p style="margin:8px 0 0;font-size:14px;color:#ccc">De bottom-center van de box bepaalt wanneer een lijn gekruist wordt. Trap-speed meet de tijd tussen lijn A en B.</p>
+    <div style="margin-top:10px;background:#3d0a0a;border-radius:6px;padding:10px 14px;font-size:13px;color:#f87171">
+      ⚠️ <strong>Tijdstempel-jitter:</strong> Bij 5fps is de resolutie 200ms/frame. Een auto die net tussen twee frames de lijn kruist, krijgt een error van tot ±200ms → bij 20m afstand en 120 km/h = ±6 km/h fout.
+    </div>
+    <div style="margin-top:8px;background:#3d0a0a;border-radius:6px;padding:10px 14px;font-size:13px;color:#f87171">
+      ⚠️ <strong>Geen interpolatie:</strong> Het exacte kruisingspunt wordt niet berekend — we nemen de frame-timestamp van het moment de box "voorbij" de lijn is, niet het werkelijke kruisingmoment.
+    </div>
+    <div style="margin-top:8px;background:#3d0a0a;border-radius:6px;padding:10px 14px;font-size:13px;color:#f87171">
+      ⚠️ <strong>Gemiste voertuigen:</strong> Als een voertuig in slechts 1 frame gedetecteerd wordt (minConfirmedFrames=2 filtert het weg), telt het niet mee. Goed voor false positives, slecht voor motorfietsen/snelle auto's.
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;text-align:center">
+  <p class="subtitle">Kijk en laat me weten wat je ziet — ik stel dan de volgende vraag in de terminal.</p>
+</div>
