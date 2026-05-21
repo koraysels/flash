@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Tracker } from '../../src/ai/tracker'
+import { Tracker, KF2D } from '../../src/ai/tracker'
 import { DetectionResult } from '../../src/ai/detector'
 
 const car = (x1: number, y1: number): DetectionResult => ({
@@ -86,5 +86,39 @@ describe('Tracker', () => {
     const result = tracker.update([car(100, 100)])
     expect(result).toHaveLength(1)
     expect(typeof result[0].id).toBe('number')
+  })
+})
+
+describe('KF2D', () => {
+  it('initialises with zero velocity', () => {
+    const kf = new KF2D(100, 200, 1.0, 0.05)
+    expect(kf.cx).toBe(100)
+    expect(kf.cy).toBe(200)
+    expect(kf.vx).toBe(0)
+    expect(kf.vy).toBe(0)
+    expect(kf.velMag()).toBe(0)
+  })
+
+  it('predict moves position by velocity * dt', () => {
+    const kf = new KF2D(100, 200, 1.0, 0.05)
+    kf.update(150, 200, 4)
+    kf.predict(1.0)
+    expect(kf.cx).toBeGreaterThan(140)
+  })
+
+  it('velMag returns correct magnitude', () => {
+    const kf = new KF2D(0, 0, 1.0, 0.05)
+    kf.update(3, 4, 4)
+    kf.predict(1.0)
+    kf.update(6, 8, 4)
+    kf.predict(1.0)
+    kf.update(9, 12, 4)
+    expect(kf.velMag()).toBeGreaterThan(0)
+  })
+
+  it('velAngle returns correct direction', () => {
+    const kf = new KF2D(0, 0, 1.0, 0.05)
+    for (let i = 1; i <= 5; i++) kf.update(i * 10, 0, 4)
+    expect(Math.abs(kf.velAngle())).toBeLessThan(0.5)
   })
 })

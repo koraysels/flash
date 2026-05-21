@@ -80,6 +80,65 @@ class KF1D {
   }
 }
 
+export class KF2D {
+  cx: number; cy: number
+  vx: number; vy: number
+  private px00: number; private px01: number; private px11: number
+  private py00: number; private py01: number; private py11: number
+
+  constructor(cx: number, cy: number, private readonly qPos: number, private readonly qVel: number) {
+    this.cx = cx; this.cy = cy
+    this.vx = 0; this.vy = 0
+    this.px00 = 200; this.px01 = 0; this.px11 = 10_000
+    this.py00 = 200; this.py01 = 0; this.py11 = 10_000
+  }
+
+  predict(dt: number): void {
+    this.cx += this.vx * dt
+    this.cy += this.vy * dt
+    const px00 = this.px00 + 2 * dt * this.px01 + dt * dt * this.px11 + this.qPos * dt
+    const px01 = this.px01 + dt * this.px11
+    this.px11 += this.qVel * dt
+    this.px00 = px00; this.px01 = px01
+    const py00 = this.py00 + 2 * dt * this.py01 + dt * dt * this.py11 + this.qPos * dt
+    const py01 = this.py01 + dt * this.py11
+    this.py11 += this.qVel * dt
+    this.py00 = py00; this.py01 = py01
+  }
+
+  update(meas_cx: number, meas_cy: number, r: number): void {
+    const Sx = this.px00 + r
+    const K0x = this.px00 / Sx
+    const K1x = this.px01 / Sx
+    const innovX = meas_cx - this.cx
+    this.cx += K0x * innovX
+    this.vx += K1x * innovX
+    const px01 = this.px01
+    this.px00 = (1 - K0x) * this.px00
+    this.px01 = (1 - K0x) * px01
+    this.px11 -= K1x * px01
+
+    const Sy = this.py00 + r
+    const K0y = this.py00 / Sy
+    const K1y = this.py01 / Sy
+    const innovY = meas_cy - this.cy
+    this.cy += K0y * innovY
+    this.vy += K1y * innovY
+    const py01 = this.py01
+    this.py00 = (1 - K0y) * this.py00
+    this.py01 = (1 - K0y) * py01
+    this.py11 -= K1y * py01
+  }
+
+  velMag(): number {
+    return Math.sqrt(this.vx * this.vx + this.vy * this.vy)
+  }
+
+  velAngle(): number {
+    return Math.atan2(this.vy, this.vx)
+  }
+}
+
 type Box = { x1: number; y1: number; x2: number; y2: number }
 
 type KFTrack = TrackedVehicle & {
