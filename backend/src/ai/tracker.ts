@@ -47,8 +47,11 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   speedPlausibilityKmh: 170,
 }
 
-const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
+const VEL_MAG_THRESHOLD = 20
+const MIN_FRAMES_FOR_DIRECTION = 2
+const DIRECTION_IOU_WEIGHT = 0.7
 
+const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
 export class KF2D {
   cx: number; cy: number
@@ -126,18 +129,34 @@ function iou(a: Box, b: Box): number {
   return inter / (aA + bA - inter + 1e-9)
 }
 
+type VelInfo = { vx: number; vy: number; mag: number; confirmedFrames: number }
+
+function dirScore(vel: VelInfo | null, pred: Box, det: DetectionResult): number {
+  if (!vel || vel.mag < VEL_MAG_THRESHOLD || vel.confirmedFrames < MIN_FRAMES_FOR_DIRECTION) return 0.5
+  const dx = (det.x1 + det.x2) / 2 - (pred.x1 + pred.x2) / 2
+  const dy = (det.y1 + det.y2) / 2 - (pred.y1 + pred.y2) / 2
+  const deltaMag = Math.sqrt(dx * dx + dy * dy)
+  if (deltaMag < 1e-6) return 0.5
+  const cos = (vel.vx * dx + vel.vy * dy) / (vel.mag * deltaMag)
+  return (cos + 1) / 2
+}
+
 function greedyMatch(
   predicted: Box[],
   trackIndices: number[],
   detections: DetectionResult[],
   detIndices: number[],
   threshold: number,
+  velocities: Array<VelInfo | null>,
 ): Array<{ ti: number; di: number }> {
   const candidates: Array<{ ti: number; di: number; score: number }> = []
   for (const ti of trackIndices) {
     for (const di of detIndices) {
-      const score = iou(predicted[ti], detections[di])
-      if (score >= threshold) candidates.push({ ti, di, score })
+      const iouScore = iou(predicted[ti], detections[di])
+      const ds = dirScore(velocities[ti], predicted[ti], detections[di])
+      const score = iouScore * DIRECTION_IOU_WEIGHT + ds * (1 - DIRECTION_IOU_WEIGHT)
+      if (score < threshold) continue
+      candidates.push({ ti, di, score })
     }
   }
   candidates.sort((a, b) => b.score - a.score)
@@ -179,10 +198,17 @@ export class Tracker {
     const highDI = detections.map((_, i) => i).filter(i => detections[i].confidence >= highConfidence)
     const lowDI  = detections.map((_, i) => i).filter(i => detections[i].confidence < highConfidence)
 
-    const m1 = greedyMatch(predicted, allTI, detections, highDI, iouStage1)
+    const velocities: Array<VelInfo | null> = this.tracks.map((t) => ({
+      vx: t.kf.vx,
+      vy: t.kf.vy,
+      mag: t.kf.velMag(),
+      confirmedFrames: t.confirmedFrames,
+    }))
+
+    const m1 = greedyMatch(predicted, allTI, detections, highDI, iouStage1, velocities)
     const matchedT1 = new Set(m1.map(m => m.ti))
     const unmatchedTI = allTI.filter(i => !matchedT1.has(i))
-    const m2 = greedyMatch(predicted, unmatchedTI, detections, lowDI, iouStage2)
+    const m2 = greedyMatch(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities)
 
     const allMatched = [...m1, ...m2]
     const matchedTSet = new Set(allMatched.map(m => m.ti))

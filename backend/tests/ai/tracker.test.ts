@@ -87,6 +87,27 @@ describe('Tracker', () => {
     expect(result).toHaveLength(1)
     expect(typeof result[0].id).toBe('number')
   })
+
+  it('does not swap IDs when two vehicles move in opposite directions', () => {
+    const t = [0, 200, 400, 600, 800]
+
+    tracker.update([car(100, 300), car(400, 300)], t[0])
+    const frame2 = tracker.update([car(110, 300), car(390, 300)], t[1])
+    expect(frame2).toHaveLength(2)
+    const idA = frame2.find(v => v.cx < 250)!.id
+    const idB = frame2.find(v => v.cx >= 250)!.id
+
+    tracker.update([car(200, 300), car(300, 300)], t[2])
+    tracker.update([car(280, 300), car(220, 300)], t[3])
+
+    const frame5 = tracker.update([car(350, 300), car(150, 300)], t[4])
+    expect(frame5).toHaveLength(2)
+
+    const rightTrack = frame5.find(v => v.cx > 250)
+    const leftTrack  = frame5.find(v => v.cx <= 250)
+    expect(rightTrack?.id).toBe(idA)
+    expect(leftTrack?.id).toBe(idB)
+  })
 })
 
 describe('KF2D', () => {
