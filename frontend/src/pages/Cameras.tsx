@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCameras, useCreateCamera, useDeleteCamera } from '../hooks/useCameras'
+import { useCameras, useCreateCamera, useDeleteCamera, useUpdateCamera } from '../hooks/useCameras'
 
 export default function Cameras() {
   const { data: cameras, isLoading, error } = useCameras()
   const createCamera = useCreateCamera()
   const deleteCamera = useDeleteCamera()
+  const updateCamera = useUpdateCamera()
 
   const [form, setForm] = useState({ name: '', location: '', streamUrl: '' })
   const [showForm, setShowForm] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', location: '' })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -22,6 +25,20 @@ export default function Cameras() {
     } catch {
       setSubmitError('Failed to save camera.')
     }
+  }
+
+  function startEdit(cam: { id: string; name: string; location: string }) {
+    setEditingId(cam.id)
+    setEditForm({ name: cam.name, location: cam.location })
+  }
+
+  async function saveEdit(id: string) {
+    await updateCamera.mutateAsync({ id, data: editForm })
+    setEditingId(null)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
   }
 
   if (isLoading) return <div className="text-xs text-stone-400 uppercase tracking-widest">Loading...</div>
@@ -101,30 +118,72 @@ export default function Cameras() {
         {cameras?.map((cam, i) => (
           <div
             key={cam.id}
-            className={`flex justify-between items-center px-4 py-3 ${i > 0 ? 'border-t-2 border-black' : ''}`}
+            className={`px-4 py-3 ${i > 0 ? 'border-t-2 border-black' : ''}`}
           >
-            <div>
-              <p className="text-sm font-bold uppercase">{cam.name}</p>
-              <p className="text-xs text-stone-500">{cam.location}</p>
-              {cam.maxSpeedKmh && (
-                <p className="text-xs text-stone-400 mt-0.5">MAX {cam.maxSpeedKmh} KM/H</p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Link
-                to={`/cameras/${cam.id}/calibrate`}
-                className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
-              >
-                Calibrate
-              </Link>
-              <button
-                onClick={() => deleteCamera.mutate(cam.id)}
-                disabled={deleteCamera.isPending}
-                className="text-xs uppercase tracking-widest border border-red-600 text-red-600 px-2 py-1 hover:bg-red-600 hover:text-white disabled:opacity-40 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
+            {editingId === cam.id ? (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 flex gap-2">
+                  <input
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="border-2 border-black px-2 py-1 text-sm focus:outline-none bg-white w-36"
+                    placeholder="Name"
+                  />
+                  <input
+                    value={editForm.location}
+                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                    className="border-2 border-black px-2 py-1 text-sm focus:outline-none bg-white w-28"
+                    placeholder="Location"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => saveEdit(cam.id)}
+                    disabled={updateCamera.isPending}
+                    className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="text-xs uppercase tracking-widest text-stone-400 px-2 py-1 hover:text-black"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-bold uppercase">{cam.name}</p>
+                  <p className="text-xs text-stone-500">{cam.location}</p>
+                  {cam.maxSpeedKmh && (
+                    <p className="text-xs text-stone-400 mt-0.5">MAX {cam.maxSpeedKmh} KM/H</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => startEdit(cam)}
+                    className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+                  >
+                    Edit
+                  </button>
+                  <Link
+                    to={`/cameras/${cam.id}/calibrate`}
+                    className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+                  >
+                    Calibrate
+                  </Link>
+                  <button
+                    onClick={() => deleteCamera.mutate(cam.id)}
+                    disabled={deleteCamera.isPending}
+                    className="text-xs uppercase tracking-widest border border-red-600 text-red-600 px-2 py-1 hover:bg-red-600 hover:text-white disabled:opacity-40 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
