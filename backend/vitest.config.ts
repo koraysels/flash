@@ -22,6 +22,11 @@ export default defineConfig({
     // initialises against the test database rather than the development one.
     env: loadEnvFile(resolve(__dirname, '.env.test')),
     globalSetup: './tests/global-setup.ts',
+    // Route test suites share a single DB schema — run files serially to avoid
+    // cross-suite data races (e.g. auth.test creates a camera while cameras.test
+    // is mid-run with its own beforeEach deleteMany).
+    pool: 'forks',
+    poolOptions: { forks: { singleFork: true } },
     // ONNX model cold-loading via CoreML can take 2+ minutes on macOS.
     // 5 minutes is enough headroom; fast tests complete in <1s regardless.
     testTimeout: 300_000,

@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { buildApp } from '../../src/index'
 import { db } from '../../src/db'
+import jwt from 'jsonwebtoken'
 
 describe('Camera routes', () => {
   let app: Awaited<ReturnType<typeof buildApp>>
+  let authHeader: { Authorization: string }
 
   beforeAll(async () => {
     app = await buildApp({ logger: false })
+    const token = jwt.sign({}, process.env.JWT_SECRET!, { expiresIn: '1h' })
+    authHeader = { Authorization: `Bearer ${token}` }
   })
 
   afterAll(async () => {
@@ -28,6 +32,7 @@ describe('Camera routes', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/cameras',
+      headers: authHeader,
       payload: { name: 'Test Cam', location: 'Gent', streamUrl: 'https://example.com/stream' },
     })
     expect(res.statusCode).toBe(201)
@@ -40,6 +45,7 @@ describe('Camera routes', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/cameras',
+      headers: authHeader,
       payload: { location: 'Gent', streamUrl: 'https://example.com' },
     })
     expect(res.statusCode).toBe(400)
@@ -49,14 +55,22 @@ describe('Camera routes', () => {
     const camera = await db.camera.create({
       data: { name: 'Del Cam', location: 'Brussel', streamUrl: 'https://example.com' },
     })
-    const res = await app.inject({ method: 'DELETE', url: `/api/cameras/${camera.id}` })
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/cameras/${camera.id}`,
+      headers: authHeader,
+    })
     expect(res.statusCode).toBe(204)
     const found = await db.camera.findUnique({ where: { id: camera.id } })
     expect(found).toBeNull()
   })
 
   it('DELETE /api/cameras/:id returns 404 for non-existent id', async () => {
-    const res = await app.inject({ method: 'DELETE', url: '/api/cameras/nonexistent-id' })
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/cameras/nonexistent-id',
+      headers: authHeader,
+    })
     expect(res.statusCode).toBe(404)
   })
 
@@ -67,6 +81,7 @@ describe('Camera routes', () => {
     const res = await app.inject({
       method: 'PUT',
       url: `/api/cameras/${camera.id}`,
+      headers: authHeader,
       payload: { maxSpeedKmh: 50 },
     })
     expect(res.statusCode).toBe(200)
@@ -80,6 +95,7 @@ describe('Camera routes', () => {
       const res = await app.inject({
         method: 'POST',
         url: `/api/cameras/${cam.id}/calibration`,
+        headers: authHeader,
         payload: { pairs: [], countingLineA: 0.45, countingLineB: 0.55 },
       })
       expect(res.statusCode).toBe(200)
@@ -99,6 +115,7 @@ describe('Camera routes', () => {
       const res = await app.inject({
         method: 'POST',
         url: `/api/cameras/${cam.id}/calibration`,
+        headers: authHeader,
         payload: { pairs, maxSpeedKmh: 50 },
       })
       expect(res.statusCode).toBe(200)
