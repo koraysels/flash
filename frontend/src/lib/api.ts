@@ -1,4 +1,5 @@
 const BASE = '/api'
+const TOKEN_KEY = 'flash_token'
 
 export type TrackerConfig = {
   highConfidence: number
@@ -45,6 +46,17 @@ export type Camera = {
   updatedAt: string
 }
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem(TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+function clearAuthAndReload(): never {
+  localStorage.removeItem(TOKEN_KEY)
+  window.location.reload()
+  throw new Error('Session expired')
+}
+
 export async function getCameras(): Promise<Camera[]> {
   const res = await fetch(`${BASE}/cameras`)
   if (!res.ok) throw new Error('Failed to fetch cameras')
@@ -54,9 +66,10 @@ export async function getCameras(): Promise<Camera[]> {
 export async function createCamera(data: Pick<Camera, 'name' | 'location' | 'streamUrl'>): Promise<Camera> {
   const res = await fetch(`${BASE}/cameras`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(data),
   })
+  if (res.status === 401) clearAuthAndReload()
   if (!res.ok) throw new Error('Failed to create camera')
   return res.json()
 }
@@ -64,15 +77,20 @@ export async function createCamera(data: Pick<Camera, 'name' | 'location' | 'str
 export async function updateCamera(id: string, data: Partial<Camera>): Promise<Camera> {
   const res = await fetch(`${BASE}/cameras/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(data),
   })
+  if (res.status === 401) clearAuthAndReload()
   if (!res.ok) throw new Error('Failed to update camera')
   return res.json()
 }
 
 export async function deleteCamera(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/cameras/${id}`, { method: 'DELETE' })
+  const res = await fetch(`${BASE}/cameras/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (res.status === 401) clearAuthAndReload()
   if (!res.ok) throw new Error('Failed to delete camera')
 }
 
@@ -97,24 +115,30 @@ export async function saveCalibration(
 ): Promise<Camera> {
   const res = await fetch(`${BASE}/cameras/${id}/calibration`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints, trapSpeedEnabled }),
   })
+  if (res.status === 401) clearAuthAndReload()
   if (!res.ok) throw new Error('Failed to save calibration')
   return res.json()
 }
 
 export async function resetCounts(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/cameras/${id}/reset-counts`, { method: 'POST' })
+  const res = await fetch(`${BASE}/cameras/${id}/reset-counts`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  if (res.status === 401) clearAuthAndReload()
   if (!res.ok) throw new Error('Failed to reset counts')
 }
 
 export async function saveTrackingConfig(id: string, config: TrackerConfig): Promise<Camera> {
   const res = await fetch(`${BASE}/cameras/${id}/tracking-config`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(config),
   })
+  if (res.status === 401) clearAuthAndReload()
   if (!res.ok) throw new Error('Failed to save tracking config')
   return res.json()
 }
