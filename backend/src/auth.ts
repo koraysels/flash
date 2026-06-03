@@ -23,5 +23,6 @@ export async function requireAuth(req: FastifyRequest, reply: FastifyReply) {
     jwt.verify(auth.slice(7), process.env.JWT_SECRET!)
   } catch {
     reply.code(401).send({ error: 'Unauthorized' })
+    return
   }
 }
