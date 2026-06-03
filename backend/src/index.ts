@@ -1,6 +1,7 @@
 import Fastify, { FastifyServerOptions } from 'fastify'
 import cors from '@fastify/cors'
 import { cameraRoutes } from './routes/cameras'
+import { authRoutes } from './auth'
 import { initSocketServer } from './socket/server'
 import { CameraWorkerManager, setManager } from './camera-worker'
 import { config } from './config'
@@ -8,6 +9,7 @@ import { config } from './config'
 export async function buildApp(opts: FastifyServerOptions = {}) {
   const app = Fastify({ logger: true, ...opts })
   await app.register(cors, { origin: true })
+  await app.register(authRoutes)
   await app.register(cameraRoutes)
   return app
 }
