@@ -8,6 +8,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       PORT: ${PORT:-3001}
       NODE_ENV: ${NODE_ENV:-production}
+      FLASH_PIN: ${FLASH_PIN}
+      JWT_SECRET: ${JWT_SECRET}
     deploy:
       resources:
         reservations:
