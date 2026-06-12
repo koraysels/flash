@@ -119,6 +119,8 @@ export class CameraWorkerManager {
         (camera.countingLineBPoints as number[] | null) ?? [],
         camera.trapSpeedEnabled,
         trackingConfig,
+        camera.calibrationWidth,
+        camera.calibrationHeight,
       )
       await streamer.init()
       streamer.start()

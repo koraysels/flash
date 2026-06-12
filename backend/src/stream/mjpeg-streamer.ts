@@ -49,8 +49,10 @@ export class MJPEGStreamer extends EventEmitter {
 
   // Frame queue: ffmpeg delivers HLS frames in bursts; we dequeue at a fixed
   // rate so MJPEG output is smooth regardless of segment delivery timing.
-  private frameQueue: Buffer[] = []
-  private latestRawFrame: Buffer | null = null
+  // Each frame is stamped at ingest — dequeue-time stamps would jump whenever
+  // the queue saturates, corrupting speed dt measurements.
+  private frameQueue: Array<{ jpeg: Buffer; ts: number }> = []
+  private latestRawFrame: { jpeg: Buffer; ts: number } | null = null
   private dequeueTimer: ReturnType<typeof setTimeout> | null = null
 
   // Video fps tracking (measures dequeue/display rate)
@@ -74,6 +76,8 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly lineBPoints: number[] = [],
     private readonly trapSpeedEnabled: boolean = false,
     private readonly trackingConfig: TrackerConfig = DEFAULT_TRACKER_CONFIG,
+    private readonly calibrationWidth: number | null = null,
+    private readonly calibrationHeight: number | null = null,
   ) {
     super()
   }
@@ -94,6 +98,8 @@ export class MJPEGStreamer extends EventEmitter {
         lineBPoints: this.lineBPoints,
         maxSpeedKmh: this.maxSpeedKmh,
         homographyMatrix: this.homographyMatrix,
+        calibrationWidth: this.calibrationWidth,
+        calibrationHeight: this.calibrationHeight,
         trapSpeedEnabled: this.trapSpeedEnabled,
         trackingConfig: this.trackingConfig,
       }
@@ -191,18 +197,18 @@ export class MJPEGStreamer extends EventEmitter {
     let nextTarget = Date.now() + intervalMs
 
     const tick = () => {
-      const frameTime = Date.now()
+      const now = Date.now()
       const isNewFrame = this.frameQueue.length > 0
       const frame = this.frameQueue.shift() ?? this.latestRawFrame
       if (frame) {
         this.latestRawFrame = frame
         this.videoFpsCount++
-        if (frameTime - this.videoFpsLastTime >= 1000) {
+        if (now - this.videoFpsLastTime >= 1000) {
           this.videoFps = this.videoFpsCount
           this.videoFpsCount = 0
-          this.videoFpsLastTime = frameTime
+          this.videoFpsLastTime = now
         }
-        this.onRawFrame(frame, isNewFrame, frameTime)
+        this.onRawFrame(frame.jpeg, isNewFrame, frame.ts)
       }
       if (!this.running) return
       nextTarget += intervalMs
@@ -278,7 +284,7 @@ export class MJPEGStreamer extends EventEmitter {
         buf = buf.slice(e + 2)
         // Push into queue; if we're at the cap, drop the oldest frame
         if (this.frameQueue.length >= MAX_QUEUE) this.frameQueue.shift()
-        this.frameQueue.push(frame)
+        this.frameQueue.push({ jpeg: frame, ts: Date.now() })
       }
     })
 

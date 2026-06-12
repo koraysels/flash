@@ -103,6 +103,12 @@ export type CalibrationPoint = {
   lng?: number
 }
 
+export type CalibrationError = {
+  perPointM: number[]
+  rmsM: number
+  maxM: number
+}
+
 export async function saveCalibration(
   id: string,
   pairs: CalibrationPoint[],
@@ -112,11 +118,13 @@ export async function saveCalibration(
   countingLineAPoints?: number[],
   countingLineBPoints?: number[],
   trapSpeedEnabled?: boolean,
-): Promise<Camera> {
+  frameWidth?: number,
+  frameHeight?: number,
+): Promise<Camera & { calibrationError?: CalibrationError }> {
   const res = await fetch(`${BASE}/cameras/${id}/calibration`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints, trapSpeedEnabled }),
+    body: JSON.stringify({ pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints, trapSpeedEnabled, frameWidth, frameHeight }),
   })
   if (res.status === 401) clearAuthAndReload()
   if (!res.ok) throw new Error('Failed to save calibration')

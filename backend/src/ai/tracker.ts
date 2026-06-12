@@ -118,6 +118,7 @@ type KFTrack = TrackedVehicle & {
   kf: KF2D
   w: number; h: number
   lastTs: number
+  classVotes: Map<string, number>
 }
 
 function iou(a: Box, b: Box): number {
@@ -228,6 +229,15 @@ export class Tracker {
       t.bcx = t.cx; t.bcy = t.y2 - t.h * 0.05
 
       t.confidence = det.confidence
+      // Majority vote over matched detections — first-frame misclassifications
+      // (vehicle still small/far) shouldn't stick for the track's lifetime
+      t.classVotes.set(det.class, (t.classVotes.get(det.class) ?? 0) + 1)
+      let bestClass = t.class
+      let bestVotes = 0
+      for (const [cls, votes] of t.classVotes) {
+        if (votes > bestVotes) { bestClass = cls; bestVotes = votes }
+      }
+      t.class = bestClass
       t.history.push({ cx: t.cx, cy: t.cy, timestamp })
       if (t.history.length > 30) t.history.shift()
 
@@ -264,6 +274,7 @@ export class Tracker {
         cx, cy, bcx: cx, bcy: det.y2 - h * 0.05,
         kf: new KF2D(cx, cy, this.cfg.qPos, this.cfg.qVel),
         w, h, lastTs: timestamp,
+        classVotes: new Map([[det.class, 1]]),
         history: [{ cx, cy, timestamp }],
         missedFrames: 0, confirmedFrames: 1,
         isPredicted: false,

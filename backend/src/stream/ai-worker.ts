@@ -13,7 +13,7 @@ import { Tracker, type TrackerConfig, DEFAULT_TRACKER_CONFIG } from '../ai/track
 import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
 import { TrapSpeedCalculator, type TrapMeasurement } from '../analysis/trap-speed'
-import { applyHomography } from '../analysis/homography'
+import { applyHomography, scaleHomography } from '../analysis/homography'
 
 // ---- types shared with main thread -----------------------------------------------
 
@@ -25,6 +25,8 @@ export type WorkerInitData = {
   lineBPoints: number[]
   maxSpeedKmh: number | null
   homographyMatrix: number[]
+  calibrationWidth: number | null
+  calibrationHeight: number | null
   trapSpeedEnabled: boolean
   trackingConfig: TrackerConfig
 }
@@ -55,15 +57,13 @@ export type WorkerResultMsg = {
 
 const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
 
-const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, trapSpeedEnabled, trackingConfig: rawTrackingConfig } = workerData as WorkerInitData
+const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig } = workerData as WorkerInitData
 const trackingConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG, ...rawTrackingConfig }
 
 const detector = new Detector(MODEL_PATH)
 const tracker = new Tracker(trackingConfig)
 let counter = new DirectionCounter(576, lineA, lineB, lineAPoints, lineBPoints)
-const speedCalc = !trapSpeedEnabled && homographyMatrix.length === 9
-  ? new SpeedCalculator(homographyMatrix, maxSpeedKmh ?? undefined, trackingConfig.speedPlausibilityKmh)
-  : null
+let speedCalc: SpeedCalculator | null = null
 
 // Trap speed calculator — created lazily after first frame when frame dimensions are known
 let trapCalc: TrapSpeedCalculator | null = null
@@ -75,22 +75,41 @@ const countedSpeeders = new Set<number>()   // IDs already counted (never reset 
 const vehicleZoneSpeed = new Map<number, number>()  // max speed seen while in zone per vehicle (continuous mode only)
 let prevBoxIds = new Set<number>()
 
+// Homography rescaled to the actual frame dimensions: calibration points were
+// picked at (calibrationWidth, calibrationHeight), which may differ from the
+// stream's decoded resolution.
+let activeH: number[] = []
+
+function rebuildCalibration(): void {
+  if (homographyMatrix.length !== 9) return
+  activeH = scaleHomography(
+    homographyMatrix,
+    calibrationWidth ?? actualWidth,
+    calibrationHeight ?? actualHeight,
+    actualWidth,
+    actualHeight,
+  )
+  speedCalc = !trapSpeedEnabled
+    ? new SpeedCalculator(activeH, maxSpeedKmh ?? undefined, trackingConfig.speedPlausibilityKmh)
+    : null
+}
+rebuildCalibration()
+
 function initTrapCalc(): void {
-  if (!trapSpeedEnabled || homographyMatrix.length !== 9) return
-  // Project the center of each counting line to world coordinates and measure the distance
+  if (!trapSpeedEnabled || activeH.length !== 9) return
+  // Midpoint line distance is only logged for diagnostics — actual measurements
+  // use each vehicle's own world-space path between its crossing points
   const midX = (pts: number[], fallbackNx: number) =>
     pts.length === 4 ? ((pts[0] + pts[2]) / 2) * actualWidth : fallbackNx * actualWidth
   const midY = (pts: number[], fallbackNy: number) =>
     pts.length === 4 ? ((pts[1] + pts[3]) / 2) * actualHeight : fallbackNy * actualHeight
 
-  const wA = applyHomography(homographyMatrix, midX(lineAPoints, 0.5), midY(lineAPoints, lineA))
-  const wB = applyHomography(homographyMatrix, midX(lineBPoints, 0.5), midY(lineBPoints, lineB))
-  const dx = wB.wx - wA.wx
-  const dy = wB.wy - wA.wy
-  const distM = Math.sqrt(dx * dx + dy * dy)
+  const wA = applyHomography(activeH, midX(lineAPoints, 0.5), midY(lineAPoints, lineA))
+  const wB = applyHomography(activeH, midX(lineBPoints, 0.5), midY(lineBPoints, lineB))
+  const distM = Math.hypot(wB.wx - wA.wx, wB.wy - wA.wy)
   if (distM > 0) {
-    trapCalc = new TrapSpeedCalculator(distM, maxSpeedKmh ?? undefined, trackingConfig.speedPlausibilityKmh)
-    process.stderr.write(`[ai-worker:${cameraId}] trap speed enabled, line distance = ${distM.toFixed(2)}m\n`)
+    trapCalc = new TrapSpeedCalculator(activeH, maxSpeedKmh ?? undefined, trackingConfig.speedPlausibilityKmh)
+    process.stderr.write(`[ai-worker:${cameraId}] trap speed enabled, midpoint line distance = ${distM.toFixed(2)}m\n`)
   }
 }
 
@@ -133,7 +152,8 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       counter = new DirectionCounter(height, lineA, lineB, lineAPoints, lineBPoints)
       actualWidth = width
       actualHeight = height
-      trapCalc = null  // recompute distance for new dimensions
+      trapCalc = null  // recreate with the rescaled homography
+      rebuildCalibration()
     }
 
     if (trapSpeedEnabled && trapCalc === null) initTrapCalc()
@@ -146,7 +166,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
     const padY = Math.round((640 - scaledH) / 2)
     const canvas640 = createCanvas(640, 640)
     const ctx640 = canvas640.getContext('2d')
-    ctx640.fillStyle = '#808080'
+    ctx640.fillStyle = '#727272'  // 114,114,114 — YOLO letterbox fill used in training
     ctx640.fillRect(0, 0, 640, 640)
     ctx640.drawImage(img, padX, padY, scaledW, scaledH)
     const rgba640 = ctx640.getImageData(0, 0, 640, 640).data
@@ -177,7 +197,11 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
     }
     prevBoxIds = currentIds
 
-    for (const v of tracked) counter.updateVehicle(v.id, v.bcx / actualWidth, v.bcy / actualHeight)
+    // Predicted (coasted) tracks have no measurement this frame — letting them
+    // cross lines or feed the speed calculators produces phantom counts
+    for (const v of tracked) {
+      if (!v.isPredicted) counter.updateVehicle(v.id, v.bcx / actualWidth, v.bcy / actualHeight)
+    }
     const counts = counter.getCounts()
 
     const boxes: WorkerResultMsg['boxes'] = []
@@ -190,7 +214,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
 
       if (trapCalc) {
         // Trap mode: time between line A and B crossings — speed locked in after both crossed
-        trapCalc.update(v.id, ny, lineAY, lineBY, msg.frameTime)
+        if (!v.isPredicted) trapCalc.update(v.id, v.bcx, v.bcy, ny, lineAY, lineBY, msg.frameTime)
         speedKmh = trapCalc.getSpeed(v.id)
         if (speedKmh !== null && !countedSpeeders.has(v.id)) {
           countedSpeeders.add(v.id)
@@ -198,18 +222,20 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
         }
       } else if (speedCalc) {
         // Continuous mode: EMA-smoothed homography speed with zone-based speeder detection
-        speedCalc.addPosition(v.id, v.bcx, v.bcy, msg.frameTime)
+        if (!v.isPredicted) speedCalc.addPosition(v.id, v.bcx, v.bcy, msg.frameTime)
         speedKmh = speedCalc.getSpeed(v.id)
-        const inZone = ny >= Math.min(lineAY, lineBY) && ny <= Math.max(lineAY, lineBY)
-        if (inZone && speedKmh !== null) {
-          vehicleZoneSpeed.set(v.id, Math.max(vehicleZoneSpeed.get(v.id) ?? 0, speedKmh))
-        } else if (!inZone && vehicleZoneSpeed.has(v.id)) {
-          const maxZoneSpd = vehicleZoneSpeed.get(v.id)!
-          if (maxSpeedKmh !== null && maxZoneSpd > maxSpeedKmh && !countedSpeeders.has(v.id)) {
-            countedSpeeders.add(v.id)
-            speeders++
+        if (!v.isPredicted) {
+          const inZone = ny >= Math.min(lineAY, lineBY) && ny <= Math.max(lineAY, lineBY)
+          if (inZone && speedKmh !== null) {
+            vehicleZoneSpeed.set(v.id, Math.max(vehicleZoneSpeed.get(v.id) ?? 0, speedKmh))
+          } else if (!inZone && vehicleZoneSpeed.has(v.id)) {
+            const maxZoneSpd = vehicleZoneSpeed.get(v.id)!
+            if (maxSpeedKmh !== null && maxZoneSpd > maxSpeedKmh && !countedSpeeders.has(v.id)) {
+              countedSpeeders.add(v.id)
+              speeders++
+            }
+            vehicleZoneSpeed.delete(v.id)
           }
-          vehicleZoneSpeed.delete(v.id)
         }
       }
 

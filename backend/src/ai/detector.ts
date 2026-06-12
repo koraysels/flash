@@ -18,7 +18,10 @@ const VEHICLE_CLASSES: Record<number, string> = {
 }
 
 const INPUT_SIZE = 640
-const CONF_THRESHOLD = 0.35   // lower than default: traffic cams have small/distant vehicles
+// ByteTrack-style: keep low-confidence boxes so the tracker's stage-2 matching
+// can recover occluded/distant vehicles. New tracks still require
+// TrackerConfig.highConfidence, and only confirmed tracks are ever reported.
+const CONF_THRESHOLD = 0.15
 const IOU_THRESHOLD = 0.4     // slightly tighter than default: side-by-side vehicles in lanes
 const NUM_CLASSES = 4
 const NUM_DETECTIONS = 8400
@@ -84,9 +87,9 @@ export class Detector {
     srcWidth: number,
     srcHeight: number,
   ): DetectionResult[] {
-    // YOLOv8 output: [1, 84, 8400] in transposed layout
+    // YOLOv8 output: [1, 4 + NUM_CLASSES, 8400] in transposed layout
     // Rows 0-3: cx, cy, w, h in letterboxed 640×640 pixel space
-    // Rows 4-83: class scores
+    // Remaining rows: class scores
     const results: DetectionResult[] = []
 
     for (let i = 0; i < NUM_DETECTIONS; i++) {

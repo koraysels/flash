@@ -355,6 +355,7 @@ export default function CameraCalibrate() {
   const navigate = useNavigate()
   const [camera, setCamera] = useState<Camera | null>(null)
   const [snapshot, setSnapshot] = useState<string | null>(null)
+  const [snapshotDims, setSnapshotDims] = useState<{ w: number; h: number } | null>(null)
   const [imagePoints, setImagePoints] = useState<Pt[]>([])
   const [mapPoints, setMapPoints] = useState<LatLng[]>([])
   const [maxSpeedKmh, setMaxSpeedKmh] = useState('')
@@ -382,6 +383,15 @@ export default function CameraCalibrate() {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY ?? '',
     libraries: LIBRARIES,
   })
+
+  // Calibration points are picked in the snapshot's native pixel space — the
+  // backend stores these dims so the homography survives stream resolution changes
+  useEffect(() => {
+    if (!snapshot) return
+    const im = new Image()
+    im.onload = () => setSnapshotDims({ w: im.naturalWidth, h: im.naturalHeight })
+    im.src = `data:image/jpeg;base64,${snapshot}`
+  }, [snapshot])
 
   useEffect(() => {
     if (!id) return
@@ -564,13 +574,23 @@ export default function CameraCalibrate() {
           }
         })
       }
-      await saveCalibration(
+      const result = await saveCalibration(
         id, pairs,
         maxSpeedKmh ? parseInt(maxSpeedKmh, 10) : null,
         lineAFrac(), lineBFrac(),
         lineAFlat(), lineBFlat(),
         trapSpeedEnabled,
+        snapshotDims?.w, snapshotDims?.h,
       )
+      if (result.calibrationError && result.calibrationError.rmsM > 0.5) {
+        const { rmsM, maxM, perPointM } = result.calibrationError
+        const worst = perPointM.indexOf(Math.max(...perPointM)) + 1
+        window.alert(
+          `Calibration saved, but the fit is poor: RMS error ${rmsM.toFixed(2)} m, ` +
+          `worst point #${worst} is off by ${maxM.toFixed(2)} m. ` +
+          `Speeds will be inaccurate — re-pick the worst points.`,
+        )
+      }
       navigate('/cameras')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')

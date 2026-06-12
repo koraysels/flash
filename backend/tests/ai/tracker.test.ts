@@ -161,3 +161,21 @@ describe('KF2D', () => {
     expect(Math.abs(kf.velAngle())).toBeLessThan(0.1)
   })
 })
+
+describe('Tracker class voting', () => {
+  it('reports the majority class over matched detections, not the first one', () => {
+    const tracker = new Tracker()
+    const det = (cls: string): DetectionResult => ({
+      x1: 100, y1: 100, x2: 200, y2: 200, confidence: 0.9, class: cls,
+    })
+
+    // First detection misclassified as van, then consistently car
+    tracker.update([det('van')])
+    tracker.update([det('car')])
+    tracker.update([det('car')])
+    const tracked = tracker.update([det('car')])
+
+    expect(tracked).toHaveLength(1)
+    expect(tracked[0].class).toBe('car')
+  })
+})

@@ -93,6 +93,37 @@ export function applyHomography(H: number[], px: number, py: number): { wx: numb
   }
 }
 
+export type ReprojectionError = {
+  perPointM: number[]
+  rmsM: number
+  maxM: number
+}
+
+/** Residual between each calibration point's true world position and its projection through H, in meters. */
+export function reprojectionError(H: number[], pairs: PointPair[]): ReprojectionError {
+  const perPointM = pairs.map(({ px, py, wx, wy }) => {
+    const proj = applyHomography(H, px, py)
+    return Math.hypot(proj.wx - wx, proj.wy - wy)
+  })
+  const rmsM = Math.sqrt(perPointM.reduce((s, e) => s + e * e, 0) / perPointM.length)
+  return { perPointM, rmsM, maxM: Math.max(...perPointM) }
+}
+
+/**
+ * Adapt a homography calibrated at (calibW, calibH) to a frame of (newW, newH):
+ * incoming pixels are mapped back to calibration-time pixel space first.
+ */
+export function scaleHomography(H: number[], calibW: number, calibH: number, newW: number, newH: number): number[] {
+  if (calibW === newW && calibH === newH) return H
+  const sx = calibW / newW
+  const sy = calibH / newH
+  return [
+    H[0] * sx, H[1] * sy, H[2],
+    H[3] * sx, H[4] * sy, H[5],
+    H[6] * sx, H[7] * sy, H[8],
+  ]
+}
+
 export function latlngToMeters(
   originLat: number,
   originLng: number,

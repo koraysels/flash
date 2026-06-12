@@ -87,6 +87,8 @@ export async function cameraRoutes(app: FastifyInstance) {
     Params: { id: string }
     Body: {
       pairs: Array<{ px: number; py: number; wx: number; wy: number }>
+      frameWidth?: number
+      frameHeight?: number
       maxSpeedKmh?: number | null
       countingLineA?: number
       countingLineB?: number
@@ -115,6 +117,8 @@ export async function cameraRoutes(app: FastifyInstance) {
               },
             },
           },
+          frameWidth: { type: 'number', minimum: 1 },
+          frameHeight: { type: 'number', minimum: 1 },
           maxSpeedKmh: { type: ['number', 'null'] },
           countingLineA: { type: 'number', minimum: 0, maximum: 1 },
           countingLineB: { type: 'number', minimum: 0, maximum: 1 },
@@ -125,14 +129,18 @@ export async function cameraRoutes(app: FastifyInstance) {
       },
     },
   }, async (req, reply) => {
-    const { pairs, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints, trapSpeedEnabled } = req.body
+    const { pairs, frameWidth, frameHeight, maxSpeedKmh, countingLineA, countingLineB, countingLineAPoints, countingLineBPoints, trapSpeedEnabled } = req.body
 
     // Homography only computed when at least 4 point pairs are provided
     let H: number[] | undefined
+    let calibrationError: import('../analysis/homography').ReprojectionError | undefined
     if (pairs.length >= 4) {
       try {
-        const { computeHomography } = await import('../analysis/homography')
+        const { computeHomography, reprojectionError } = await import('../analysis/homography')
         H = computeHomography(pairs)
+        // Residual per calibration point in meters — surfaced so bad point
+        // picks are visible instead of silently corrupting all speeds
+        calibrationError = reprojectionError(H, pairs)
       } catch (err) {
         reply.code(400)
         return { error: err instanceof Error ? err.message : 'Homography computation failed' }
@@ -145,6 +153,8 @@ export async function cameraRoutes(app: FastifyInstance) {
         data: {
           ...(H !== undefined && { homographyMatrix: H }),
           ...(pairs.length >= 4 && { calibrationPoints: pairs as unknown as Prisma.InputJsonValue }),
+          ...(pairs.length >= 4 && frameWidth !== undefined && { calibrationWidth: Math.round(frameWidth) }),
+          ...(pairs.length >= 4 && frameHeight !== undefined && { calibrationHeight: Math.round(frameHeight) }),
           ...(maxSpeedKmh !== undefined && { maxSpeedKmh }),
           ...(countingLineA !== undefined && { countingLineA }),
           ...(countingLineB !== undefined && { countingLineB }),
@@ -155,7 +165,7 @@ export async function cameraRoutes(app: FastifyInstance) {
       })
       // Restart the streamer so the worker picks up the new calibration
       getManager()?.restartCamera(req.params.id)
-      return camera
+      return { ...camera, calibrationError }
     } catch (err) {
       return handlePrismaError(err, reply)
     }

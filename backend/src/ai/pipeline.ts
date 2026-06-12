@@ -81,7 +81,7 @@ export class CameraPipeline {
     const padY = Math.round((640 - scaledH) / 2)
     const canvas640 = createCanvas(640, 640)
     const ctx640 = canvas640.getContext('2d')
-    ctx640.fillStyle = '#808080'
+    ctx640.fillStyle = '#727272'  // 114,114,114 — YOLO letterbox fill used in training
     ctx640.fillRect(0, 0, 640, 640)
     ctx640.drawImage(img, padX, padY, scaledW, scaledH)
     const rgba640 = ctx640.getImageData(0, 0, 640, 640).data
