@@ -14,6 +14,12 @@ import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
 const MAX_QUEUE = 48   // ~2 s at OUTPUT_FPS
 const OUTPUT_FPS = 24
+// AI detection runs on its OWN self-correcting timer, decoupled from the video
+// dequeue. Video drains at OUTPUT_FPS for smooth playback; AI samples the latest
+// frame at AI_FPS. Keeping AI below video frees backend event-loop + client
+// budget (fewer socket frame-events + canvas redraws) so MJPEG video stays smooth.
+const AI_FPS = 15
+const AI_INTERVAL_MS = 1000 / AI_FPS
 
 function resolveFfmpegPath(): string {
   if (process.platform === 'darwin') {
@@ -46,6 +52,11 @@ export class MJPEGStreamer extends EventEmitter {
   private latestRawBase64: string | null = null
 
   private frameIdx = 0
+  // Latest new frame available for AI, plus the AI dispatch timer. Decoupled
+  // from the video dequeue so AI runs at AI_FPS regardless of OUTPUT_FPS.
+  private lastFrameForAi: { jpeg: Buffer; frameTime: number; seq: number } | null = null
+  private lastAiSeq = 0
+  private aiDispatchTimer: ReturnType<typeof setTimeout> | null = null
 
   // Frame queue: ffmpeg delivers HLS frames in bursts; we dequeue at a fixed
   // rate so MJPEG output is smooth regardless of segment delivery timing.
@@ -169,20 +180,43 @@ export class MJPEGStreamer extends EventEmitter {
     if (this.running) return
     this.running = true
     this.startDequeue()
+    this.startAiDispatch()
     this.spawn()
   }
 
   stop(): void {
     this.running = false
     if (this.dequeueTimer) { clearTimeout(this.dequeueTimer); this.dequeueTimer = null }
+    if (this.aiDispatchTimer) { clearTimeout(this.aiDispatchTimer); this.aiDispatchTimer = null }
     this.frameQueue = []
     this.latestRawBase64 = null
+    this.lastFrameForAi = null
+    this.lastAiSeq = 0
     this.ffmpegProc?.kill('SIGTERM')
     this.ffmpegProc = null
     this.aiWorker?.terminate()
     this.aiWorker = null
     this.workerReady = false
     this.workerBusy = false
+  }
+
+  // Sample the latest frame for AI at AI_FPS using a self-correcting timer,
+  // independent of the video dequeue. Skips when the worker is busy or when no
+  // new frame has arrived since the last dispatch.
+  private startAiDispatch(): void {
+    let nextTarget = Date.now() + AI_INTERVAL_MS
+    const tick = () => {
+      if (!this.running) return
+      const f = this.lastFrameForAi
+      if (f && this.workerReady && !this.workerBusy && f.seq !== this.lastAiSeq) {
+        this.lastAiSeq = f.seq
+        this.workerBusy = true
+        this.aiWorker!.postMessage({ type: 'analyse', jpeg: f.jpeg, frameTime: f.frameTime, seq: f.seq })
+      }
+      nextTarget += AI_INTERVAL_MS
+      this.aiDispatchTimer = setTimeout(tick, Math.max(0, nextTarget - Date.now()))
+    }
+    this.aiDispatchTimer = setTimeout(tick, AI_INTERVAL_MS)
   }
 
   isRunning(): boolean { return this.running }
@@ -297,10 +331,8 @@ export class MJPEGStreamer extends EventEmitter {
     this.latestRawBase64 = jpeg.toString('base64')
     this.emit('frame', jpeg, seq)
 
-    if (isNewFrame && this.workerReady && !this.workerBusy) {
-      this.workerBusy = true
-      this.aiWorker!.postMessage({ type: 'analyse', jpeg, frameTime, seq })
-    }
+    // Hand the newest frame to the AI dispatch timer (it samples at AI_FPS).
+    if (isNewFrame) this.lastFrameForAi = { jpeg, frameTime, seq }
   }
 
   async dispose(): Promise<void> {
