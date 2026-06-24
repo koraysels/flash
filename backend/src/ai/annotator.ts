@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, GlobalFonts, type Canvas } from '@napi-rs/canvas'
+import { createCanvas, GlobalFonts, type Canvas, type Image } from '@napi-rs/canvas'
 import { existsSync } from 'fs'
 import { TrackedVehicle } from './tracker'
 
@@ -37,34 +37,41 @@ const CLASS_COLORS: Record<string, string> = {
   motorcycle: '#8b5cf6',
 }
 
-export async function annotateFrame(
-  jpegBuffer: Buffer,
+export function annotateFrame(
+  img: Image,
   vehicles: TrackedVehicle[],
   lineAFraction: number,
   lineBFraction: number,
   hud?: { ab: number; ba: number; speeders: number; maxSpeedKmh?: number | null },
-): Promise<Buffer> {
-  const img = await loadImage(jpegBuffer)
+  lineAPoints?: number[],
+  lineBPoints?: number[],
+): Buffer {
+  // img is the already-decoded frame from the worker — no second JPEG decode here.
   const canvas = createCanvas(img.width, img.height)
   const ctx = canvas.getContext('2d')
 
   ctx.drawImage(img, 0, 0)
 
-  // Draw counting lines
-  const lineAY = img.height * lineAFraction
-  const lineBY = img.height * lineBFraction
-
+  // Draw counting lines — use the angled 4-point spec ([x1,y1,x2,y2] normalised)
+  // when present (matches the calibration/homography), else a horizontal fallback
+  // at the scalar fraction.
+  const drawLine = (pts: number[] | undefined, frac: number): void => {
+    ctx.beginPath()
+    if (pts && pts.length === 4) {
+      ctx.moveTo(pts[0] * img.width, pts[1] * img.height)
+      ctx.lineTo(pts[2] * img.width, pts[3] * img.height)
+    } else {
+      const y = img.height * frac
+      ctx.moveTo(0, y)
+      ctx.lineTo(img.width, y)
+    }
+    ctx.stroke()
+  }
   ctx.strokeStyle = 'rgba(255,255,0,0.6)'
   ctx.lineWidth = 2
   ctx.setLineDash([8, 4])
-  ctx.beginPath()
-  ctx.moveTo(0, lineAY)
-  ctx.lineTo(img.width, lineAY)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(0, lineBY)
-  ctx.lineTo(img.width, lineBY)
-  ctx.stroke()
+  drawLine(lineAPoints, lineAFraction)
+  drawLine(lineBPoints, lineBFraction)
   ctx.setLineDash([])
 
   // Draw bounding boxes and labels

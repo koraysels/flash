@@ -275,12 +275,14 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
 
     let annotatedJpeg: Buffer | undefined
     if (annotatedEnabled) {
-      annotatedJpeg = await annotateFrame(
-        msg.jpeg,
+      annotatedJpeg = annotateFrame(
+        img,
         tracked.filter((v) => !v.isPredicted),
         lineA,
         lineB,
         { ab: counts.AB, ba: counts.BA, speeders, maxSpeedKmh },
+        lineAPoints,
+        lineBPoints,
       )
     }
 
