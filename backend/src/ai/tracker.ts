@@ -36,9 +36,14 @@ export type TrackerConfig = {
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   highConfidence: 0.55,
-  iouStage1: 0.35,
-  iouStage2: 0.12,
-  maxPredictedGap: 3,
+  // Looser IoU gates: a fast car moves a lot per frame and a brand-new track has
+  // velocity 0 (prediction doesn't move yet), so a strict gate never lets it catch
+  // its 2nd detection → it re-spawns a new id every frame (count inflation + false
+  // MQTT flashes). CONFIG-ONLY change — safe (the static crash was the separate
+  // draw-coasted change, not this).
+  iouStage1: 0.20,
+  iouStage2: 0.08,
+  maxPredictedGap: 6,
   maxMissedFrames: 30,
   minConfirmedFrames: 2,
   boxEmaAlpha: 0.60,
