@@ -73,6 +73,7 @@ let speedCalc: SpeedCalculator | null = null
 let trapCalc: TrapSpeedCalculator | null = null
 
 let annotatedEnabled = false
+let lastErrLog = 0   // throttle repeated corrupt-frame errors
 let actualWidth = 768
 let actualHeight = 576
 let speeders = 0
@@ -315,10 +316,14 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
       annotatedJpeg,
     } satisfies WorkerResultMsg)
   } catch (err) {
-    const errMsg = String(err)
-    // Corrupt/non-JPEG frames from the stream are silently skipped
-    if (!errMsg.includes('SVG') && !errMsg.includes('Invalid image')) {
-      process.stderr.write(`[ai-worker:${cameraId}] error: ${errMsg}\n`)
+    const errMsg = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err)
+    // Always surface real errors (the annotator/pipeline crashing must NOT be
+    // silent). Only throttle the noisy corrupt-frame case to avoid flooding.
+    const isCorruptFrame = errMsg.includes('SVG') || errMsg.includes('Invalid image')
+    const now = Date.now()
+    if (!isCorruptFrame || now - lastErrLog > 5000) {
+      lastErrLog = now
+      process.stderr.write(`[ai-worker:${cameraId}] frame error: ${errMsg}\n`)
     }
     // Always post back a result so the main thread resets workerBusy.
     // Without this, a single corrupt frame permanently locks the pipeline.
