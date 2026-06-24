@@ -9,6 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN npm install -g pnpm@9
 
+# Download onnxruntime-node's CUDA 12 execution-provider binaries (not bundled in
+# the npm package — too large for the registry). Without this the backend silently
+# runs ONNX on CPU and the requested 'cuda' provider crashes/falls back.
+ENV ONNXRUNTIME_NODE_INSTALL=cuda12
+
 WORKDIR /app
 
 # Workspace manifests — all three needed for pnpm workspace resolution

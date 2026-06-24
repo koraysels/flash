@@ -33,7 +33,8 @@ export class Detector {
 
   async init(): Promise<void> {
     this.session = await ort.InferenceSession.create(this.modelPath, {
-      executionProviders: ['cuda', 'cpu'],
+      executionProviders: [{ name: 'cuda', deviceId: 0 }, 'cpu'],
+      graphOptimizationLevel: 'all',
     })
   }
 
