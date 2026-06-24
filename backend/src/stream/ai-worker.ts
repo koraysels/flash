@@ -279,23 +279,27 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
       totalMs: Math.round(t4 - t0),
     }
 
-    frameCount++
-    timingSum.decodeMs += timing.decodeMs
-    timingSum.canvasMs += timing.canvasMs
-    timingSum.inferenceMs += timing.inferenceMs
-    timingSum.trackMs += timing.trackMs
-    timingSum.totalMs += timing.totalMs
-    if (frameCount % 50 === 0) {
-      const now = performance.now()
-      const fps = (50 / (now - timingWindowStart)) * 1000
-      process.stderr.write(
-        `[ai-worker:${cameraId}] avg over 50f @ ${fps.toFixed(1)}fps | ` +
-        `decode=${(timingSum.decodeMs / 50).toFixed(1)} canvas=${(timingSum.canvasMs / 50).toFixed(1)} ` +
-        `infer=${(timingSum.inferenceMs / 50).toFixed(1)} track=${(timingSum.trackMs / 50).toFixed(1)} ` +
-        `total=${(timingSum.totalMs / 50).toFixed(1)}ms\n`
-      )
-      timingSum.decodeMs = timingSum.canvasMs = timingSum.inferenceMs = timingSum.trackMs = timingSum.totalMs = 0
-      timingWindowStart = now
+    // Per-stage timing summary — off by default (it floods stderr); enable with
+    // FLASH_AI_TIMING=1 for perf diagnosis.
+    if (process.env.FLASH_AI_TIMING) {
+      frameCount++
+      timingSum.decodeMs += timing.decodeMs
+      timingSum.canvasMs += timing.canvasMs
+      timingSum.inferenceMs += timing.inferenceMs
+      timingSum.trackMs += timing.trackMs
+      timingSum.totalMs += timing.totalMs
+      if (frameCount % 50 === 0) {
+        const now = performance.now()
+        const fps = (50 / (now - timingWindowStart)) * 1000
+        process.stderr.write(
+          `[ai-worker:${cameraId}] avg over 50f @ ${fps.toFixed(1)}fps | ` +
+          `decode=${(timingSum.decodeMs / 50).toFixed(1)} canvas=${(timingSum.canvasMs / 50).toFixed(1)} ` +
+          `infer=${(timingSum.inferenceMs / 50).toFixed(1)} track=${(timingSum.trackMs / 50).toFixed(1)} ` +
+          `total=${(timingSum.totalMs / 50).toFixed(1)}ms\n`
+        )
+        timingSum.decodeMs = timingSum.canvasMs = timingSum.inferenceMs = timingSum.trackMs = timingSum.totalMs = 0
+        timingWindowStart = now
+      }
     }
 
     parentPort!.postMessage({
