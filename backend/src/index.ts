@@ -7,7 +7,9 @@ import { CameraWorkerManager, setManager } from './camera-worker'
 import { config } from './config'
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
-  const app = Fastify({ logger: true, ...opts })
+  // disableRequestLogging: drop the per-request "incoming request"/"request
+  // completed" lines (HLS polling floods them) — keep app/error logging.
+  const app = Fastify({ logger: true, disableRequestLogging: true, ...opts })
   await app.register(cors, { origin: true })
   await app.register(authRoutes)
   await app.register(cameraRoutes)

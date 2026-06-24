@@ -1,10 +1,16 @@
 FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
 
-# Node.js 22 + ffmpeg for HLS capture + openssl for Prisma
+# Node.js 22 + jellyfin-ffmpeg7 (a modern, NVENC-enabled standalone ffmpeg build —
+# NOT the media server; installs only ffmpeg/ffprobe under /usr/lib/jellyfin-ffmpeg)
+# + openssl for Prisma. Distro ffmpeg (4.4) lacks -fps_mode and has weaker NVENC.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates ffmpeg openssl python-is-python3 \
+      curl gnupg ca-certificates openssl python-is-python3 \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://repo.jellyfin.org/jellyfin_team.gpg.key | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg \
+    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/jellyfin.gpg] https://repo.jellyfin.org/ubuntu jammy main" > /etc/apt/sources.list.d/jellyfin.list \
+    && apt-get update && apt-get install -y --no-install-recommends jellyfin-ffmpeg7 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm@9

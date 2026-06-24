@@ -7,7 +7,10 @@ export function resolveFfmpegPath(): string {
       if (existsSync(p)) return p
     }
   }
-  // Prefer system ffmpeg (e.g. apt install ffmpeg in Docker) over the bundled static binary
-  if (existsSync('/usr/bin/ffmpeg')) return '/usr/bin/ffmpeg'
+  // Prefer the modern NVENC-enabled jellyfin-ffmpeg (installed in the Docker image),
+  // then a system ffmpeg, then the bundled static binary.
+  for (const p of ['/usr/lib/jellyfin-ffmpeg/ffmpeg', '/usr/bin/ffmpeg']) {
+    if (existsSync(p)) return p
+  }
   return ffmpegStatic!
 }

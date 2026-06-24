@@ -46,9 +46,11 @@ export class AnnotatedEncoder {
     // reliably; NVENC defaults (B-frames, unbounded rate) push the Pi into slow
     // software decode → stutter.
     // Pi-decode-friendly H.264 (no B-frames, High@4.0); smooth default VBR.
+    // -no-scenecut/-sc_threshold 0 keeps keyframes ONLY on the GOP boundary so 2s
+    // segments align to keyframes (scene-change keyframes break segment alignment).
     const enc = codec === 'nvenc'
-      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll', '-profile:v', 'high', '-level', '4.0', '-bf', '0']
-      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-profile:v', 'high', '-level', '4.0', '-bf', '0']
+      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll', '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-no-scenecut', '1']
+      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-sc_threshold', '0']
     return [
       // Stamp frames by real ARRIVAL time + force constant-fps real-time output.
       // Without this, image2pipe assumes a fixed input fps while the JS feed timer
@@ -56,9 +58,9 @@ export class AnnotatedEncoder {
       // the live edge and stutters. This pins output to real time.
       '-f', 'image2pipe', '-use_wallclock_as_timestamps', '1', '-i', 'pipe:0',
       '-vf', 'scale=-2:480',   // kiosk screens are 800x480 — 480p is plenty
-      ...enc, '-r', String(OUT_FPS), '-vsync', 'cfr', '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS * 2),
+      ...enc, '-r', String(OUT_FPS), '-fps_mode', 'cfr', '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS * 2),
       '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
-      '-hls_flags', 'delete_segments+append_list+omit_endlist',
+      '-hls_flags', 'delete_segments+append_list+omit_endlist+independent_segments',
       '-hls_segment_filename', join(this.outDir, 'seg_%05d.ts'),
       this.playlistPath,
     ]
