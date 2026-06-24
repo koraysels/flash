@@ -4,7 +4,7 @@ FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
 # NOT the media server; installs only ffmpeg/ffprobe under /usr/lib/jellyfin-ffmpeg)
 # + openssl for Prisma. Distro ffmpeg (4.4) lacks -fps_mode and has weaker NVENC.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl gnupg ca-certificates openssl python-is-python3 \
+      curl gnupg ca-certificates openssl python-is-python3 fonts-dejavu-core \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && mkdir -p /etc/apt/keyrings \

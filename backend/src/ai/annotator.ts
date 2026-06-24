@@ -1,5 +1,12 @@
-import { createCanvas, loadImage } from '@napi-rs/canvas'
+import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas'
+import { existsSync } from 'fs'
 import { TrackedVehicle } from './tracker'
+
+// The container has no system fonts, so the generic "monospace" family doesn't
+// resolve. Register DejaVu Sans Mono (apt fonts-dejavu-core) and use it by name.
+const MONO = 'DejaVu Sans Mono'
+const MONO_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
+if (existsSync(MONO_PATH)) GlobalFonts.registerFromPath(MONO_PATH, MONO)
 
 const CLASS_COLORS: Record<string, string> = {
   car: '#3b82f6',
@@ -59,7 +66,7 @@ export async function annotateFrame(
     // Bottom-centre info bar, monospace, sized relative to frame height so it
     // stays readable after the downscale to 480p.
     const fs = Math.max(14, Math.round(img.height * 0.045))
-    ctx.font = `bold ${fs}px monospace`
+    ctx.font = `bold ${fs}px "${MONO}", monospace`
     const text = `A→B ${hud.ab}   B→A ${hud.ba}   FLASH ${hud.speeders}`
     const padX = fs, padY = Math.round(fs * 0.4)
     const tw = ctx.measureText(text).width
