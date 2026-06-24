@@ -56,6 +56,7 @@ export async function annotateFrame(
   }
 
   if (hud) {
+    // TODO: rename the "spd" HUD label to "FLASH" (speeders = flashes fired)
     const text = `A→B ${hud.ab}   B→A ${hud.ba}   spd ${hud.speeders}`
     ctx.font = 'bold 16px sans-serif'
     const w = ctx.measureText(text).width + 16
@@ -63,6 +64,10 @@ export async function annotateFrame(
     ctx.fillRect(8, 8, w, 26)
     ctx.fillStyle = '#fff'
     ctx.fillText(text, 16, 26)
+    // TODO: draw a max-speed limit sign (red ring + bold limit number) in the
+    // TOP-RIGHT corner. Needs maxSpeedKmh threaded into this hud object: add
+    // `maxSpeedKmh: number | null` to the hud param, pass it from ai-worker.ts
+    // (it has maxSpeedKmh in WorkerInitData), and skip drawing when null.
   }
 
   return canvas.toBuffer('image/jpeg', 80)

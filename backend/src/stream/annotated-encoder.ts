@@ -56,7 +56,7 @@ export class AnnotatedEncoder {
       // the live edge and stutters. This pins output to real time.
       '-f', 'image2pipe', '-use_wallclock_as_timestamps', '1', '-i', 'pipe:0',
       '-vf', 'scale=-2:480',   // kiosk screens are 800x480 — 480p is plenty
-      ...enc, '-r', String(OUT_FPS), '-fps_mode', 'cfr', '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS * 2),
+      ...enc, '-r', String(OUT_FPS), '-vsync', 'cfr', '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS * 2),
       '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
       '-hls_flags', 'delete_segments+append_list+omit_endlist',
       '-hls_segment_filename', join(this.outDir, 'seg_%05d.ts'),
