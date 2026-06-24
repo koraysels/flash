@@ -20,7 +20,7 @@ export async function annotateFrame(
   vehicles: TrackedVehicle[],
   lineAFraction: number,
   lineBFraction: number,
-  hud?: { ab: number; ba: number; speeders: number; maxSpeedKmh: number | null },
+  hud?: { ab: number; ba: number; speeders: number; maxSpeedKmh?: number | null },
 ): Promise<Buffer> {
   const img = await loadImage(jpegBuffer)
   const canvas = createCanvas(img.width, img.height)
