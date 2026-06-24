@@ -33,7 +33,42 @@ curl -s  http://<tailnet-host>/api/cameras/<id>/annotated/index.m3u8 | head   # 
 > published on the host and reachable over the tailnet (the existing public setup
 > already exposes the frontend — use the same host:port over Tailscale).
 
-## 2. Chromium kiosk autostart (per Pi)
+## 2. Player — mpv (recommended) or Chromium
+
+The annotated stream is a self-contained H.264 HLS with the boxes + HUD burned
+into the video, so the Pi does **not** need a browser. A native player is lighter
+and more reliable for an unattended kiosk.
+
+### Option A — mpv (recommended, no browser)
+
+```bash
+sudo apt install mpv
+mpv --fullscreen --no-osc --no-input-default-bindings --really-quiet \
+    --loop=inf --hwdec=auto \
+    "http://<tailnet-host>/api/cameras/<cameraId>/annotated/index.m3u8"
+```
+
+`--hwdec=auto` uses the Pi's hardware H.264 decoder. Autostart via a systemd user
+service (`~/.config/systemd/user/flash-kiosk.service`):
+```ini
+[Unit]
+Description=Flash kiosk (mpv)
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/mpv --fullscreen --no-osc --no-input-default-bindings --really-quiet --loop=inf --hwdec=auto "http://<tailnet-host>/api/cameras/<cameraId>/annotated/index.m3u8"
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+```
+Enable: `systemctl --user enable --now flash-kiosk.service`
+
+> mpv plays the playlist URL directly — the browser `/display/<cameraId>` route is
+> NOT needed on the Pi (it's still handy for ad-hoc viewing on a desktop).
+
+### Option B — Chromium kiosk autostart (per Pi)
 
 Install Chromium if needed (`sudo apt install chromium-browser`). One Pi → one
 `cameraId`.
