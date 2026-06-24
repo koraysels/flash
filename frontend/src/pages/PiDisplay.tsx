@@ -11,6 +11,8 @@ export default function PiDisplay() {
     if (!video || !cameraId) return
     const src = `/api/cameras/${cameraId}/annotated/index.m3u8`
 
+    let destroyed = false
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
     let hls: Hls | null = null
     if (Hls.isSupported()) {
       hls = new Hls({ liveSyncDuration: 3, lowLatencyMode: false })
@@ -18,15 +20,19 @@ export default function PiDisplay() {
       hls.attachMedia(video)
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-          // Kiosks run unattended — recover by reloading the source.
-          setTimeout(() => { hls?.loadSource(src); hls?.startLoad() }, 2000)
+          retryTimer = setTimeout(() => {
+            if (!destroyed) { hls?.loadSource(src); hls?.startLoad() }
+          }, 2000)
         }
       })
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src  // Safari/native HLS
     }
-    video.play().catch(() => { /* autoplay may need muted; video is muted below */ })
-    return () => { hls?.destroy() }
+    return () => {
+      destroyed = true
+      if (retryTimer !== null) clearTimeout(retryTimer)
+      hls?.destroy()
+    }
   }, [cameraId])
 
   return (
