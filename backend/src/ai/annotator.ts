@@ -8,6 +8,28 @@ const MONO = 'DejaVu Sans Mono'
 const MONO_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
 if (existsSync(MONO_PATH)) GlobalFonts.registerFromPath(MONO_PATH, MONO)
 
+// Speed-limit sign is rendered ONCE per limit value into an offscreen canvas and
+// cached; each frame just composites it with drawImage (no per-frame redraw).
+const signCache = new Map<number, ReturnType<typeof createCanvas>>()
+function getSpeedSign(limit: number): ReturnType<typeof createCanvas> {
+  const cached = signCache.get(limit)
+  if (cached) return cached
+  const S = 200
+  const c = createCanvas(S, S)
+  const g = c.getContext('2d')
+  const cx = S / 2, cy = S / 2, r = S / 2 - 4
+  const ring = Math.round(r * 0.18)
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fillStyle = '#ffffff'; g.fill()
+  g.lineWidth = ring; g.strokeStyle = '#d11414'
+  g.beginPath(); g.arc(cx, cy, r - ring / 2, 0, Math.PI * 2); g.stroke()
+  g.fillStyle = '#000000'
+  g.font = `bold ${Math.round(r * 0.85)}px "${MONO}", sans-serif`
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillText(String(limit), cx, cy + Math.round(r * 0.06))
+  signCache.set(limit, c)
+  return c
+}
+
 const CLASS_COLORS: Record<string, string> = {
   car: '#3b82f6',
   truck: '#f59e0b',
@@ -79,22 +101,11 @@ export async function annotateFrame(
     ctx.textBaseline = 'top'
     ctx.fillText(text, barX + padX / 2, barY + padY)
 
-    // European speed-limit sign (white disc, red ring, bold limit) top-right.
+    // Speed-limit sign top-right — cached canvas, just composited here.
     if (hud.maxSpeedKmh) {
-      const r = Math.round(img.height * 0.075)
+      const size = Math.round(img.height * 0.15)
       const m = Math.round(img.height * 0.03)
-      const cx = img.width - r - m
-      const cy = r + m
-      const ring = Math.max(3, Math.round(r * 0.18))
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
-      ctx.fillStyle = '#ffffff'; ctx.fill()
-      ctx.lineWidth = ring; ctx.strokeStyle = '#d11414'
-      ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, 0, Math.PI * 2); ctx.stroke()
-      ctx.fillStyle = '#000000'
-      ctx.font = `bold ${Math.round(r * 0.85)}px "${MONO}", sans-serif`
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillText(String(hud.maxSpeedKmh), cx, cy + Math.round(r * 0.06))
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+      ctx.drawImage(getSpeedSign(hud.maxSpeedKmh), img.width - size - m, m, size, size)
     }
   }
 
