@@ -56,18 +56,23 @@ export async function annotateFrame(
   }
 
   if (hud) {
-    // TODO: rename the "spd" HUD label to "FLASH" (speeders = flashes fired)
-    const text = `A→B ${hud.ab}   B→A ${hud.ba}   spd ${hud.speeders}`
-    ctx.font = 'bold 16px sans-serif'
-    const w = ctx.measureText(text).width + 16
+    // Bottom-centre info bar, monospace, sized relative to frame height so it
+    // stays readable after the downscale to 480p.
+    const fs = Math.max(14, Math.round(img.height * 0.045))
+    ctx.font = `bold ${fs}px monospace`
+    const text = `A→B ${hud.ab}   B→A ${hud.ba}   FLASH ${hud.speeders}`
+    const padX = fs, padY = Math.round(fs * 0.4)
+    const tw = ctx.measureText(text).width
+    const barW = tw + padX, barH = fs + padY * 2
+    const barX = Math.round((img.width - barW) / 2)
+    const barY = img.height - barH - Math.round(fs * 0.5)
     ctx.fillStyle = 'rgba(0,0,0,0.55)'
-    ctx.fillRect(8, 8, w, 26)
+    ctx.fillRect(barX, barY, barW, barH)
     ctx.fillStyle = '#fff'
-    ctx.fillText(text, 16, 26)
-    // TODO: draw a max-speed limit sign (red ring + bold limit number) in the
-    // TOP-RIGHT corner. Needs maxSpeedKmh threaded into this hud object: add
-    // `maxSpeedKmh: number | null` to the hud param, pass it from ai-worker.ts
-    // (it has maxSpeedKmh in WorkerInitData), and skip drawing when null.
+    ctx.textBaseline = 'top'
+    ctx.fillText(text, barX + padX / 2, barY + padY)
+    // TODO: max-speed limit sign (red ring + limit number) top-right — needs
+    // maxSpeedKmh threaded into this hud object from ai-worker.ts.
   }
 
   return canvas.toBuffer('image/jpeg', 80)

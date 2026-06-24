@@ -48,9 +48,12 @@ export class AnnotatedEncoder {
     // Pi-decode-friendly H.264 (no B-frames, High@4.0); smooth default VBR.
     // -no-scenecut/-sc_threshold 0 keeps keyframes ONLY on the GOP boundary so 2s
     // segments align to keyframes (scene-change keyframes break segment alignment).
+    // Bitrate capped ~1.5 Mbps (predictable, light) — good for 480p H.264.
     const enc = codec === 'nvenc'
-      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll', '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-no-scenecut', '1']
-      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-sc_threshold', '0']
+      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll', '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-no-scenecut', '1',
+         '-rc', 'vbr', '-b:v', '1200k', '-maxrate', '1500k', '-bufsize', '3000k']
+      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-sc_threshold', '0',
+         '-maxrate', '1500k', '-bufsize', '3000k']
     return [
       // Stamp frames by real ARRIVAL time + force constant-fps real-time output.
       // Without this, image2pipe assumes a fixed input fps while the JS feed timer
