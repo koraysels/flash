@@ -14,11 +14,6 @@ import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
 const MAX_QUEUE = 48   // ~2 s at OUTPUT_FPS
 const OUTPUT_FPS = 24
-// AI detection is framelocked independently of video output: video drains at
-// OUTPUT_FPS for smooth playback, but the detector runs at most AI_FPS times/sec
-// to cap GPU load. Without this the worker analyses every dequeued frame (~24/s).
-const AI_FPS = 20
-const AI_MIN_INTERVAL_MS = 1000 / AI_FPS
 
 function resolveFfmpegPath(): string {
   if (process.platform === 'darwin') {
@@ -51,8 +46,6 @@ export class MJPEGStreamer extends EventEmitter {
   private latestRawBase64: string | null = null
 
   private frameIdx = 0
-  // Last time a frame was dispatched to the AI worker — enforces AI_FPS cap.
-  private lastAnalyseAt = 0
 
   // Frame queue: ffmpeg delivers HLS frames in bursts; we dequeue at a fixed
   // rate so MJPEG output is smooth regardless of segment delivery timing.
@@ -305,12 +298,8 @@ export class MJPEGStreamer extends EventEmitter {
     this.emit('frame', jpeg, seq)
 
     if (isNewFrame && this.workerReady && !this.workerBusy) {
-      const now = Date.now()
-      if (now - this.lastAnalyseAt >= AI_MIN_INTERVAL_MS) {
-        this.lastAnalyseAt = now
-        this.workerBusy = true
-        this.aiWorker!.postMessage({ type: 'analyse', jpeg, frameTime, seq })
-      }
+      this.workerBusy = true
+      this.aiWorker!.postMessage({ type: 'analyse', jpeg, frameTime, seq })
     }
   }
 
