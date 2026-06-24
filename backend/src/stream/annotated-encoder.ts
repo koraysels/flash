@@ -45,22 +45,19 @@ export class AnnotatedEncoder {
     // bitrate, one keyframe per 1s segment. Raspberry Pi 4/5 hardware-decode this
     // reliably; NVENC defaults (B-frames, unbounded rate) push the Pi into slow
     // software decode → stutter.
-    // Pi-decode-essential flags only: no B-frames + High@4.0 + yuv420p (set below)
-    // + one keyframe per 1s segment. Rate control left to the encoder's smooth
-    // default (a bounded VBR cap, not constant high CBR) — forcing CBR 3M made
-    // the stream spiky and stall through the tunnel.
+    // Pi-decode-friendly H.264 (no B-frames, High@4.0); smooth default VBR.
     const enc = codec === 'nvenc'
-      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll',
-         '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-forced-idr', '1',
-         '-rc', 'vbr', '-maxrate', '2M', '-bufsize', '2M']
-      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
-         '-profile:v', 'high', '-level', '4.0', '-bf', '0',
-         '-maxrate', '2M', '-bufsize', '2M',
-         '-x264-params', 'keyint=20:min-keyint=20:scenecut=0']
+      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll', '-profile:v', 'high', '-level', '4.0', '-bf', '0']
+      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-profile:v', 'high', '-level', '4.0', '-bf', '0']
     return [
-      '-f', 'image2pipe', '-framerate', String(OUT_FPS), '-i', 'pipe:0',
-      ...enc, '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS),
-      '-f', 'hls', '-hls_time', '1', '-hls_list_size', '6',
+      // Stamp frames by real ARRIVAL time + force constant-fps real-time output.
+      // Without this, image2pipe assumes a fixed input fps while the JS feed timer
+      // drifts → the stream timeline runs ahead of wall-clock → the player races
+      // the live edge and stutters. This pins output to real time.
+      '-f', 'image2pipe', '-use_wallclock_as_timestamps', '1', '-i', 'pipe:0',
+      '-vf', 'scale=-2:480',   // kiosk screens are 800x480 — 480p is plenty
+      ...enc, '-r', String(OUT_FPS), '-fps_mode', 'cfr', '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS * 2),
+      '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
       '-hls_flags', 'delete_segments+append_list+omit_endlist',
       '-hls_segment_filename', join(this.outDir, 'seg_%05d.ts'),
       this.playlistPath,
