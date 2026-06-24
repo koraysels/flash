@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas'
+import { createCanvas, loadImage, GlobalFonts, type Canvas } from '@napi-rs/canvas'
 import { existsSync } from 'fs'
 import { TrackedVehicle } from './tracker'
 
@@ -10,8 +10,8 @@ if (existsSync(MONO_PATH)) GlobalFonts.registerFromPath(MONO_PATH, MONO)
 
 // Speed-limit sign is rendered ONCE per limit value into an offscreen canvas and
 // cached; each frame just composites it with drawImage (no per-frame redraw).
-const signCache = new Map<number, ReturnType<typeof createCanvas>>()
-function getSpeedSign(limit: number): ReturnType<typeof createCanvas> {
+const signCache = new Map<number, Canvas>()
+function getSpeedSign(limit: number): Canvas {
   const cached = signCache.get(limit)
   if (cached) return cached
   const S = 200
