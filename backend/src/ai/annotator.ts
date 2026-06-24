@@ -20,7 +20,7 @@ export async function annotateFrame(
   vehicles: TrackedVehicle[],
   lineAFraction: number,
   lineBFraction: number,
-  hud?: { ab: number; ba: number; speeders: number },
+  hud?: { ab: number; ba: number; speeders: number; maxSpeedKmh: number | null },
 ): Promise<Buffer> {
   const img = await loadImage(jpegBuffer)
   const canvas = createCanvas(img.width, img.height)
@@ -78,8 +78,24 @@ export async function annotateFrame(
     ctx.fillStyle = '#fff'
     ctx.textBaseline = 'top'
     ctx.fillText(text, barX + padX / 2, barY + padY)
-    // TODO: max-speed limit sign (red ring + limit number) top-right — needs
-    // maxSpeedKmh threaded into this hud object from ai-worker.ts.
+
+    // European speed-limit sign (white disc, red ring, bold limit) top-right.
+    if (hud.maxSpeedKmh) {
+      const r = Math.round(img.height * 0.075)
+      const m = Math.round(img.height * 0.03)
+      const cx = img.width - r - m
+      const cy = r + m
+      const ring = Math.max(3, Math.round(r * 0.18))
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.fillStyle = '#ffffff'; ctx.fill()
+      ctx.lineWidth = ring; ctx.strokeStyle = '#d11414'
+      ctx.beginPath(); ctx.arc(cx, cy, r - ring / 2, 0, Math.PI * 2); ctx.stroke()
+      ctx.fillStyle = '#000000'
+      ctx.font = `bold ${Math.round(r * 0.85)}px "${MONO}", sans-serif`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText(String(hud.maxSpeedKmh), cx, cy + Math.round(r * 0.06))
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+    }
   }
 
   return canvas.toBuffer('image/jpeg', 80)

@@ -265,7 +265,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
         tracked.filter((v) => !v.isPredicted),
         lineA,
         lineB,
-        { ab: counts.AB, ba: counts.BA, speeders },
+        { ab: counts.AB, ba: counts.BA, speeders, maxSpeedKmh },
       )
     }
 
