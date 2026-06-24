@@ -1,5 +1,7 @@
 import { FastifyInstance, FastifyReply } from 'fastify'
 import { PassThrough } from 'stream'
+import { readFile } from 'fs/promises'
+import { join, basename } from 'path'
 import { db } from '../db'
 import { Prisma } from '@prisma/client'
 import { extractStreamUrl } from '../stream/extractor'
@@ -234,6 +236,45 @@ export async function cameraRoutes(app: FastifyInstance) {
       return { error: 'No frame available yet — make sure the camera stream is active' }
     }
     return { frame }
+  })
+
+  // Annotated HLS — serves on-demand H.264 HLS from the AnnotatedEncoder.
+  // Playlist: starts the encoder on demand, waits briefly for ffmpeg to write the first segment.
+  app.get<{ Params: { id: string } }>('/api/cameras/:id/annotated/index.m3u8', async (req, reply) => {
+    const streamer = getStreamer(req.params.id)
+    if (!streamer) { reply.code(404).send({ error: 'Camera not running' }); return }
+    streamer.enableAnnotated()
+    streamer.touchAnnotated()
+    const playlist = streamer.annotatedPlaylistPath()
+    if (!playlist) { reply.code(503).send({ error: 'Encoder starting' }); return }
+    // Wait up to ~3s for ffmpeg to write the first playlist
+    for (let i = 0; i < 30; i++) {
+      try {
+        const buf = await readFile(playlist)
+        reply.header('Content-Type', 'application/vnd.apple.mpegurl')
+        reply.header('Cache-Control', 'no-cache')
+        reply.send(buf)
+        return
+      } catch { await new Promise((r) => setTimeout(r, 100)) }
+    }
+    reply.code(503).send({ error: 'Encoder warming up' })
+  })
+
+  // Annotated HLS segments — serves .ts segment files produced by the encoder.
+  app.get<{ Params: { id: string; seg: string } }>('/api/cameras/:id/annotated/:seg', async (req, reply) => {
+    const streamer = getStreamer(req.params.id)
+    if (!streamer) { reply.code(404).send({ error: 'Camera not running' }); return }
+    streamer.touchAnnotated()
+    const playlist = streamer.annotatedPlaylistPath()
+    if (!playlist) { reply.code(404).send(); return }
+    const dir = playlist.substring(0, playlist.lastIndexOf('/'))
+    const safe = basename(req.params.seg)  // prevent path traversal
+    try {
+      const buf = await readFile(join(dir, safe))
+      reply.header('Content-Type', safe.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp2t')
+      reply.header('Cache-Control', 'no-cache')
+      reply.send(buf)
+    } catch { reply.code(404).send() }
   })
 
   // HLS playlist redirect — resolves the camera page URL to an HLS playlist and

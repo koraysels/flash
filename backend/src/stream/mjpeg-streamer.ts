@@ -3,11 +3,13 @@ import { EventEmitter } from 'events'
 import { PassThrough } from 'stream'
 import { Worker } from 'worker_threads'
 import { join } from 'path'
+import { tmpdir } from 'os'
 import { emitFrame } from '../socket/server'
 import type { WorkerInitData, WorkerResultMsg } from './ai-worker'
 import type { TrackerConfig } from '../ai/tracker'
 import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 import { resolveFfmpegPath } from './ffmpeg-path'
+import { AnnotatedEncoder } from './annotated-encoder'
 
 // With -re, frames arrive at ~source fps (~25) and drain at OUTPUT_FPS (17).
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
@@ -30,6 +32,11 @@ export class MJPEGStreamer extends EventEmitter {
   private aiWorker: Worker | null = null
   private workerBusy = false
   private workerReady = false
+
+  // Annotated HLS encoder — created on demand when a client requests the stream
+  private annotatedEncoder: AnnotatedEncoder | null = null
+  // Guard: track whether we've told the worker to annotate, so we don't spam set-annotated messages
+  private annotatedOn = false
 
   // Latest state published by the worker
   private boxes: Box[] = []
@@ -130,6 +137,14 @@ export class MJPEGStreamer extends EventEmitter {
           this.lastFrameWidth = msg.frameWidth
           this.lastFrameHeight = msg.frameHeight
 
+          if (msg.annotatedJpeg && this.annotatedEncoder?.isActive()) {
+            this.annotatedEncoder.pushFrame(msg.annotatedJpeg)
+          } else if (this.annotatedOn && !this.annotatedEncoder?.isActive()) {
+            // Encoder went idle on its own — tell the worker to stop annotating to save CPU
+            this.annotatedOn = false
+            this.aiWorker?.postMessage({ type: 'set-annotated', enabled: false })
+          }
+
           emitFrame({
             cameraId: this.cameraId,
             timestamp: Date.now(),
@@ -182,6 +197,9 @@ export class MJPEGStreamer extends EventEmitter {
     this.lastAiSeq = 0
     this.ffmpegProc?.kill('SIGTERM')
     this.ffmpegProc = null
+    this.annotatedEncoder?.stop()
+    this.annotatedEncoder = null
+    this.annotatedOn = false
     this.aiWorker?.terminate()
     this.aiWorker = null
     this.workerReady = false
@@ -210,6 +228,23 @@ export class MJPEGStreamer extends EventEmitter {
   isRunning(): boolean { return this.running }
 
   clientCount(): number { return this.listenerCount('frame') }
+
+  enableAnnotated(): void {
+    if (!this.annotatedEncoder) {
+      this.annotatedEncoder = new AnnotatedEncoder(this.cameraId, join(tmpdir(), 'flash-hls', this.cameraId))
+    }
+    this.annotatedEncoder.start()
+    if (!this.annotatedOn) {
+      this.annotatedOn = true
+      this.aiWorker?.postMessage({ type: 'set-annotated', enabled: true })
+    }
+  }
+
+  annotatedPlaylistPath(): string | null {
+    return this.annotatedEncoder?.isActive() ? this.annotatedEncoder.playlistPath : null
+  }
+
+  touchAnnotated(): void { this.annotatedEncoder?.touch() }
 
   // Dequeue one frame every 1/OUTPUT_FPS seconds using a self-correcting timer.
   // Each tick schedules the next one relative to an absolute target timestamp so
