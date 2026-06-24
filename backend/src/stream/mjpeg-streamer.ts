@@ -18,7 +18,7 @@ const OUTPUT_FPS = 24
 // dequeue. Video drains at OUTPUT_FPS for smooth playback; AI samples the latest
 // frame at AI_FPS. Keeping AI below video frees backend event-loop + client
 // budget (fewer socket frame-events + canvas redraws) so MJPEG video stays smooth.
-const AI_FPS = 15
+const AI_FPS = 20
 const AI_INTERVAL_MS = 1000 / AI_FPS
 
 function resolveFfmpegPath(): string {

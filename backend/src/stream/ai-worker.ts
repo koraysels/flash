@@ -208,6 +208,10 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
 
     const boxes: WorkerResultMsg['boxes'] = []
     for (const v of tracked) {
+      // Don't emit coasted/predicted tracks as boxes — they drift (Kalman) onto
+      // empty road and show as ghost boxes. The frontend miss-fade bridges brief
+      // detection gaps for real cars; counting/speed already skip predicted.
+      if (v.isPredicted) continue
       const nx = v.bcx / actualWidth
       const ny = v.bcy / actualHeight
       const lineAY = lineYAtX(lineAPoints, nx, lineA)
