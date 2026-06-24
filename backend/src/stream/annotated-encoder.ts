@@ -36,7 +36,7 @@ export class AnnotatedEncoder {
       ]
       this.proc = spawn(ff, args, { stdio: ['pipe', 'ignore', 'pipe'] })
       this.proc.stderr?.on('data', () => { /* swallow; NVENC may warn */ })
-      this.proc.on('exit', () => { this.proc = null })
+      this.proc.on('exit', () => { this.handleExit() })
       // If NVENC fails immediately, restart once with libx264.
       // Note: the `if (!this.active) return` guard in fallbackToLibx264 prevents a restart after stop().
       this.proc.on('error', (err) => { console.warn(`[annotated:${this.cameraId}] nvenc spawn failed, falling back to libx264: ${err}`); this.fallbackToLibx264() })
@@ -61,7 +61,7 @@ export class AnnotatedEncoder {
       ]
       this.proc = spawn(ff, args, { stdio: ['pipe', 'ignore', 'pipe'] })
       this.proc.stderr?.on('data', () => {})
-      this.proc.on('exit', () => { this.proc = null })
+      this.proc.on('exit', () => { this.handleExit() })
     } catch { /* give up; routes will 404 until restart */ }
   }
 
@@ -76,6 +76,15 @@ export class AnnotatedEncoder {
   private armIdle(): void {
     if (this.idleTimer) clearTimeout(this.idleTimer)
     this.idleTimer = setTimeout(() => this.stop(), IDLE_MS)
+  }
+
+  private handleExit(): void {
+    this.proc = null
+    if (this.active) {
+      this.active = false
+      if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null }
+      console.warn(`[annotated:${this.cameraId}] encoder exited unexpectedly; will restart on next request`)
+    }
   }
 
   stop(): void {
