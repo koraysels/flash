@@ -277,17 +277,11 @@ export class Tracker {
       }
     }
 
-    // Edge-aware persistence: a track lost while INTERIOR is a detector blink, not
-    // an exit — keep it alive much longer so it re-attaches its id when re-detected.
-    // Near a frame edge, vehicles really do leave, so drop on the normal budget.
-    const edgeX = this.frameW * EDGE_FRAC
-    const edgeY = this.frameH * EDGE_FRAC
-    this.tracks = this.tracks.filter(t => {
-      const nearEdge = t.bcx < edgeX || t.bcx > this.frameW - edgeX ||
-                       t.bcy < edgeY || t.bcy > this.frameH - edgeY
-      const limit = nearEdge ? maxMissedFrames : maxMissedFrames * INTERIOR_MISS_MULT
-      return t.missedFrames < limit
-    })
+    // Flat, BOUNDED drop: a track lost for maxMissedFrames is removed. (The earlier
+    // edge-aware 5× retention let interior ghost tracks linger and, with loose IoU,
+    // get re-matched forever → unbounded track growth → tracker.update slowed every
+    // frame → micro-freezes then full lock-up after ~1 min. Keep it bounded.)
+    this.tracks = this.tracks.filter(t => t.missedFrames < maxMissedFrames)
 
     const matchedHighDIs = new Set(m1.map(m => m.di))
     for (const di of highDI) {
