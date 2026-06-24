@@ -41,12 +41,21 @@ export class AnnotatedEncoder {
   }
 
   private codecArgs(codec: Codec): string[] {
+    // Pi-friendly H.264: High profile @ level 4.0, NO B-frames, bounded CBR
+    // bitrate, one keyframe per 1s segment. Raspberry Pi 4/5 hardware-decode this
+    // reliably; NVENC defaults (B-frames, unbounded rate) push the Pi into slow
+    // software decode → stutter.
     const enc = codec === 'nvenc'
-      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll']
-      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency']
+      ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-tune', 'll',
+         '-profile:v', 'high', '-level', '4.0', '-bf', '0', '-forced-idr', '1',
+         '-rc', 'cbr', '-b:v', '3M', '-maxrate', '3M', '-bufsize', '6M']
+      : ['-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
+         '-profile:v', 'high', '-level', '4.0', '-bf', '0',
+         '-b:v', '3M', '-maxrate', '3M', '-bufsize', '6M',
+         '-x264-params', 'keyint=20:min-keyint=20:scenecut=0']
     return [
       '-f', 'image2pipe', '-framerate', String(OUT_FPS), '-i', 'pipe:0',
-      ...enc, '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS * 2),
+      ...enc, '-pix_fmt', 'yuv420p', '-g', String(OUT_FPS),
       '-f', 'hls', '-hls_time', '1', '-hls_list_size', '6',
       '-hls_flags', 'delete_segments+append_list+omit_endlist',
       '-hls_segment_filename', join(this.outDir, 'seg_%05d.ts'),

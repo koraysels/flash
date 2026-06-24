@@ -66,7 +66,15 @@ WantedBy=default.target
 Enable: `systemctl --user enable --now flash-kiosk.service`
 
 > mpv plays the playlist URL directly — the browser `/display/<cameraId>` route is
-> NOT needed on the Pi (it's still handy for ad-hoc viewing on a desktop).
+> NOT needed on the Pi unless you want extra client-side overlays on top.
+
+Confirm hardware decode is actually used (not software → stutter):
+```bash
+mpv --msg-level=vd=v "<url>" 2>&1 | grep -i "using hardware"
+```
+If it doesn't engage, force the Pi V4L2 decoder: `--hwdec=v4l2m2m` (or
+`--hwdec=drm` on some Pi OS builds). The stream is encoded H.264 High@4.0 with no
+B-frames specifically so the Pi 4/5 VideoCore decodes it in hardware.
 
 ### Option B — Chromium kiosk autostart (per Pi)
 
@@ -79,8 +87,16 @@ Launch command:
 chromium-browser --kiosk --noerrdialogs --disable-infobars \
   --autoplay-policy=no-user-gesture-required \
   --check-for-update-interval=31536000 \
+  --enable-features=VaapiVideoDecoder,VaapiVideoDecodeLinuxGL \
+  --use-gl=egl --ignore-gpu-blocklist --enable-accelerated-video-decode \
   --app="http://<tailnet-host>/display/<cameraId>"
 ```
+
+> The HW-decode flags matter on the Pi — without them Chromium software-decodes
+> H.264 and stutters. Verify at `chrome://gpu` → "Video Decode: Hardware
+> accelerated". Use the Chromium path when you want extra **client-side overlays**
+> on top of the burned-in video (add them in `frontend/src/pages/PiDisplay.tsx`);
+> otherwise mpv is lighter.
 
 Autostart options (pick one):
 
