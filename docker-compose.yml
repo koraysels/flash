@@ -27,7 +27,9 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+        # Vite needs the VITE_ prefix at build time; the stack .env stores it as
+        # GOOGLE_MAPS_API_KEY, so fall back to that name.
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-${GOOGLE_MAPS_API_KEY:-}}
     restart: unless-stopped
     depends_on:
       - backend

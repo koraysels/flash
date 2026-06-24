@@ -173,13 +173,27 @@ function greedyMatch(
   return result
 }
 
+// Fraction of frame W/H that counts as "near the edge" (where vehicles exit).
+const EDGE_FRAC = 0.08
+// Interior tracks (a detector blink while well inside the frame — the vehicle
+// almost certainly didn't leave) are kept alive this many × longer so they
+// re-attach the SAME id on re-detection instead of flickering to a new one.
+const INTERIOR_MISS_MULT = 5
+
 export class Tracker {
   private tracks: KFTrack[] = []
   private nextId = 1
   private cfg: TrackerConfig
+  private frameW = 768
+  private frameH = 576
 
   constructor(config?: Partial<TrackerConfig>) {
     this.cfg = { ...DEFAULT_TRACKER_CONFIG, ...config }
+  }
+
+  /** Frame dimensions in pixels — used for edge-aware track persistence. */
+  setFrameSize(w: number, h: number): void {
+    if (w > 0 && h > 0) { this.frameW = w; this.frameH = h }
   }
 
   update(detections: DetectionResult[], timestamp: number = Date.now()): TrackedVehicle[] {
@@ -258,7 +272,17 @@ export class Tracker {
       }
     }
 
-    this.tracks = this.tracks.filter(t => t.missedFrames < maxMissedFrames)
+    // Edge-aware persistence: a track lost while INTERIOR is a detector blink, not
+    // an exit — keep it alive much longer so it re-attaches its id when re-detected.
+    // Near a frame edge, vehicles really do leave, so drop on the normal budget.
+    const edgeX = this.frameW * EDGE_FRAC
+    const edgeY = this.frameH * EDGE_FRAC
+    this.tracks = this.tracks.filter(t => {
+      const nearEdge = t.bcx < edgeX || t.bcx > this.frameW - edgeX ||
+                       t.bcy < edgeY || t.bcy > this.frameH - edgeY
+      const limit = nearEdge ? maxMissedFrames : maxMissedFrames * INTERIOR_MISS_MULT
+      return t.missedFrames < limit
+    })
 
     const matchedHighDIs = new Set(m1.map(m => m.di))
     for (const di of highDI) {

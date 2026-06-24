@@ -166,6 +166,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
       actualHeight = height
       trapCalc = null  // recreate with the rescaled homography
       rebuildCalibration()
+      tracker.setFrameSize(width, height)  // edge-aware track persistence
     }
 
     if (trapSpeedEnabled && trapCalc === null) initTrapCalc()
