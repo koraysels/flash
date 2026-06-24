@@ -41,8 +41,11 @@ export function initSocketServer(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: { origin: '*' },
     maxHttpBufferSize: 2e6,
-    pingInterval: 10_000,
-    pingTimeout: 5_000,
+    // Generous keepalive: a tight pingTimeout drops sockets on any tunnel/network
+    // jitter, causing reconnect loops where the client never starts streaming
+    // frames (camera shows "STARTING"). These match socket.io defaults.
+    pingInterval: 25_000,
+    pingTimeout: 20_000,
   })
 
   io.on('connection', (socket) => {
