@@ -137,13 +137,8 @@ export class MJPEGStreamer extends EventEmitter {
           this.lastFrameWidth = msg.frameWidth
           this.lastFrameHeight = msg.frameHeight
 
-          if (msg.annotatedJpeg && this.annotatedEncoder?.isActive()) {
-            this.annotatedEncoder.pushFrame(msg.annotatedJpeg)
-          } else if (this.annotatedOn && !this.annotatedEncoder?.isActive()) {
-            // Encoder went idle on its own — tell the worker to stop annotating to save CPU
-            this.annotatedOn = false
-            this.aiWorker?.postMessage({ type: 'set-annotated', enabled: false })
-          }
+          // Always feed the persistent encoder — the worker always annotates.
+          if (msg.annotatedJpeg) this.annotatedEncoder?.pushFrame(msg.annotatedJpeg)
 
           emitFrame({
             cameraId: this.cameraId,
@@ -184,6 +179,9 @@ export class MJPEGStreamer extends EventEmitter {
     this.running = true
     this.startDequeue()
     this.startAiDispatch()
+    // Persistent annotated encoder for the camera's lifetime (always-on).
+    this.annotatedEncoder = new AnnotatedEncoder(this.cameraId, join(tmpdir(), 'flash-hls', this.cameraId))
+    this.annotatedEncoder.start()
     this.spawn()
   }
 

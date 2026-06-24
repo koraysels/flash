@@ -72,7 +72,7 @@ let speedCalc: SpeedCalculator | null = null
 // Trap speed calculator — created lazily after first frame when frame dimensions are known
 let trapCalc: TrapSpeedCalculator | null = null
 
-let annotatedEnabled = false
+let annotatedEnabled = true   // always annotate — encoder is persistent per camera
 let lastErrLog = 0   // throttle repeated corrupt-frame errors
 let actualWidth = 768
 let actualHeight = 576

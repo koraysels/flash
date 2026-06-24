@@ -107,8 +107,9 @@ export class AnnotatedEncoder {
   touch(): void { if (this.active) this.armIdle() }
 
   private armIdle(): void {
-    if (this.idleTimer) clearTimeout(this.idleTimer)
-    this.idleTimer = setTimeout(() => this.stop(), IDLE_MS)
+    // Always-on: the encoder runs for the camera's lifetime (stopped only by
+    // stop()). The previous idle auto-stop desynced with the worker's annotate
+    // flag and produced a frozen "static frame". No idle timer now.
   }
 
   stop(): void {
