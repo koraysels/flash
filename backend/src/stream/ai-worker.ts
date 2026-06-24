@@ -219,10 +219,10 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
 
     const boxes: WorkerResultMsg['boxes'] = []
     for (const v of tracked) {
-      // Don't emit coasted/predicted tracks as boxes — they drift (Kalman) onto
-      // empty road and show as ghost boxes. The frontend miss-fade bridges brief
-      // detection gaps for real cars; counting/speed already skip predicted.
-      if (v.isPredicted) continue
+      // Draw coasted (Kalman-predicted) tracks too — bridges brief detector blinks
+      // so boxes don't flicker. The report gate (tracker) caps the coast at
+      // maxPredictedGap frames, so they can't drift into long ghosts.
+      // Speed/counting still skip predicted via the guards below.
       const nx = v.bcx / actualWidth
       const ny = v.bcy / actualHeight
       const lineAY = lineYAtX(lineAPoints, nx, lineA)
@@ -263,7 +263,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     if (annotatedEnabled) {
       annotatedJpeg = await annotateFrame(
         msg.jpeg,
-        tracked.filter((v) => !v.isPredicted),
+        tracked,
         lineA,
         lineB,
         { ab: counts.AB, ba: counts.BA, speeders, maxSpeedKmh },
