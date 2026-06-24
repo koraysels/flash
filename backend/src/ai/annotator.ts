@@ -13,6 +13,7 @@ export async function annotateFrame(
   vehicles: TrackedVehicle[],
   lineAFraction: number,
   lineBFraction: number,
+  hud?: { ab: number; ba: number; speeders: number },
 ): Promise<Buffer> {
   const img = await loadImage(jpegBuffer)
   const canvas = createCanvas(img.width, img.height)
@@ -52,6 +53,16 @@ export async function annotateFrame(
     ctx.fillRect(v.x1, labelY - 18, labelWidth, 18)
     ctx.fillStyle = '#000000'
     ctx.fillText(label, v.x1 + 4, labelY - 4)
+  }
+
+  if (hud) {
+    const text = `A→B ${hud.ab}   B→A ${hud.ba}   spd ${hud.speeders}`
+    ctx.font = 'bold 16px sans-serif'
+    const w = ctx.measureText(text).width + 16
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'
+    ctx.fillRect(8, 8, w, 26)
+    ctx.fillStyle = '#fff'
+    ctx.fillText(text, 16, 26)
   }
 
   return canvas.toBuffer('image/jpeg', 80)

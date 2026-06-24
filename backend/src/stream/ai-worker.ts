@@ -14,6 +14,7 @@ import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
 import { TrapSpeedCalculator, type TrapMeasurement } from '../analysis/trap-speed'
 import { applyHomography, scaleHomography } from '../analysis/homography'
+import { annotateFrame } from '../ai/annotator'
 
 // ---- types shared with main thread -----------------------------------------------
 
@@ -42,6 +43,8 @@ export type WorkerResetMsg = {
   type: 'reset-counts'
 }
 
+export type WorkerSetAnnotatedMsg = { type: 'set-annotated'; enabled: boolean }
+
 export type WorkerResultMsg = {
   type: 'result'
   seq: number
@@ -51,6 +54,7 @@ export type WorkerResultMsg = {
   frameHeight: number
   timing: { decodeMs: number; canvasMs: number; inferenceMs: number; trackMs: number; totalMs: number }
   recentTrapMeasurements: TrapMeasurement[]
+  annotatedJpeg?: Buffer
 }
 
 // ----------------------------------------------------------------------------------
@@ -68,6 +72,7 @@ let speedCalc: SpeedCalculator | null = null
 // Trap speed calculator — created lazily after first frame when frame dimensions are known
 let trapCalc: TrapSpeedCalculator | null = null
 
+let annotatedEnabled = false
 let actualWidth = 768
 let actualHeight = 576
 let speeders = 0
@@ -131,7 +136,12 @@ detector.init()
   .then(() => parentPort!.postMessage({ type: 'ready' }))
   .catch((err) => parentPort!.postMessage({ type: 'error', error: String(err) }))
 
-parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
+parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | WorkerSetAnnotatedMsg) => {
+  if (msg.type === 'set-annotated') {
+    annotatedEnabled = msg.enabled
+    return
+  }
+
   if (msg.type === 'reset-counts') {
     counter.reset()
     speeders = 0
@@ -248,6 +258,17 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       boxes.push({ id: v.id, class: v.class, speedKmh, x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2 })
     }
 
+    let annotatedJpeg: Buffer | undefined
+    if (annotatedEnabled) {
+      annotatedJpeg = await annotateFrame(
+        msg.jpeg,
+        tracked.filter((v) => !v.isPredicted),
+        lineA,
+        lineB,
+        { ab: counts.AB, ba: counts.BA, speeders },
+      )
+    }
+
     const t4 = performance.now()
 
     const timing = {
@@ -286,6 +307,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg) => {
       frameHeight: height,
       timing,
       recentTrapMeasurements: trapCalc?.getRecentMeasurements() ?? [],
+      annotatedJpeg,
     } satisfies WorkerResultMsg)
   } catch (err) {
     const errMsg = String(err)
