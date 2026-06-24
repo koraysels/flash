@@ -10,6 +10,13 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       FLASH_PIN: ${FLASH_PIN}
       JWT_SECRET: ${JWT_SECRET}
+      # MQTT speed-event publisher (broker = flash-mqtt on the tailnet)
+      MQTT_HOST: ${MQTT_HOST:-100.71.177.9}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USER: ${MQTT_USER:-flash}
+      MQTT_PASS: ${MQTT_PASS:-}
+      MQTT_TOPIC: ${MQTT_TOPIC:-krocky/speed}
+      MQTT_SPEED_FLOOR: ${MQTT_SPEED_FLOOR:-0}
     deploy:
       resources:
         reservations:

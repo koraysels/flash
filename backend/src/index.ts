@@ -4,6 +4,7 @@ import { cameraRoutes } from './routes/cameras'
 import { authRoutes } from './auth'
 import { initSocketServer } from './socket/server'
 import { CameraWorkerManager, setManager } from './camera-worker'
+import { connectMqtt } from './mqtt/publisher'
 import { config } from './config'
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
@@ -19,6 +20,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
 if (require.main === module) {
   buildApp().then(async (app) => {
     initSocketServer(app.server)
+    connectMqtt()
     const workerManager = new CameraWorkerManager()
     setManager(workerManager)
 

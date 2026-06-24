@@ -10,6 +10,7 @@ import type { TrackerConfig } from '../ai/tracker'
 import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 import { resolveFfmpegPath } from './ffmpeg-path'
 import { AnnotatedEncoder } from './annotated-encoder'
+import { publishSpeed } from '../mqtt/publisher'
 
 // With -re, frames arrive at ~source fps (~25) and drain at OUTPUT_FPS (17).
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
@@ -139,6 +140,11 @@ export class MJPEGStreamer extends EventEmitter {
 
           // Always feed the persistent encoder — the worker always annotates.
           if (msg.annotatedJpeg) this.annotatedEncoder?.pushFrame(msg.annotatedJpeg)
+
+          // Side-channel: publish confident speed events to MQTT (non-blocking).
+          if (msg.speedEvents) {
+            for (const e of msg.speedEvents) publishSpeed(this.cameraId, e.trackId, e.speedKmh, e.ts)
+          }
 
           emitFrame({
             cameraId: this.cameraId,

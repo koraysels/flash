@@ -55,6 +55,8 @@ export type WorkerResultMsg = {
   timing: { decodeMs: number; canvasMs: number; inferenceMs: number; trackMs: number; totalMs: number }
   recentTrapMeasurements: TrapMeasurement[]
   annotatedJpeg?: Buffer
+  // One entry per track the first time its speed is confident — for MQTT publish.
+  speedEvents?: Array<{ trackId: number; speedKmh: number; ts: number }>
 }
 
 // ----------------------------------------------------------------------------------
@@ -78,6 +80,7 @@ let actualWidth = 768
 let actualHeight = 576
 let speeders = 0
 const countedSpeeders = new Set<number>()   // IDs already counted (never reset until reset-counts)
+const publishedSpeedIds = new Set<number>()  // IDs already published to MQTT (once per track)
 const vehicleZoneSpeed = new Map<number, number>()  // max speed seen while in zone per vehicle (continuous mode only)
 let prevBoxIds = new Set<number>()
 
@@ -147,6 +150,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     counter.reset()
     speeders = 0
     countedSpeeders.clear()
+    publishedSpeedIds.clear()
     vehicleZoneSpeed.clear()
     trapCalc?.reset()
     return
@@ -219,6 +223,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     const counts = counter.getCounts()
 
     const boxes: WorkerResultMsg['boxes'] = []
+    const speedEvents: NonNullable<WorkerResultMsg['speedEvents']> = []
     for (const v of tracked) {
       // Don't emit coasted/predicted tracks as boxes — they drift (Kalman) onto
       // empty road and show as ghost boxes. The frontend miss-fade bridges brief
@@ -258,6 +263,14 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
       }
 
       boxes.push({ id: v.id, class: v.class, speedKmh, x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2 })
+
+      // First confident speed for this track → emit one MQTT speed event.
+      // ts = the frame's real ingest time (epoch seconds) so the strobe can apply
+      // its own display-delay offset. Predicted tracks have speedKmh null (skipped).
+      if (speedKmh !== null && !publishedSpeedIds.has(v.id)) {
+        publishedSpeedIds.add(v.id)
+        speedEvents.push({ trackId: v.id, speedKmh, ts: msg.frameTime / 1000 })
+      }
     }
 
     let annotatedJpeg: Buffer | undefined
@@ -314,6 +327,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
       timing,
       recentTrapMeasurements: trapCalc?.getRecentMeasurements() ?? [],
       annotatedJpeg,
+      speedEvents,
     } satisfies WorkerResultMsg)
   } catch (err) {
     const errMsg = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err)
