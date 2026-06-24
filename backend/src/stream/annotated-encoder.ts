@@ -11,9 +11,11 @@ type Codec = 'nvenc' | 'libx264'
 export class AnnotatedEncoder {
   private proc: ChildProcess | null = null
   private idleTimer: ReturnType<typeof setTimeout> | null = null
+  private writeTimer: ReturnType<typeof setInterval> | null = null
   private active = false
   private triedFallback = false
   private lastStderr = ''
+  private lastFrame: Buffer | null = null
   readonly playlistPath: string
 
   constructor(private readonly cameraId: string, private readonly outDir: string) {
@@ -29,6 +31,13 @@ export class AnnotatedEncoder {
     this.armIdle()
     try { mkdirSync(this.outDir, { recursive: true }) } catch { /* dir may exist */ }
     this.spawnEncoder('nvenc')
+    if (!this.writeTimer) {
+      this.writeTimer = setInterval(() => {
+        if (this.active && this.proc?.stdin?.writable && this.lastFrame) {
+          this.proc.stdin.write(this.lastFrame)
+        }
+      }, 1000 / OUT_FPS)
+    }
   }
 
   private codecArgs(codec: Codec): string[] {
@@ -72,11 +81,12 @@ export class AnnotatedEncoder {
     }
     this.active = false
     if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null }
+    if (this.writeTimer) { clearInterval(this.writeTimer); this.writeTimer = null }
     console.warn(`[annotated:${this.cameraId}] encoder exited (${reason}); stderr: ${tail}; will restart on next request`)
   }
 
   pushFrame(jpeg: Buffer): void {
-    if (this.active && this.proc?.stdin?.writable) this.proc.stdin.write(jpeg)
+    this.lastFrame = jpeg
   }
 
   touch(): void { if (this.active) this.armIdle() }
@@ -89,6 +99,7 @@ export class AnnotatedEncoder {
   stop(): void {
     this.active = false
     if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null }
+    if (this.writeTimer) { clearInterval(this.writeTimer); this.writeTimer = null }
     this.proc?.stdin?.end()
     this.proc?.kill('SIGTERM')
     this.proc = null

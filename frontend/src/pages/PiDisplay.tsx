@@ -15,7 +15,13 @@ export default function PiDisplay() {
     let retryTimer: ReturnType<typeof setTimeout> | null = null
     let hls: Hls | null = null
     if (Hls.isSupported()) {
-      hls = new Hls({ liveSyncDuration: 3, lowLatencyMode: false })
+      hls = new Hls({
+        lowLatencyMode: false,
+        liveSyncDurationCount: 4,
+        liveMaxLatencyDurationCount: 12,
+        maxBufferLength: 30,
+        maxLiveSyncPlaybackRate: 1.5,
+      })
       hls.loadSource(src)
       hls.attachMedia(video)
       hls.on(Hls.Events.ERROR, (_, data) => {
