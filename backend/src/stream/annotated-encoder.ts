@@ -38,8 +38,10 @@ export class AnnotatedEncoder {
       this.proc.stderr?.on('data', () => { /* swallow; NVENC may warn */ })
       this.proc.on('exit', () => { this.proc = null })
       // If NVENC fails immediately, restart once with libx264.
-      this.proc.on('error', () => this.fallbackToLibx264())
-    } catch {
+      // Note: the `if (!this.active) return` guard in fallbackToLibx264 prevents a restart after stop().
+      this.proc.on('error', (err) => { console.warn(`[annotated:${this.cameraId}] nvenc spawn failed, falling back to libx264: ${err}`); this.fallbackToLibx264() })
+    } catch (err) {
+      console.warn(`[annotated:${this.cameraId}] nvenc spawn failed, falling back to libx264`)
       this.fallbackToLibx264()
     }
   }
@@ -58,6 +60,7 @@ export class AnnotatedEncoder {
         this.playlistPath,
       ]
       this.proc = spawn(ff, args, { stdio: ['pipe', 'ignore', 'pipe'] })
+      this.proc.stderr?.on('data', () => {})
       this.proc.on('exit', () => { this.proc = null })
     } catch { /* give up; routes will 404 until restart */ }
   }

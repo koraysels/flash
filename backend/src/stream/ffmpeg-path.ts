@@ -7,6 +7,7 @@ export function resolveFfmpegPath(): string {
       if (existsSync(p)) return p
     }
   }
+  // Prefer system ffmpeg (e.g. apt install ffmpeg in Docker) over the bundled static binary
   if (existsSync('/usr/bin/ffmpeg')) return '/usr/bin/ffmpeg'
   return ffmpegStatic!
 }
