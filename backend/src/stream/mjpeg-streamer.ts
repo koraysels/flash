@@ -1,14 +1,13 @@
 import ffmpeg from 'fluent-ffmpeg'
-import ffmpegStatic from 'ffmpeg-static'
 import { EventEmitter } from 'events'
 import { PassThrough } from 'stream'
-import { existsSync } from 'fs'
 import { Worker } from 'worker_threads'
 import { join } from 'path'
 import { emitFrame } from '../socket/server'
 import type { WorkerInitData, WorkerResultMsg } from './ai-worker'
 import type { TrackerConfig } from '../ai/tracker'
 import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
+import { resolveFfmpegPath } from './ffmpeg-path'
 
 // With -re, frames arrive at ~source fps (~25) and drain at OUTPUT_FPS (17).
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
@@ -20,17 +19,6 @@ const OUTPUT_FPS = 24
 // budget (fewer socket frame-events + canvas redraws) so MJPEG video stays smooth.
 const AI_FPS = 20
 const AI_INTERVAL_MS = 1000 / AI_FPS
-
-function resolveFfmpegPath(): string {
-  if (process.platform === 'darwin') {
-    for (const p of ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg']) {
-      if (existsSync(p)) return p
-    }
-  }
-  // Prefer system ffmpeg (e.g. apt install ffmpeg in Docker) over the bundled static binary
-  if (existsSync('/usr/bin/ffmpeg')) return '/usr/bin/ffmpeg'
-  return ffmpegStatic!
-}
 
 type Box = { id: number; class: string; speedKmh: number | null; x1: number; y1: number; x2: number; y2: number }
 
