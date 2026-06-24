@@ -14,6 +14,10 @@ RUN npm install -g pnpm@9
 # runs ONNX on CPU and the requested 'cuda' provider crashes/falls back.
 ENV ONNXRUNTIME_NODE_INSTALL=cuda12
 
+# NVENC (h264_nvenc) needs the `video` driver capability; the CUDA base only sets compute,utility.
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV NVIDIA_VISIBLE_DEVICES=all
+
 WORKDIR /app
 
 # Workspace manifests — all three needed for pnpm workspace resolution
