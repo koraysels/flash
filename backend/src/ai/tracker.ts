@@ -276,27 +276,17 @@ function greedyMatchMotion(
       const overlaps = iouScore >= threshold
       const withinGate = centerDist <= gate
       if (!overlaps && !withinGate) continue                          // dual gate
-      // Heading from the last OBSERVED centre — robust to prediction overshoot.
+      // Direction is a SOFT preference, never a hard veto: a detection inside the
+      // gate is almost certainly the same car (vetoing it just spawns a duplicate
+      // id — the bug we chased). Heading measured from the last OBSERVED centre.
       const ds = dirScoreRef(vel, last.cx, last.cy, det)
-      let vetoed = false
-      if (zones && zones.trackZone[ti] >= 0) {
-        // Track is in a direction zone: trust the zone's FIXED heading, not the KF.
-        if (zones.detZone[di] >= 0 && zones.detZone[di] !== zones.trackZone[ti]) {
-          vetoed = true   // detection is in a different lane → not the same car
-        }
-        const dir = zones.trackDir[ti]
-        if (!vetoed && established && dir && !overlaps) {
-          const ddx = (dcx - last.cx) / zones.frameW
-          const ddy = (dcy - last.cy) / zones.frameH
-          const m = Math.hypot(ddx, ddy)
-          if (m > 1e-9 && (((dir.x * ddx + dir.y * ddy) / m) + 1) / 2 < REVERSE_DIR_SCORE) vetoed = true
-        }
-      } else if (established && ds < REVERSE_DIR_SCORE && !overlaps) {
-        vetoed = true   // no zone → fall back to KF-heading reverse veto
-      }
-      if (vetoed) continue
       const distNorm = Math.min(centerDist / Math.max(gate, 1e-6), 1)
-      const score = W_IOU * iouScore + W_DIST * (1 - distNorm) + W_DIR * ds
+      let score = W_IOU * iouScore + W_DIST * (1 - distNorm) + W_DIR * ds
+      // Cross-zone = probably a different lane/car → discourage (but don't block, so
+      // a car crossing a zone boundary keeps its id).
+      if (zones && zones.trackZone[ti] >= 0 && zones.detZone[di] >= 0 && zones.detZone[di] !== zones.trackZone[ti]) {
+        score *= 0.25
+      }
       candidates.push({ ti, di, score })
     }
   }
