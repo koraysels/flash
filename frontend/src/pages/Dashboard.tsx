@@ -66,6 +66,12 @@ function CameraCard({ cam }: { cam: Camera }) {
         <div>
           <p className="font-bold text-sm uppercase tracking-wide">{cam.name}</p>
           <p className="text-xs text-stone-500">{cam.location}</p>
+          <a
+            href={`/cameras/${cam.id}/calibrate`}
+            className="text-xs underline text-stone-500 hover:text-black"
+          >
+            Calibrate / tracking →
+          </a>
         </div>
         {active ? (
           <div className="flex items-center gap-3 text-xs tabular-nums">
