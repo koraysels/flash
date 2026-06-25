@@ -81,10 +81,18 @@ export function annotateFrame(
 
   // Draw bounding boxes and labels
   for (const v of vehicles) {
+    // Guard: never draw a box with non-finite coords (a coasted Kalman track can
+    // in theory blow up) — that would throw and freeze the whole stream.
+    if (!Number.isFinite(v.x1) || !Number.isFinite(v.y1) || !Number.isFinite(v.x2) || !Number.isFinite(v.y2)) continue
+
     const color = CLASS_COLORS[v.class] ?? '#ffffff'
     ctx.strokeStyle = color
     ctx.lineWidth = 2
+    // Coasted (predicted) boxes get a dashed outline so a bridged detector gap
+    // reads as a prediction, not a fresh detection.
+    ctx.setLineDash(v.isPredicted ? [6, 4] : [])
     ctx.strokeRect(v.x1, v.y1, v.x2 - v.x1, v.y2 - v.y1)
+    ctx.setLineDash([])
 
     const label = `#${v.id} ${v.class}`
     ctx.font = '12px monospace'

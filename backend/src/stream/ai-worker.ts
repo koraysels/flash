@@ -278,7 +278,11 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     if (annotatedEnabled) {
       annotatedJpeg = annotateFrame(
         img,
-        tracked.filter((v) => !v.isPredicted),
+        // Draw coasted (predicted) boxes too — bridges the 1-2 frame detector
+        // misses so boxes don't blink out. Bounded by the report gate
+        // (missedFrames <= maxPredictedGap); motion-gated clamps them in-frame
+        // and the annotator skips any non-finite box.
+        tracked,
         lineA,
         lineB,
         { ab: counts.AB, ba: counts.BA, speeders, maxSpeedKmh },
