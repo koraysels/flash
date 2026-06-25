@@ -225,7 +225,10 @@ export async function cameraRoutes(app: FastifyInstance) {
   // case-insensitive) or a raw camera id. Public — the Pi kiosk has no login.
   app.get<{ Params: { slug: string } }>('/api/display/:slug', async (req, reply) => {
     const slug = req.params.slug
-    const bySlot = await db.camera.findFirst({ where: { displaySlot: slug.toUpperCase() } })
+    // Normalise kiosk slugs: flash-pi-1 / FLASH-PI-1 / FLASH-PI-01 -> FLASH-PI-01.
+    const m = slug.match(/^flash-pi-0*(\d+)$/i)
+    const canonical = m ? `FLASH-PI-${m[1].padStart(2, '0')}` : slug.toUpperCase()
+    const bySlot = await db.camera.findFirst({ where: { displaySlot: canonical } })
     if (bySlot) return reply.send({ cameraId: bySlot.id, slot: bySlot.displaySlot })
     const byId = await db.camera.findUnique({ where: { id: slug } })
     if (byId) return reply.send({ cameraId: byId.id, slot: byId.displaySlot })
