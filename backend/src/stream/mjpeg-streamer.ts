@@ -10,7 +10,7 @@ import type { TrackerConfig } from '../ai/tracker'
 import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 import { resolveFfmpegPath } from './ffmpeg-path'
 import { AnnotatedEncoder } from './annotated-encoder'
-import { publishSpeed } from '../mqtt/publisher'
+import { publishSpeed, HLS_LATENCY_S } from '../mqtt/publisher'
 
 // With -re, frames arrive at ~source fps (~25) and drain at OUTPUT_FPS (17).
 // Net accumulation ~8 fps; queue fills after ~2 s. Cap at 2 s to limit latency.
@@ -153,6 +153,7 @@ export class MJPEGStreamer extends EventEmitter {
                 speedKmh: e.speedKmh,
                 maxSpeedKmh: this.maxSpeedKmh,
                 ts: e.ts,
+                hls_latency_s: HLS_LATENCY_S,
               })
             }
           }

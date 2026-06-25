@@ -8,6 +8,7 @@ import { extractStreamUrl } from '../stream/extractor'
 import { getStreamer, getManager } from '../camera-worker'
 import type { TrackerConfig } from '../ai/tracker'
 import { requireAuth } from '../auth'
+import { publishSpeed, mqttConnected, HLS_LATENCY_S, type SpeedEvent } from '../mqtt/publisher'
 
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
 const hlsUrlCache = new Map<string, string>()
@@ -192,6 +193,29 @@ export async function cameraRoutes(app: FastifyInstance) {
     if (!streamer) { reply.code(404).send({ error: 'Camera not found or not running' }); return }
     streamer.resetDailyCounts()
     reply.code(204).send()
+  })
+
+  // Manual MQTT test — publishes a fake speeder so the Art-Net strobe can be
+  // verified end-to-end from the dashboard. Optional body { cameraId } uses that
+  // camera's feed/location/limit; otherwise generic test values.
+  app.post<{ Body: { cameraId?: string } }>('/api/mqtt/test', { preHandler: requireAuth }, async (req, reply) => {
+    let feed = 'test', location = 'MQTT Test', maxSpeedKmh: number | null = 120
+    if (req.body?.cameraId) {
+      const cam = await db.camera.findUnique({ where: { id: req.body.cameraId } })
+      if (cam) { feed = cam.id; location = cam.location; maxSpeedKmh = cam.maxSpeedKmh }
+    }
+    const event: SpeedEvent = {
+      feed,
+      location,
+      direction: 'AB',
+      trackId: Math.floor(Math.random() * 1_000_000),  // random so the strobe never dedupes a test
+      speedKmh: (maxSpeedKmh ?? 120) + 30,              // always over the limit → guaranteed flash
+      maxSpeedKmh,
+      ts: Date.now() / 1000,
+      hls_latency_s: HLS_LATENCY_S,
+    }
+    publishSpeed(event)
+    return reply.send({ ok: true, connected: mqttConnected(), payload: event })
   })
 
   app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {

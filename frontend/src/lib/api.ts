@@ -57,6 +57,19 @@ function clearAuthAndReload(): never {
   throw new Error('Session expired')
 }
 
+export type MqttTestResult = { ok: boolean; connected: boolean; payload: Record<string, unknown> }
+
+export async function testMqttFlash(cameraId?: string): Promise<MqttTestResult> {
+  const res = await fetch(`${BASE}/mqtt/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(cameraId ? { cameraId } : {}),
+  })
+  if (res.status === 401) clearAuthAndReload()
+  if (!res.ok) throw new Error('MQTT test failed')
+  return res.json()
+}
+
 export async function getCameras(): Promise<Camera[]> {
   const res = await fetch(`${BASE}/cameras`)
   if (!res.ok) throw new Error('Failed to fetch cameras')

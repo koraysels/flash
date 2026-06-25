@@ -17,7 +17,7 @@ const SPEED_FLOOR = Number(process.env.MQTT_SPEED_FLOOR ?? 0)
 // Estimated delay (s) between detection (ts) and the moment it shows on the kiosk
 // screen — encode + HLS segmenting + player buffer. Tune per kiosk; published so
 // the strobe schedules flash_at = ts + hls_latency_s without code changes.
-const HLS_LATENCY_S = Number(process.env.HLS_LATENCY_S ?? 8)
+export const HLS_LATENCY_S = Number(process.env.HLS_LATENCY_S ?? 8)
 
 export type SpeedEvent = {
   feed: string
@@ -27,9 +27,15 @@ export type SpeedEvent = {
   speedKmh: number
   maxSpeedKmh: number | null
   ts: number
+  hls_latency_s : number
 }
 
 let client: MqttClient | null = null
+
+/** True when the shared client is connected to the broker. */
+export function mqttConnected(): boolean {
+  return !!(client && client.connected)
+}
 
 /** Connect once at startup. No-op (with a warning) when no password is configured. */
 export function connectMqtt(): void {
@@ -67,7 +73,7 @@ export function publishSpeed(e: SpeedEvent): void {
     speed_kmh: Math.round(e.speedKmh * 10) / 10,
     max_speed_kmh: e.maxSpeedKmh,
     ts: e.ts,
-    hls_latency_s: HLS_LATENCY_S,
+    hls_latency_s: e.hls_latency_s,
   })
   client.publish(TOPIC, payload, { qos: 0 })
 }

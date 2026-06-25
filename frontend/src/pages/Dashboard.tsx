@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useCameras } from '../hooks/useCameras'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 import { CameraStream } from '../components/CameraStream'
-import { Camera, resetCounts } from '../lib/api'
+import { Camera, resetCounts, testMqttFlash } from '../lib/api'
 import type { TrapMeasurement } from '../hooks/useCameraFeed'
 
 function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null; label: string }) {
@@ -142,6 +142,22 @@ function CameraCard({ cam }: { cam: Camera }) {
 
 export default function Dashboard() {
   const { data: cameras, isLoading, error } = useCameras()
+  const [flashMsg, setFlashMsg] = useState<string | null>(null)
+  const [flashing, setFlashing] = useState(false)
+
+  const triggerFlash = async () => {
+    setFlashing(true)
+    setFlashMsg(null)
+    try {
+      const r = await testMqttFlash()
+      setFlashMsg(r.connected ? '✓ Test flash published to krocky/speed' : '⚠ Broker not connected — check MQTT env on the backend')
+    } catch {
+      setFlashMsg('✗ Test failed')
+    } finally {
+      setFlashing(false)
+      setTimeout(() => setFlashMsg(null), 6000)
+    }
+  }
 
   if (isLoading) return <div className="text-stone-400 text-xs uppercase tracking-widest p-8">Loading...</div>
   if (error) return <div className="text-red-600 text-xs uppercase tracking-widest p-8">Failed to load cameras</div>
@@ -153,7 +169,19 @@ export default function Dashboard() {
 
   return (
     <div>
-      <p className="text-xs font-bold tracking-widest uppercase text-stone-400 mb-6">Dashboard</p>
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Dashboard</p>
+        <div className="flex items-center gap-3">
+          {flashMsg && <span className="text-xs text-stone-600">{flashMsg}</span>}
+          <button
+            onClick={triggerFlash}
+            disabled={flashing}
+            className="border-2 border-black px-3 py-1 text-xs font-bold uppercase tracking-wide bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {flashing ? 'Sending…' : '🚨 Test Flash'}
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {cameras.map((cam) => (
           <CameraCard key={cam.id} cam={cam} />
