@@ -17,6 +17,7 @@ services:
       MQTT_PASS: ${MQTT_PASS:-}
       MQTT_TOPIC: ${MQTT_TOPIC:-krocky/speed}
       MQTT_SPEED_FLOOR: ${MQTT_SPEED_FLOOR:-0}
+      HLS_LATENCY_S: ${HLS_LATENCY_S:-8}
     deploy:
       resources:
         reservations:

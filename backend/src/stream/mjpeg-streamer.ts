@@ -85,6 +85,7 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly trackingConfig: TrackerConfig = DEFAULT_TRACKER_CONFIG,
     private readonly calibrationWidth: number | null = null,
     private readonly calibrationHeight: number | null = null,
+    private readonly location: string = '',
   ) {
     super()
   }
@@ -143,7 +144,17 @@ export class MJPEGStreamer extends EventEmitter {
 
           // Side-channel: publish confident speed events to MQTT (non-blocking).
           if (msg.speedEvents) {
-            for (const e of msg.speedEvents) publishSpeed(this.cameraId, e.trackId, e.speedKmh, e.ts)
+            for (const e of msg.speedEvents) {
+              publishSpeed({
+                feed: this.cameraId,
+                location: this.location,
+                direction: e.direction,
+                trackId: e.trackId,
+                speedKmh: e.speedKmh,
+                maxSpeedKmh: this.maxSpeedKmh,
+                ts: e.ts,
+              })
+            }
           }
 
           emitFrame({

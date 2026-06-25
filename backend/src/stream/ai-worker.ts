@@ -56,7 +56,7 @@ export type WorkerResultMsg = {
   recentTrapMeasurements: TrapMeasurement[]
   annotatedJpeg?: Buffer
   // One entry per track the first time its speed is confident — for MQTT publish.
-  speedEvents?: Array<{ trackId: number; speedKmh: number; ts: number }>
+  speedEvents?: Array<{ trackId: number; speedKmh: number; ts: number; direction: 'AB' | 'BA' | null }>
 }
 
 // ----------------------------------------------------------------------------------
@@ -269,7 +269,8 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
       // its own display-delay offset. Predicted tracks have speedKmh null (skipped).
       if (speedKmh !== null && !publishedSpeedIds.has(v.id)) {
         publishedSpeedIds.add(v.id)
-        speedEvents.push({ trackId: v.id, speedKmh, ts: msg.frameTime / 1000 })
+        const direction = trapCalc?.getDirection(v.id) ?? null
+        speedEvents.push({ trackId: v.id, speedKmh, ts: msg.frameTime / 1000, direction })
       }
     }
 

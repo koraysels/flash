@@ -121,6 +121,7 @@ export class CameraWorkerManager {
         trackingConfig,
         camera.calibrationWidth,
         camera.calibrationHeight,
+        camera.location,
       )
       await streamer.init()
       streamer.start()

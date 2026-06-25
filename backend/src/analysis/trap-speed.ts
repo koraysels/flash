@@ -34,6 +34,7 @@ export type TrapMeasurement = { speedKmh: number; timestamp: number; isSpeeder: 
 export class TrapSpeedCalculator {
   private entries = new Map<number, TrapEntry>()
   private recent: TrapMeasurement[] = []
+  private directions = new Map<number, 'AB' | 'BA'>()  // read-only side data for MQTT
 
   constructor(
     private readonly homographyMatrix: number[],
@@ -98,6 +99,7 @@ export class TrapSpeedCalculator {
         if (speedKmh > this.plausibilityKmh) return
         entry.speed = speedKmh
         const direction: 'AB' | 'BA' = crossA.t <= crossB.t ? 'AB' : 'BA'
+        this.directions.set(id, direction)
         this.recent.push({ speedKmh, timestamp, isSpeeder: this.maxSpeedKmh !== undefined && speedKmh > this.maxSpeedKmh, direction })
         if (this.recent.length > MAX_RECENT) this.recent.shift()
       }
@@ -106,6 +108,11 @@ export class TrapSpeedCalculator {
 
   getSpeed(id: number): number | null {
     return this.entries.get(id)?.speed ?? null
+  }
+
+  /** Travel direction once both lines are crossed (read-only, for MQTT). */
+  getDirection(id: number): 'AB' | 'BA' | null {
+    return this.directions.get(id) ?? null
   }
 
   isSpeeder(id: number): boolean {
@@ -120,11 +127,13 @@ export class TrapSpeedCalculator {
 
   removeVehicle(id: number): void {
     this.entries.delete(id)
+    this.directions.delete(id)
   }
 
   reset(): void {
     this.entries.clear()
     this.recent = []
+    this.directions.clear()
   }
 }
 

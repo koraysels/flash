@@ -3,9 +3,8 @@
  * the detection/tracking/speed pipeline: one shared client, fire-and-forget
  * QoS 0, auto-reconnect, and if the broker is down the event is dropped.
  *
- * Topic/payload contract (consumed by flash-artnet-python -> Art-Net strobe):
- *   topic:   krocky/speed (env MQTT_TOPIC)
- *   payload: {"feed": "<cameraId>", "track_id": <int>, "speed_kmh": <float>, "ts": <unix epoch seconds float>}
+ * Topic/payload contract is documented in docs/mqtt-speed-format.md (consumed by
+ * flash-artnet-python -> Art-Net strobe). Topic krocky/speed (env MQTT_TOPIC).
  */
 import mqtt, { type MqttClient } from 'mqtt'
 
@@ -15,6 +14,20 @@ const USER = process.env.MQTT_USER ?? 'flash'
 const PASS = process.env.MQTT_PASS ?? ''
 const TOPIC = process.env.MQTT_TOPIC ?? 'krocky/speed'
 const SPEED_FLOOR = Number(process.env.MQTT_SPEED_FLOOR ?? 0)
+// Estimated delay (s) between detection (ts) and the moment it shows on the kiosk
+// screen — encode + HLS segmenting + player buffer. Tune per kiosk; published so
+// the strobe schedules flash_at = ts + hls_latency_s without code changes.
+const HLS_LATENCY_S = Number(process.env.HLS_LATENCY_S ?? 8)
+
+export type SpeedEvent = {
+  feed: string
+  location: string
+  direction: 'AB' | 'BA' | null
+  trackId: number
+  speedKmh: number
+  maxSpeedKmh: number | null
+  ts: number
+}
 
 let client: MqttClient | null = null
 
@@ -40,15 +53,21 @@ export function connectMqtt(): void {
 /**
  * Publish one confident speed reading for a vehicle. Fire-and-forget: returns
  * immediately, drops the event if the broker is unreachable, never throws.
+ * Payload schema: docs/mqtt-speed-format.md.
  */
-export function publishSpeed(feed: string, trackId: number, speedKmh: number, ts: number): void {
+export function publishSpeed(e: SpeedEvent): void {
   if (!client || !client.connected) return       // broker down -> drop, don't block
-  if (speedKmh < SPEED_FLOOR) return              // coarse prefilter; real limit is downstream
+  if (e.speedKmh < SPEED_FLOOR) return            // coarse prefilter; real limit is downstream
   const payload = JSON.stringify({
-    feed,
-    track_id: trackId,
-    speed_kmh: Math.round(speedKmh * 10) / 10,
-    ts,
+    schema: 1,
+    feed: e.feed,
+    location: e.location,
+    direction: e.direction,
+    track_id: e.trackId,
+    speed_kmh: Math.round(e.speedKmh * 10) / 10,
+    max_speed_kmh: e.maxSpeedKmh,
+    ts: e.ts,
+    hls_latency_s: HLS_LATENCY_S,
   })
   client.publish(TOPIC, payload, { qos: 0 })
 }
