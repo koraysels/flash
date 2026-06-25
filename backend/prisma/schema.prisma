@@ -4,9 +4,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")   // pooled — app runtime queries
-  directUrl = env("DIRECT_URL")     // non-pooled — migrations (pooler silently drops DDL)
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // NOTE: directUrl removed — the non-pooled migrate hung on the advisory lock and
+  // crash-looped the app. Migrations applied manually instead (see DEPLOY notes).
 }
 
 enum Direction {
