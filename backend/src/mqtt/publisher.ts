@@ -65,14 +65,16 @@ export function connectMqtt(): void {
 export function publishSpeed(e: SpeedEvent): void {
   if (!client || !client.connected) return       // broker down -> drop, don't block
   if (e.speedKmh < SPEED_FLOOR) return            // coarse prefilter; real limit is downstream
+  // camelCase keys (trackId/speedKmh/maxSpeedKmh) — this is the schema the strobe
+  // service parses. Only hls_latency_s is snake_case. Must match exactly or the
+  // strobe reads undefined and silently ignores the message.
   const payload = JSON.stringify({
-    schema: 1,
     feed: e.feed,
     location: e.location,
     direction: e.direction,
-    track_id: e.trackId,
-    speed_kmh: Math.round(e.speedKmh * 10) / 10,
-    max_speed_kmh: e.maxSpeedKmh,
+    trackId: e.trackId,
+    speedKmh: Math.round(e.speedKmh * 10) / 10,
+    maxSpeedKmh: e.maxSpeedKmh,
     ts: e.ts,
     hls_latency_s: e.hls_latency_s,
   })

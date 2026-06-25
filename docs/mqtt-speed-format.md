@@ -17,15 +17,16 @@ Art-Net strobe when a speeder appears **on the kiosk screen**.
 
 ## Payload (JSON, UTF-8)
 
+Keys are **camelCase** (`trackId`/`speedKmh`/`maxSpeedKmh`); only `hls_latency_s` is snake_case.
+
 ```json
 {
-  "schema": 1,
   "feed": "cmqrxxcjc0001lrpdik7bz3qz",
   "location": "Zelzatetunnel & A11",
   "direction": "AB",
-  "track_id": 1234,
-  "speed_kmh": 138.4,
-  "max_speed_kmh": 120,
+  "trackId": 1234,
+  "speedKmh": 138.4,
+  "maxSpeedKmh": 120,
   "ts": 1750800000.123,
   "hls_latency_s": 8.0
 }
@@ -33,22 +34,21 @@ Art-Net strobe when a speeder appears **on the kiosk screen**.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `schema` | int | Payload version. Currently `1`. Bumped on breaking changes. |
 | `feed` | string | Camera id (stable per camera, = the `/display/<id>` route id). |
 | `location` | string | Human-readable camera location/name (from the DB). |
 | `direction` | `"AB"` \| `"BA"` \| `null` | Travel direction across the counting lines. `null` if not determinable (e.g. continuous-speed mode). |
-| `track_id` | int | Per-feed vehicle track id. **Unique only within a feed** — dedupe on `(feed, track_id)`. Resets when the camera worker restarts. |
-| `speed_kmh` | float | Measured speed (1 decimal). |
-| `max_speed_kmh` | int \| null | Posted limit for this feed. `null` if the camera is uncalibrated / no limit set. |
+| `trackId` | int | Per-feed vehicle track id. **Unique only within a feed** — dedupe on `(feed, trackId)`. Resets when the camera worker restarts. |
+| `speedKmh` | float | Measured speed (1 decimal). |
+| `maxSpeedKmh` | int \| null | Posted limit for this feed. `null` if the camera is uncalibrated / no limit set. |
 | `ts` | float | Unix epoch **seconds** of the real detection moment (the frame's ingest time). NOT when the message was sent. |
 | `hls_latency_s` | float | Estimated delay between `ts` and when that moment is visible on the kiosk screen (encode + HLS segmenting + player buffer). |
 
 ## How the strobe should use it
 
-1. **Filter**: flash only if `max_speed_kmh != null && speed_kmh > max_speed_kmh`
+1. **Filter**: flash only if `maxSpeedKmh != null && speedKmh > maxSpeedKmh`
    (plus any margin you want). Flash sends every confident reading; the limit
    decision is yours.
-2. **Dedupe**: ignore a `(feed, track_id)` already handled within ~10 s.
+2. **Dedupe**: ignore a `(feed, trackId)` already handled within ~10 s.
 3. **Schedule (display-synced)**: the speeder is on screen at
    `screen_time = ts + hls_latency_s`. Fire the strobe at
    `screen_time + DISPLAY_DELAY` (your own fine-tune offset). If `screen_time`
