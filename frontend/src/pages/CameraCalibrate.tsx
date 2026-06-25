@@ -34,9 +34,9 @@ const SLIDER_DEFS: SliderDef[] = [
   {
     key: 'highConfidence',
     label: 'Min. detectie zekerheid',
-    description: 'Minimale confidence score voordat een detectie meegaat in matching.',
-    symptomLow: 'Veel ghost-boxes / vals positieven',
-    symptomHigh: 'Te veel dropouts bij slechter zicht',
+    description: 'Min. confidence voor een detectie meetelt. Verlies je auto\'s tussen de lijnen? → verláág deze.',
+    symptomLow: 'Lager → vangt meer auto\'s, maar meer valse/ghost boxen',
+    symptomHigh: 'Hoger → minder vals, maar mist zwakke/verre auto\'s',
     min: 0.40, max: 0.75, step: 0.01,
     format: (v) => v.toFixed(2),
   },
