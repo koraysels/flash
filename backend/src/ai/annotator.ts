@@ -95,8 +95,8 @@ export function annotateFrame(
     ctx.setLineDash([])
 
     // Short display id (rotates 000-999) — the full numeric id stays internal /
-    // in MQTT for dedupe; this is just a readable on-screen label.
-    const label = `#${String(v.id % 1000).padStart(3, '0')} ${v.class}`
+    // in MQTT for dedupe. Class is conveyed by the box colour, so no class text.
+    const label = `#${String(v.id % 1000).padStart(3, '0')}`
     ctx.font = '12px monospace'
     const labelWidth = ctx.measureText(label).width + 8
     ctx.fillStyle = color
