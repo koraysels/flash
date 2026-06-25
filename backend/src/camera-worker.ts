@@ -122,6 +122,7 @@ export class CameraWorkerManager {
         camera.calibrationWidth,
         camera.calibrationHeight,
         camera.location,
+        (camera.roiPolygon as number[] | null) ?? [],
       )
       await streamer.init()
       streamer.start()

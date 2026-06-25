@@ -4,8 +4,9 @@ import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-g
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text as KonvaText } from 'react-konva'
 import useImage from 'use-image'
 import { FramePointPicker } from '../components/FramePointPicker'
+import { ROIEditor } from '../components/ROIEditor'
 import {
-  getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig,
+  getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig, saveRoi,
   type Camera, type CalibrationPoint, type TrackerConfig, DEFAULT_TRACKER_CONFIG,
 } from '../lib/api'
 
@@ -379,6 +380,8 @@ export default function CameraCalibrate() {
   const [trapSpeedEnabled, setTrapSpeedEnabled] = useState(false)
   const [trackingConfig, setTrackingConfig] = useState<TrackerConfig>({ ...DEFAULT_TRACKER_CONFIG })
   const [savingTracking, setSavingTracking] = useState(false)
+  const [roiPolygon, setRoiPolygon] = useState<number[]>([])
+  const [savingRoi, setSavingRoi] = useState(false)
   // Counting lines: two endpoints each in normalised [0,1] coords
   const [lineA, setLineA] = useState<[Pt, Pt]>([{ x: 0, y: 0.4 }, { x: 1, y: 0.4 }])
   const [lineB, setLineB] = useState<[Pt, Pt]>([{ x: 0, y: 0.6 }, { x: 1, y: 0.6 }])
@@ -422,6 +425,7 @@ export default function CameraCalibrate() {
       setMaxSpeedKmh(cam.maxSpeedKmh?.toString() ?? '')
       setTrapSpeedEnabled(cam.trapSpeedEnabled ?? false)
       setTrackingConfig({ ...DEFAULT_TRACKER_CONFIG, ...(cam.trackingConfig ?? {}) })
+      setRoiPolygon(cam.roiPolygon ?? [])
 
       // Restore counting lines from saved state
       if (cam.countingLineAPoints?.length === 4) {
@@ -562,6 +566,18 @@ export default function CameraCalibrate() {
       setError(err instanceof Error ? err.message : 'Save tracking config failed')
     } finally {
       setSavingTracking(false)
+    }
+  }
+
+  async function handleSaveRoi() {
+    if (!id) return
+    setSavingRoi(true)
+    try {
+      await saveRoi(id, roiPolygon)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save ROI failed')
+    } finally {
+      setSavingRoi(false)
     }
   }
 
@@ -795,6 +811,39 @@ export default function CameraCalibrate() {
               {trapSpeedEnabled ? 'Exact — like trajectcontrole' : 'Real-time per-frame estimate'}
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="border-2 border-black p-4 mb-6">
+        <p className="text-xs font-bold uppercase tracking-widest">Road ROI mask</p>
+        <p className="text-xs text-stone-500 mt-0.5 mb-3">
+          Click to paint the drivable road. Detections whose ground point falls outside are
+          dropped before tracking — cuts off-road clutter (billboards, opposite carriageway,
+          parked) and phantom tracks. Empty = no mask. Save → camera restarts.
+        </p>
+        {snapshot ? (
+          <ROIEditor frameBase64={snapshot} polygon={roiPolygon} onChange={setRoiPolygon} width={640} />
+        ) : (
+          <div className="border border-stone-200 h-32 flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
+            Waiting for snapshot…
+          </div>
+        )}
+        <div className="mt-3 flex gap-3 items-center">
+          <button
+            onClick={handleSaveRoi}
+            disabled={savingRoi}
+            className="border-2 border-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-black text-white hover:bg-stone-800 disabled:opacity-40"
+          >
+            {savingRoi ? 'Saving…' : 'Save ROI'}
+          </button>
+          <button
+            onClick={() => setRoiPolygon([])}
+            disabled={roiPolygon.length === 0}
+            className="border border-stone-300 px-3 py-1.5 text-xs uppercase tracking-widest hover:border-black disabled:opacity-30"
+          >
+            Clear
+          </button>
+          <span className="text-xs text-stone-400">{roiPolygon.length / 2} points</span>
         </div>
       </div>
 

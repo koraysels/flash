@@ -30,6 +30,7 @@ export type WorkerInitData = {
   calibrationHeight: number | null
   trapSpeedEnabled: boolean
   trackingConfig: TrackerConfig
+  roiPolygon: number[]
 }
 
 export type WorkerAnalyseMsg = {
@@ -63,7 +64,20 @@ export type WorkerResultMsg = {
 
 const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
 
-const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig } = workerData as WorkerInitData
+const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig, roiPolygon } = workerData as WorkerInitData
+
+// Ray-casting point-in-polygon on a flattened normalised polygon [x1,y1,x2,y2,...].
+function inRoi(nx: number, ny: number): boolean {
+  if (roiPolygon.length < 6) return true   // no/under-defined ROI → accept everything
+  let inside = false
+  const n = roiPolygon.length / 2
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = roiPolygon[i * 2], yi = roiPolygon[i * 2 + 1]
+    const xj = roiPolygon[j * 2], yj = roiPolygon[j * 2 + 1]
+    if (((yi > ny) !== (yj > ny)) && (nx < ((xj - xi) * (ny - yi)) / (yj - yi) + xi)) inside = !inside
+  }
+  return inside
+}
 const trackingConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG, ...rawTrackingConfig }
 
 const detector = new Detector(MODEL_PATH)
@@ -190,7 +204,13 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     const rgba640 = ctx640.getImageData(0, 0, 640, 640).data
     const t2 = performance.now()
 
-    const detections = await detector.detect(rgba640, padX, padY, scale, width, height)
+    const rawDetections = await detector.detect(rgba640, padX, padY, scale, width, height)
+    // Road ROI mask: keep only detections whose ground-contact point (bottom-centre)
+    // is on the road — drops off-road clutter (billboards, opposite carriageway,
+    // parked) before tracking, cutting phantom tracks. No ROI → keep all.
+    const detections = roiPolygon.length >= 6
+      ? rawDetections.filter((d) => inRoi(((d.x1 + d.x2) / 2) / width, d.y2 / height))
+      : rawDetections
     const t3 = performance.now()
 
     const tracked = tracker.update(detections, msg.frameTime)

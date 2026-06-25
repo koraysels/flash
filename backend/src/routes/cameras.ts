@@ -254,6 +254,17 @@ export async function cameraRoutes(app: FastifyInstance) {
       return reply.send({ ok: true, slot })
     })
 
+  // Road ROI mask: flattened normalised polygon [x1,y1,x2,y2,...]. Detections whose
+  // ground point is outside are dropped before tracking. Restarts the camera so the
+  // worker picks it up. Empty array clears the mask.
+  app.post<{ Params: { id: string }; Body: { roiPolygon: number[] } }>(
+    '/api/cameras/:id/roi', { preHandler: requireAuth }, async (req, reply) => {
+      const roiPolygon = Array.isArray(req.body?.roiPolygon) ? req.body.roiPolygon.map(Number).filter(Number.isFinite) : []
+      await db.camera.update({ where: { id: req.params.id }, data: { roiPolygon } })
+      getManager()?.restartCamera(req.params.id)
+      return reply.send({ ok: true, points: roiPolygon.length / 2 })
+    })
+
   app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {
     const streamer = getStreamer(req.params.id)
     if (!streamer) {

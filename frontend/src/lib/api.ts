@@ -45,8 +45,19 @@ export type Camera = {
   trapSpeedEnabled: boolean
   trackingConfig: TrackerConfig | null
   displaySlot: string | null
+  roiPolygon: number[]
   createdAt: string
   updatedAt: string
+}
+
+export async function saveRoi(id: string, roiPolygon: number[]): Promise<void> {
+  const res = await fetch(`${BASE}/cameras/${id}/roi`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ roiPolygon }),
+  })
+  if (res.status === 401) clearAuthAndReload()
+  if (!res.ok) throw new Error('Failed to save ROI')
 }
 
 export const DISPLAY_SLOTS = ['FLASH-PI-01', 'FLASH-PI-02', 'FLASH-PI-03'] as const
