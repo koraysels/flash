@@ -35,8 +35,8 @@ const SLIDER_DEFS: SliderDef[] = [
     key: 'highConfidence',
     label: 'Min. detectie zekerheid',
     description: 'Min. confidence voor een detectie meetelt. Verlies je auto\'s tussen de lijnen? → verláág deze.',
-    symptomLow: 'Lager → vangt meer auto\'s, maar meer valse/ghost boxen',
-    symptomHigh: 'Hoger → minder vals, maar mist zwakke/verre auto\'s',
+    symptomLow: 'vangt meer auto\'s, maar meer valse/ghost boxen',
+    symptomHigh: 'minder vals, maar mist zwakke/verre auto\'s',
     min: 0.40, max: 0.75, step: 0.01,
     format: (v) => v.toFixed(2),
   },
@@ -254,9 +254,9 @@ function TrackingTuning({ config, onChange, onSave, saving }: TrackingTuningProp
                 <span>{def.max}</span>
               </div>
               <p className="text-[11px] text-stone-500">{def.description}</p>
-              <div className="mt-1 flex gap-3 text-[10px]">
-                <span className="text-stone-400">↓ {def.symptomLow}</span>
-                <span className="text-stone-400">↑ {def.symptomHigh}</span>
+              <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-stone-400">
+                <span><b className="text-stone-600">Lager →</b> {def.symptomLow}</span>
+                <span><b className="text-stone-600">Hoger →</b> {def.symptomHigh}</span>
               </div>
             </div>
           )
