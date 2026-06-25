@@ -12,6 +12,7 @@ export type TrackerConfig = {
   qPos: number
   qVel: number
   speedPlausibilityKmh: number
+  motionGated: boolean
 }
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
@@ -25,6 +26,7 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   qPos: 1.0,
   qVel: 0.05,
   speedPlausibilityKmh: 170,
+  motionGated: false,
 }
 
 export type Camera = {

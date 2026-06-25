@@ -32,6 +32,9 @@ export type TrackerConfig = {
   qVel: number
   /** Hard cap on speed outputs — values above this are filtered as outliers (120–180) */
   speedPlausibilityKmh: number
+  /** Use the motion-gated matcher (Kalman covariance gate + direction veto)
+   *  instead of the legacy IoU-only matcher. Toggle per camera to A/B test. */
+  motionGated: boolean
 }
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
@@ -50,11 +53,26 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   qPos: 1.0,
   qVel: 0.05,
   speedPlausibilityKmh: 170,
+  motionGated: false,   // default to the proven legacy IoU matcher
 }
 
 const VEL_MAG_THRESHOLD = 20
 const MIN_FRAMES_FOR_DIRECTION = 3
-const IOU_WEIGHT = 0.7   // IoU fraction in combined score; direction gets 1 - IOU_WEIGHT
+const IOU_WEIGHT = 0.7   // legacy IoU matcher: IoU fraction in combined score
+
+// --- Motion-gated association tuning (SORT Kalman + DeepSORT covariance gate +
+// OC-SORT direction consistency). A (track,det) pair is a candidate if the boxes
+// overlap (IoU >= stage threshold) OR the detection center is within a
+// covariance-scaled gate of the Kalman-predicted center. New/uncertain tracks
+// have large position variance → wide gate (a fast car's 2nd detection attaches
+// and velocity locks), established tracks have small variance → tight gate.
+const GATE_K = 4               // sigma multiplier on the predicted-position std
+const GATE_MIN_PX = 12         // floor: precise tracks still get a small search window
+const GATE_MAX_FRAC = 0.18     // cap gate at this fraction of the smaller frame side (bounded)
+const W_IOU = 0.5              // cost weights (sum = 1)
+const W_DIST = 0.35
+const W_DIR = 0.15
+const REVERSE_DIR_SCORE = 0.35 // dirScore below this = against heading → veto unless boxes overlap
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
@@ -114,6 +132,13 @@ export class KF2D {
 
   velAngle(): number {
     return Math.atan2(this.vy, this.vx)
+  }
+
+  /** Predicted position variance (px², avg of both axes) — drives the
+   *  covariance-scaled association gate: large when the track is new/uncertain,
+   *  small once it has locked on. */
+  posVar(): number {
+    return (this.px00 + this.py00) / 2
   }
 }
 
@@ -178,12 +203,56 @@ function greedyMatch(
   return result
 }
 
-// Fraction of frame W/H that counts as "near the edge" (where vehicles exit).
-const EDGE_FRAC = 0.08
-// Interior tracks (a detector blink while well inside the frame — the vehicle
-// almost certainly didn't leave) are kept alive this many × longer so they
-// re-attach the SAME id on re-detection instead of flickering to a new one.
-const INTERIOR_MISS_MULT = 5
+// Motion-gated matcher (opt-in via cfg.motionGated). Same greedy assignment as
+// the legacy matcher, but a pair is a candidate when boxes overlap OR the
+// detection center is within the track's covariance-scaled gate, and the cost
+// blends IoU + (motion-predicted) center distance + direction consistency, with
+// a veto on matches that contradict an established heading.
+function greedyMatchMotion(
+  predicted: Box[],
+  trackIndices: number[],
+  detections: DetectionResult[],
+  detIndices: number[],
+  threshold: number,
+  velocities: Array<VelInfo | null>,
+  gateRadii: number[],
+): Array<{ ti: number; di: number }> {
+  const candidates: Array<{ ti: number; di: number; score: number }> = []
+  for (const ti of trackIndices) {
+    const p = predicted[ti]
+    const pcx = (p.x1 + p.x2) / 2
+    const pcy = (p.y1 + p.y2) / 2
+    const gate = gateRadii[ti]
+    const vel = velocities[ti]
+    const established = !!vel && vel.mag >= VEL_MAG_THRESHOLD && vel.confirmedFrames >= MIN_FRAMES_FOR_DIRECTION
+    for (const di of detIndices) {
+      const det = detections[di]
+      const iouScore = iou(p, det)
+      const dcx = (det.x1 + det.x2) / 2
+      const dcy = (det.y1 + det.y2) / 2
+      const centerDist = Math.hypot(dcx - pcx, dcy - pcy)
+      const overlaps = iouScore >= threshold
+      const withinGate = centerDist <= gate
+      if (!overlaps && !withinGate) continue                          // dual gate
+      const ds = dirScore(vel, p, det)
+      if (established && ds < REVERSE_DIR_SCORE && !overlaps) continue // reverse-direction veto
+      const distNorm = Math.min(centerDist / Math.max(gate, 1e-6), 1)
+      const score = W_IOU * iouScore + W_DIST * (1 - distNorm) + W_DIR * ds
+      candidates.push({ ti, di, score })
+    }
+  }
+  candidates.sort((a, b) => b.score - a.score)
+  const usedT = new Set<number>()
+  const usedD = new Set<number>()
+  const result: Array<{ ti: number; di: number }> = []
+  for (const { ti, di } of candidates) {
+    if (!usedT.has(ti) && !usedD.has(di)) {
+      result.push({ ti, di })
+      usedT.add(ti); usedD.add(di)
+    }
+  }
+  return result
+}
 
 export class Tracker {
   private tracks: KFTrack[] = []
@@ -225,10 +294,31 @@ export class Tracker {
       confirmedFrames: t.confirmedFrames,
     }))
 
-    const m1 = greedyMatch(predicted, allTI, detections, highDI, iouStage1, velocities)
-    const matchedT1 = new Set(m1.map(m => m.ti))
-    const unmatchedTI = allTI.filter(i => !matchedT1.has(i))
-    const m2 = greedyMatch(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities)
+    const motionGated = this.cfg.motionGated
+    let m1: Array<{ ti: number; di: number }>
+    let m2: Array<{ ti: number; di: number }>
+    if (motionGated) {
+      // Covariance-scaled gate per track (bounded between a floor and a fraction
+      // of the frame so an uncertain track can't grab everything).
+      const gmax = GATE_MAX_FRAC * Math.min(this.frameW, this.frameH)
+      const gateRadii = this.tracks.map(t => {
+        let s = GATE_K * Math.sqrt(Math.max(t.kf.posVar(), 1))
+        // A brand-new track has velocity 0, so its prediction doesn't move yet —
+        // widen the gate while it's still learning velocity so a fast car's 2nd
+        // detection attaches (then the gate tightens as the KF locks on).
+        if (t.confirmedFrames < MIN_FRAMES_FOR_DIRECTION) s *= 2
+        return Math.min(Math.max(s, GATE_MIN_PX), gmax)
+      })
+      m1 = greedyMatchMotion(predicted, allTI, detections, highDI, iouStage1, velocities, gateRadii)
+      const matchedT1 = new Set(m1.map(m => m.ti))
+      const unmatchedTI = allTI.filter(i => !matchedT1.has(i))
+      m2 = greedyMatchMotion(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities, gateRadii)
+    } else {
+      m1 = greedyMatch(predicted, allTI, detections, highDI, iouStage1, velocities)
+      const matchedT1 = new Set(m1.map(m => m.ti))
+      const unmatchedTI = allTI.filter(i => !matchedT1.has(i))
+      m2 = greedyMatch(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities)
+    }
 
     const allMatched = [...m1, ...m2]
     const matchedTSet = new Set(allMatched.map(m => m.ti))
@@ -272,7 +362,13 @@ export class Tracker {
         t.cx = t.kf.cx; t.cy = t.kf.cy
         t.x1 = t.cx - t.w / 2; t.y1 = t.cy - t.h / 2
         t.x2 = t.cx + t.w / 2; t.y2 = t.cy + t.h / 2
-        t.bcx = t.cx; t.bcy = t.y2 - t.h * 0.05
+        if (motionGated) {
+          // Bounded: clamp the coasted box to the frame — no off-road / off-screen
+          // ghost boxes drifting away on the Kalman prediction.
+          t.x1 = Math.max(0, t.x1); t.y1 = Math.max(0, t.y1)
+          t.x2 = Math.min(this.frameW, t.x2); t.y2 = Math.min(this.frameH, t.y2)
+        }
+        t.bcx = (t.x1 + t.x2) / 2; t.bcy = t.y2 - t.h * 0.05
         t.isPredicted = true
       }
     }

@@ -179,3 +179,55 @@ describe('Tracker class voting', () => {
     expect(tracked[0].class).toBe('car')
   })
 })
+
+describe('Tracker motion-gated association', () => {
+  const car = (x1: number, y1: number): DetectionResult => ({
+    x1, y1, x2: x1 + 100, y2: y1 + 100, confidence: 0.9, class: 'car',
+  })
+
+  it('keeps a single ID for a fast car where the IoU matcher churns', () => {
+    // 75 px/frame: IoU between the (v=0) prediction and the next detection is
+    // ~0.14 < iouStage1 (0.20) on the FIRST re-match, so the legacy matcher
+    // re-spawns a new id; the motion gate (widened while learning velocity)
+    // attaches it and the track locks on.
+    const run = (motionGated: boolean): number => {
+      const t = new Tracker({ motionGated })
+      t.setFrameSize(768, 576)
+      const ids = new Set<number>()
+      let ts = 1000
+      for (let x = 100; x <= 550; x += 75) {
+        const rep = t.update([car(x, 100)], ts)
+        for (const v of rep) ids.add(v.id)
+        ts += 100
+      }
+      return ids.size
+    }
+    expect(run(true)).toBe(1)        // motion-gated: one stable, confirmed id
+    expect(run(false)).toBe(0)       // legacy IoU: churns → never 2 consecutive matches → never confirmed
+  })
+
+  it('keeps coasted boxes inside the frame (bounded prediction)', () => {
+    const t = new Tracker({ motionGated: true })
+    t.setFrameSize(768, 576)
+    let ts = 1000
+    // Establish a car heading for the right edge, fast.
+    for (let x = 500; x <= 700; x += 60) { t.update([car(x, 100)], ts); ts += 100 }
+    // Now miss it for a few frames — it coasts; box must not leave the frame.
+    for (let i = 0; i < 4; i++) {
+      const rep = t.update([], ts); ts += 100
+      for (const v of rep) {
+        expect(v.x2).toBeLessThanOrEqual(768)
+        expect(v.x1).toBeGreaterThanOrEqual(-1)
+      }
+    }
+  })
+
+  it('legacy IoU path is unchanged (default config)', () => {
+    const t = new Tracker()   // motionGated defaults false
+    t.update([car(100, 100)], 1000)
+    const a = t.update([car(120, 105)], 1100)
+    const b = t.update([car(140, 110)], 1200)
+    expect(b).toHaveLength(1)
+    expect(b[0].id).toBe(a[0].id)
+  })
+})

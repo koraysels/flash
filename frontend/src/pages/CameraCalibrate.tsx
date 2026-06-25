@@ -209,6 +209,23 @@ function TrackingTuning({ config, onChange, onSave, saving }: TrackingTuningProp
         ))}
       </div>
 
+      {/* Matcher mode toggle */}
+      <div className="flex items-center justify-between border-2 border-black bg-stone-50 px-3 py-2 mb-5">
+        <div className="pr-3">
+          <p className="text-xs font-bold uppercase tracking-widest">Motion-gated matcher</p>
+          <p className="text-[11px] text-stone-500 mt-0.5">
+            Experimenteel: Kalman covariance-gate + richting-veto i.p.v. enkel IoU.
+            Minder ID-verlies bij snelle/voorspelbare beweging. Sla op om te A/B-testen.
+          </p>
+        </div>
+        <button
+          onClick={() => onChange({ ...config, motionGated: !config.motionGated })}
+          className={`shrink-0 text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 transition-colors ${config.motionGated ? 'bg-black text-white' : 'bg-white text-black hover:bg-stone-100'}`}
+        >
+          {config.motionGated ? 'AAN' : 'UIT'}
+        </button>
+      </div>
+
       {/* Sliders */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
         {SLIDER_DEFS.map((def) => {
