@@ -8,6 +8,11 @@ const MONO = 'DejaVu Sans Mono'
 const MONO_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
 if (existsSync(MONO_PATH)) GlobalFonts.registerFromPath(MONO_PATH, MONO)
 
+// Sans-serif for the speed-limit sign (real road signs are sans, not mono).
+const SANS = 'DejaVu Sans'
+const SANS_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+if (existsSync(SANS_PATH)) GlobalFonts.registerFromPath(SANS_PATH, SANS)
+
 // Speed-limit sign is rendered ONCE per limit value into an offscreen canvas and
 // cached; each frame just composites it with drawImage (no per-frame redraw).
 const signCache = new Map<number, Canvas>()
@@ -23,7 +28,7 @@ function getSpeedSign(limit: number): Canvas {
   g.lineWidth = ring; g.strokeStyle = '#d11414'
   g.beginPath(); g.arc(cx, cy, r - ring / 2, 0, Math.PI * 2); g.stroke()
   g.fillStyle = '#000000'
-  g.font = `bold ${Math.round(r * 0.85)}px "${MONO}", sans-serif`
+  g.font = `bold ${Math.round(r * 0.85)}px "${SANS}", sans-serif`
   g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillText(String(limit), cx, cy + Math.round(r * 0.06))
   signCache.set(limit, c)
