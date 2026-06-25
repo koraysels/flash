@@ -68,7 +68,8 @@ const TRACK_DEBUG = process.env.FLASH_TRACK_DEBUG === '1'   // log id-handoff di
 // have large position variance → wide gate (a fast car's 2nd detection attaches
 // and velocity locks), established tracks have small variance → tight gate.
 const GATE_K = 4               // sigma multiplier on the predicted-position std
-const GATE_MIN_PX = 12         // floor: precise tracks still get a small search window
+const GATE_MIN_PX = 36         // floor: re-acquisition after a 1-frame miss is ~16-35px (measured)
+const GATE_VEL_FRAMES = 1.5    // also cover this many frames of the track's own motion
 const GATE_MAX_FRAC = 0.18     // cap gate at this fraction of the smaller frame side (bounded)
 const W_IOU = 0.5              // cost weights (sum = 1)
 const W_DIST = 0.35
@@ -379,7 +380,9 @@ export class Tracker {
       // of the frame so an uncertain track can't grab everything).
       const gmax = GATE_MAX_FRAC * Math.min(this.frameW, this.frameH)
       const gateRadii = this.tracks.map(t => {
-        let s = GATE_K * Math.sqrt(Math.max(t.kf.posVar(), 1))
+        // Covariance term + one+ frame of the track's own motion (so a 1-frame miss
+        // on a moving car still re-acquires instead of spawning a new id).
+        let s = GATE_K * Math.sqrt(Math.max(t.kf.posVar(), 1)) + t.kf.velMag() * 0.05 * GATE_VEL_FRAMES
         // A brand-new track has velocity 0, so its prediction doesn't move yet —
         // widen the gate while it's still learning velocity so a fast car's 2nd
         // detection attaches (then the gate tightens as the KF locks on).
