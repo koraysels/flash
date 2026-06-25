@@ -308,6 +308,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
         { ab: counts.AB, ba: counts.BA, speeders, maxSpeedKmh },
         lineAPoints,
         lineBPoints,
+        countedSpeeders,
       )
     }
 

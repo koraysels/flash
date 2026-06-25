@@ -50,6 +50,7 @@ export function annotateFrame(
   hud?: { ab: number; ba: number; speeders: number; maxSpeedKmh?: number | null },
   lineAPoints?: number[],
   lineBPoints?: number[],
+  speederIds?: Set<number>,
 ): Buffer {
   // img is the already-decoded frame from the worker — no second JPEG decode here.
   const canvas = createCanvas(img.width, img.height)
@@ -86,6 +87,11 @@ export function annotateFrame(
     if (!Number.isFinite(v.x1) || !Number.isFinite(v.y1) || !Number.isFinite(v.x2) || !Number.isFinite(v.y2)) continue
 
     const color = CLASS_COLORS[v.class] ?? '#ffffff'
+    // Offender: strobe a red fill (~1.7 Hz) for as long as it's in frame.
+    if (speederIds?.has(v.id) && Date.now() % 600 < 300) {
+      ctx.fillStyle = 'rgba(255,0,0,0.5)'
+      ctx.fillRect(v.x1, v.y1, v.x2 - v.x1, v.y2 - v.y1)
+    }
     ctx.strokeStyle = color
     ctx.lineWidth = 2
     // Coasted (predicted) boxes get a dashed outline so a bridged detector gap
