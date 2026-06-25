@@ -94,7 +94,9 @@ export function annotateFrame(
     ctx.strokeRect(v.x1, v.y1, v.x2 - v.x1, v.y2 - v.y1)
     ctx.setLineDash([])
 
-    const label = `#${v.id} ${v.class}`
+    // Short display id (rotates 000-999) — the full numeric id stays internal /
+    // in MQTT for dedupe; this is just a readable on-screen label.
+    const label = `#${String(v.id % 1000).padStart(3, '0')} ${v.class}`
     ctx.font = '12px monospace'
     const labelWidth = ctx.measureText(label).width + 8
     ctx.fillStyle = color
