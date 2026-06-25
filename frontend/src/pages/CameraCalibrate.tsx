@@ -5,8 +5,9 @@ import { Stage, Layer, Image as KonvaImage, Line, Circle, Text as KonvaText } fr
 import useImage from 'use-image'
 import { FramePointPicker } from '../components/FramePointPicker'
 import { ROIEditor } from '../components/ROIEditor'
+import { DirectionZonesEditor, type Zone } from '../components/DirectionZonesEditor'
 import {
-  getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig, saveRoi,
+  getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig, saveRoi, saveDirectionZones,
   type Camera, type CalibrationPoint, type TrackerConfig, DEFAULT_TRACKER_CONFIG,
 } from '../lib/api'
 
@@ -384,6 +385,9 @@ export default function CameraCalibrate() {
   const [savingTracking, setSavingTracking] = useState(false)
   const [roiPolygon, setRoiPolygon] = useState<number[]>([])
   const [savingRoi, setSavingRoi] = useState(false)
+  const [directionZones, setDirectionZones] = useState<Zone[]>([])
+  const [activeZone, setActiveZone] = useState(0)
+  const [savingZones, setSavingZones] = useState(false)
   // Counting lines: two endpoints each in normalised [0,1] coords
   const [lineA, setLineA] = useState<[Pt, Pt]>([{ x: 0, y: 0.4 }, { x: 1, y: 0.4 }])
   const [lineB, setLineB] = useState<[Pt, Pt]>([{ x: 0, y: 0.6 }, { x: 1, y: 0.6 }])
@@ -428,6 +432,7 @@ export default function CameraCalibrate() {
       setTrapSpeedEnabled(cam.trapSpeedEnabled ?? false)
       setTrackingConfig({ ...DEFAULT_TRACKER_CONFIG, ...(cam.trackingConfig ?? {}) })
       setRoiPolygon(cam.roiPolygon ?? [])
+      setDirectionZones((cam.directionZones as Zone[] | null) ?? [])
 
       // Restore counting lines from saved state
       if (cam.countingLineAPoints?.length === 4) {
@@ -580,6 +585,20 @@ export default function CameraCalibrate() {
       setError(err instanceof Error ? err.message : 'Save ROI failed')
     } finally {
       setSavingRoi(false)
+    }
+  }
+
+  async function handleSaveZones() {
+    if (!id) return
+    setSavingZones(true)
+    try {
+      // keep only valid zones (≥3 pts + an arrow)
+      const valid = directionZones.filter((z) => z.polygon.length >= 6 && z.arrow.length === 4)
+      await saveDirectionZones(id, valid)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save direction zones failed')
+    } finally {
+      setSavingZones(false)
     }
   }
 
@@ -846,6 +865,61 @@ export default function CameraCalibrate() {
             Clear
           </button>
           <span className="text-xs text-stone-400">{roiPolygon.length / 2} points</span>
+        </div>
+      </div>
+
+      <div className="border-2 border-black p-4 mb-6">
+        <p className="text-xs font-bold uppercase tracking-widest">Richting-zones (per rijrichting)</p>
+        <p className="text-xs text-stone-500 mt-0.5 mb-3">
+          Teken een zone per rijrichting en sleep de pijl in de rijrichting. De tracker gebruikt
+          die vaste richting + houdt id's binnen dezelfde zone → minder id-wissels (vooral bij
+          wegrijdende auto's). Vervangt de ROI als er zones zijn. Opslaan → camera herstart.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3 items-center">
+          {directionZones.map((_, i) => (
+            <button key={i} onClick={() => setActiveZone(i)}
+              className={`text-xs border-2 px-2 py-1 ${activeZone === i ? 'border-black bg-black text-white' : 'border-stone-300 hover:border-black'}`}>
+              Zone {i + 1}{activeZone === i ? ' ✎' : ''}
+            </button>
+          ))}
+          <button
+            onClick={() => { setDirectionZones([...directionZones, { polygon: [], arrow: [] }]); setActiveZone(directionZones.length) }}
+            className="text-xs border-2 border-black px-2 py-1 hover:bg-black hover:text-white"
+          >
+            + Nieuwe zone
+          </button>
+          {directionZones.length > 0 && (
+            <button
+              onClick={() => { setDirectionZones(directionZones.filter((_, i) => i !== activeZone)); setActiveZone(Math.max(0, activeZone - 1)) }}
+              className="text-xs border border-stone-300 px-2 py-1 hover:border-black"
+            >
+              Verwijder zone {activeZone + 1}
+            </button>
+          )}
+        </div>
+        {snapshot ? (
+          <DirectionZonesEditor frameBase64={snapshot} zones={directionZones} activeIdx={activeZone} onChange={setDirectionZones} width={640} />
+        ) : (
+          <div className="border border-stone-200 h-32 flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
+            Waiting for snapshot…
+          </div>
+        )}
+        <div className="mt-3 flex gap-3 items-center">
+          <button
+            onClick={handleSaveZones}
+            disabled={savingZones}
+            className="border-2 border-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-black text-white hover:bg-stone-800 disabled:opacity-40"
+          >
+            {savingZones ? 'Saving…' : 'Save zones'}
+          </button>
+          <button
+            onClick={() => { setDirectionZones([]); setActiveZone(0) }}
+            disabled={directionZones.length === 0}
+            className="border border-stone-300 px-3 py-1.5 text-xs uppercase tracking-widest hover:border-black disabled:opacity-30"
+          >
+            Clear all
+          </button>
+          <span className="text-xs text-stone-400">{directionZones.length} zones</span>
         </div>
       </div>
 

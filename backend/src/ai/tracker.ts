@@ -59,6 +59,7 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
 const VEL_MAG_THRESHOLD = 20
 const MIN_FRAMES_FOR_DIRECTION = 3
 const IOU_WEIGHT = 0.7   // legacy IoU matcher: IoU fraction in combined score
+const TRACK_DEBUG = process.env.FLASH_TRACK_DEBUG === '1'   // log id-handoff diagnostics
 
 // --- Motion-gated association tuning (SORT Kalman + DeepSORT covariance gate +
 // OC-SORT direction consistency). A (track,det) pair is a candidate if the boxes
@@ -162,6 +163,29 @@ function iou(a: Box, b: Box): number {
 
 type VelInfo = { vx: number; vy: number; mag: number; confirmedFrames: number }
 
+// Ray-cast point-in-polygon on a flattened normalised polygon [x1,y1,...].
+function pointInPoly(nx: number, ny: number, poly: number[]): boolean {
+  if (poly.length < 6) return false
+  let inside = false
+  const n = poly.length / 2
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = poly[i * 2], yi = poly[i * 2 + 1]
+    const xj = poly[j * 2], yj = poly[j * 2 + 1]
+    if (((yi > ny) !== (yj > ny)) && (nx < ((xj - xi) * (ny - yi)) / (yj - yi) + xi)) inside = !inside
+  }
+  return inside
+}
+
+// Per-track zone context for the motion-gated matcher: which zone each track/det
+// is in, the zone's fixed heading (unit vector), and the frame size for normalising.
+type ZoneInfo = {
+  trackZone: number[]
+  detZone: number[]
+  trackDir: Array<{ x: number; y: number } | null>
+  frameW: number
+  frameH: number
+}
+
 function dirScore(vel: VelInfo | null, pred: Box, det: DetectionResult): number {
   if (!vel || vel.mag < VEL_MAG_THRESHOLD || vel.confirmedFrames < MIN_FRAMES_FOR_DIRECTION) return 0.5
   const dx = (det.x1 + det.x2) / 2 - (pred.x1 + pred.x2) / 2
@@ -231,6 +255,7 @@ function greedyMatchMotion(
   velocities: Array<VelInfo | null>,
   gateRadii: number[],
   lastCenters: Array<{ cx: number; cy: number }>,
+  zones?: ZoneInfo,
 ): Array<{ ti: number; di: number }> {
   const candidates: Array<{ ti: number; di: number; score: number }> = []
   for (const ti of trackIndices) {
@@ -252,7 +277,23 @@ function greedyMatchMotion(
       if (!overlaps && !withinGate) continue                          // dual gate
       // Heading from the last OBSERVED centre — robust to prediction overshoot.
       const ds = dirScoreRef(vel, last.cx, last.cy, det)
-      if (established && ds < REVERSE_DIR_SCORE && !overlaps) continue // reverse-direction veto
+      let vetoed = false
+      if (zones && zones.trackZone[ti] >= 0) {
+        // Track is in a direction zone: trust the zone's FIXED heading, not the KF.
+        if (zones.detZone[di] >= 0 && zones.detZone[di] !== zones.trackZone[ti]) {
+          vetoed = true   // detection is in a different lane → not the same car
+        }
+        const dir = zones.trackDir[ti]
+        if (!vetoed && established && dir && !overlaps) {
+          const ddx = (dcx - last.cx) / zones.frameW
+          const ddy = (dcy - last.cy) / zones.frameH
+          const m = Math.hypot(ddx, ddy)
+          if (m > 1e-9 && (((dir.x * ddx + dir.y * ddy) / m) + 1) / 2 < REVERSE_DIR_SCORE) vetoed = true
+        }
+      } else if (established && ds < REVERSE_DIR_SCORE && !overlaps) {
+        vetoed = true   // no zone → fall back to KF-heading reverse veto
+      }
+      if (vetoed) continue
       const distNorm = Math.min(centerDist / Math.max(gate, 1e-6), 1)
       const score = W_IOU * iouScore + W_DIST * (1 - distNorm) + W_DIR * ds
       candidates.push({ ti, di, score })
@@ -277,6 +318,9 @@ export class Tracker {
   private cfg: TrackerConfig
   private frameW = 768
   private frameH = 576
+  // Direction zones (normalised polygon + unit heading) — per-lane fixed-direction
+  // prior + same-zone association for the motion-gated matcher.
+  private dirZones: Array<{ poly: number[]; dir: { x: number; y: number } }> = []
 
   constructor(config?: Partial<TrackerConfig>) {
     this.cfg = { ...DEFAULT_TRACKER_CONFIG, ...config }
@@ -285,6 +329,17 @@ export class Tracker {
   /** Frame dimensions in pixels — used for edge-aware track persistence. */
   setFrameSize(w: number, h: number): void {
     if (w > 0 && h > 0) { this.frameW = w; this.frameH = h }
+  }
+
+  /** Set per-lane direction zones (normalised polygon + arrow [ax1,ay1,ax2,ay2]). */
+  setDirectionZones(zones: Array<{ polygon: number[]; arrow: number[] }>): void {
+    this.dirZones = (zones ?? [])
+      .filter((z) => Array.isArray(z.polygon) && z.polygon.length >= 6 && Array.isArray(z.arrow) && z.arrow.length === 4)
+      .map((z) => {
+        const dx = z.arrow[2] - z.arrow[0], dy = z.arrow[3] - z.arrow[1]
+        const m = Math.hypot(dx, dy) || 1
+        return { poly: z.polygon, dir: { x: dx / m, y: dy / m } }
+      })
   }
 
   update(detections: DetectionResult[], timestamp: number = Date.now()): TrackedVehicle[] {
@@ -331,10 +386,25 @@ export class Tracker {
         if (t.confirmedFrames < MIN_FRAMES_FOR_DIRECTION) s *= 2
         return Math.min(Math.max(s, GATE_MIN_PX), gmax)
       })
-      m1 = greedyMatchMotion(predicted, allTI, detections, highDI, iouStage1, velocities, gateRadii, lastCenters)
+      let zones: ZoneInfo | undefined
+      if (this.dirZones.length) {
+        const zoneOf = (px: number, py: number): number => {
+          const nx = px / this.frameW, ny = py / this.frameH
+          for (let z = 0; z < this.dirZones.length; z++) if (pointInPoly(nx, ny, this.dirZones[z].poly)) return z
+          return -1
+        }
+        const trackZone = lastCenters.map((c) => zoneOf(c.cx, c.cy))
+        zones = {
+          trackZone,
+          detZone: detections.map((d) => zoneOf((d.x1 + d.x2) / 2, d.y2)),  // ground point
+          trackDir: trackZone.map((z) => (z >= 0 ? this.dirZones[z].dir : null)),
+          frameW: this.frameW, frameH: this.frameH,
+        }
+      }
+      m1 = greedyMatchMotion(predicted, allTI, detections, highDI, iouStage1, velocities, gateRadii, lastCenters, zones)
       const matchedT1 = new Set(m1.map(m => m.ti))
       const unmatchedTI = allTI.filter(i => !matchedT1.has(i))
-      m2 = greedyMatchMotion(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities, gateRadii, lastCenters)
+      m2 = greedyMatchMotion(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities, gateRadii, lastCenters, zones)
     } else {
       m1 = greedyMatch(predicted, allTI, detections, highDI, iouStage1, velocities)
       const matchedT1 = new Set(m1.map(m => m.ti))
@@ -409,6 +479,19 @@ export class Tracker {
       const cy = (det.y1 + det.y2) / 2
       const w  = det.x2 - det.x1
       const h  = det.y2 - det.y1
+      // Diagnostic: a new id spawning right next to a confirmed track = an id swap.
+      // Log the geometry (dist, IoU, box-size mismatch, missed) to find the cause.
+      if (TRACK_DEBUG) {
+        let best: { id: number; d: number; iou: number; missed: number; bw: number; bh: number } | null = null
+        for (const t of this.tracks) {
+          if (t.confirmedFrames < minConfirmedFrames) continue
+          const d = Math.hypot(t.cx - cx, t.cy - cy)
+          if (!best || d < best.d) best = { id: t.id, d, iou: iou(t, det), missed: t.missedFrames, bw: t.w, bh: t.h }
+        }
+        if (best && best.d < 150) {
+          process.stderr.write(`[track-debug] new#${this.nextId} det(conf=${det.confidence.toFixed(2)} ${Math.round(w)}x${Math.round(h)}) near #${best.id} dist=${best.d.toFixed(0)} iou=${best.iou.toFixed(2)} missed=${best.missed} trackBox=${Math.round(best.bw)}x${Math.round(best.bh)}\n`)
+        }
+      }
       this.tracks.push({
         ...det,
         id: this.nextId++,

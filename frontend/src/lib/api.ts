@@ -46,8 +46,19 @@ export type Camera = {
   trackingConfig: TrackerConfig | null
   displaySlot: string | null
   roiPolygon: number[]
+  directionZones: Array<{ polygon: number[]; arrow: number[] }> | null
   createdAt: string
   updatedAt: string
+}
+
+export async function saveDirectionZones(id: string, directionZones: Array<{ polygon: number[]; arrow: number[] }>): Promise<void> {
+  const res = await fetch(`${BASE}/cameras/${id}/direction-zones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ directionZones }),
+  })
+  if (res.status === 401) clearAuthAndReload()
+  if (!res.ok) throw new Error('Failed to save direction zones')
 }
 
 export async function saveRoi(id: string, roiPolygon: number[]): Promise<void> {

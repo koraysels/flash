@@ -31,6 +31,7 @@ export type WorkerInitData = {
   trapSpeedEnabled: boolean
   trackingConfig: TrackerConfig
   roiPolygon: number[]
+  directionZones: Array<{ polygon: number[]; arrow: number[] }>
 }
 
 export type WorkerAnalyseMsg = {
@@ -64,24 +65,33 @@ export type WorkerResultMsg = {
 
 const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
 
-const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig, roiPolygon } = workerData as WorkerInitData
+const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig, roiPolygon, directionZones } = workerData as WorkerInitData
 
 // Ray-casting point-in-polygon on a flattened normalised polygon [x1,y1,x2,y2,...].
-function inRoi(nx: number, ny: number): boolean {
-  if (roiPolygon.length < 6) return true   // no/under-defined ROI → accept everything
+function pip(nx: number, ny: number, poly: number[]): boolean {
+  if (poly.length < 6) return false
   let inside = false
-  const n = roiPolygon.length / 2
+  const n = poly.length / 2
   for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = roiPolygon[i * 2], yi = roiPolygon[i * 2 + 1]
-    const xj = roiPolygon[j * 2], yj = roiPolygon[j * 2 + 1]
+    const xi = poly[i * 2], yi = poly[i * 2 + 1]
+    const xj = poly[j * 2], yj = poly[j * 2 + 1]
     if (((yi > ny) !== (yj > ny)) && (nx < ((xj - xi) * (ny - yi)) / (yj - yi) + xi)) inside = !inside
   }
   return inside
+}
+const zonePolys = (directionZones ?? []).map((z) => z.polygon)
+// Detection passes the road mask if: inside any direction zone (when zones defined),
+// else inside the ROI polygon (when defined), else always.
+function onRoad(nx: number, ny: number): boolean {
+  if (zonePolys.length) return zonePolys.some((p) => pip(nx, ny, p))
+  if (roiPolygon.length >= 6) return pip(nx, ny, roiPolygon)
+  return true
 }
 const trackingConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG, ...rawTrackingConfig }
 
 const detector = new Detector(MODEL_PATH)
 const tracker = new Tracker(trackingConfig)
+tracker.setDirectionZones(directionZones ?? [])
 let counter = new DirectionCounter(576, lineA, lineB, lineAPoints, lineBPoints)
 let speedCalc: SpeedCalculator | null = null
 
@@ -208,8 +218,8 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     // Road ROI mask: keep only detections whose ground-contact point (bottom-centre)
     // is on the road — drops off-road clutter (billboards, opposite carriageway,
     // parked) before tracking, cutting phantom tracks. No ROI → keep all.
-    const detections = roiPolygon.length >= 6
-      ? rawDetections.filter((d) => inRoi(((d.x1 + d.x2) / 2) / width, d.y2 / height))
+    const detections = (zonePolys.length || roiPolygon.length >= 6)
+      ? rawDetections.filter((d) => onRoad(((d.x1 + d.x2) / 2) / width, d.y2 / height))
       : rawDetections
     const t3 = performance.now()
 

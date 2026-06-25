@@ -32,6 +32,7 @@ model Camera {
   trackingConfig      Json?
   displaySlot         String?  @unique   // fixed kiosk slot (FLASH-PI-01/02/03) this camera is shown on
   roiPolygon          Float[]  // road ROI: flattened normalised [x1,y1,x2,y2,...]; detections whose ground point is outside are dropped. Empty = no mask.
+  directionZones      Json?    // [{polygon:[x1,y1,...], arrow:[ax1,ay1,ax2,ay2]}] normalised; per-lane fixed heading prior + same-zone association. Also acts as ROI when set.
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

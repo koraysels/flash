@@ -265,6 +265,20 @@ export async function cameraRoutes(app: FastifyInstance) {
       return reply.send({ ok: true, points: roiPolygon.length / 2 })
     })
 
+  // Per-lane direction zones: [{polygon:[...], arrow:[ax1,ay1,ax2,ay2]}] normalised.
+  // Fixed heading prior + same-zone association; also acts as the ROI. Restarts camera.
+  app.post<{ Params: { id: string }; Body: { directionZones: Array<{ polygon: number[]; arrow: number[] }> } }>(
+    '/api/cameras/:id/direction-zones', { preHandler: requireAuth }, async (req, reply) => {
+      const zones = Array.isArray(req.body?.directionZones)
+        ? req.body.directionZones
+            .filter((z) => Array.isArray(z?.polygon) && z.polygon.length >= 6 && Array.isArray(z?.arrow) && z.arrow.length === 4)
+            .map((z) => ({ polygon: z.polygon.map(Number).filter(Number.isFinite), arrow: z.arrow.map(Number) }))
+        : []
+      await db.camera.update({ where: { id: req.params.id }, data: { directionZones: zones as unknown as Prisma.InputJsonValue } })
+      getManager()?.restartCamera(req.params.id)
+      return reply.send({ ok: true, zones: zones.length })
+    })
+
   app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {
     const streamer = getStreamer(req.params.id)
     if (!streamer) {

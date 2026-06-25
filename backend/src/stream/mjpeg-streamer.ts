@@ -87,6 +87,7 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly calibrationHeight: number | null = null,
     private readonly location: string = '',
     private readonly roiPolygon: number[] = [],
+    private readonly directionZones: Array<{ polygon: number[]; arrow: number[] }> = [],
   ) {
     super()
   }
@@ -112,6 +113,7 @@ export class MJPEGStreamer extends EventEmitter {
         trapSpeedEnabled: this.trapSpeedEnabled,
         trackingConfig: this.trackingConfig,
         roiPolygon: this.roiPolygon,
+        directionZones: this.directionZones,
       }
 
       // tsx/cjs registers the CommonJS TypeScript hook, enabling extensionless
