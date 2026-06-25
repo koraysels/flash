@@ -172,6 +172,20 @@ function dirScore(vel: VelInfo | null, pred: Box, det: DetectionResult): number 
   return (cos + 1) / 2
 }
 
+// Heading score measured from the track's LAST OBSERVED centre (not the Kalman
+// prediction). The prediction overshoots a car whose image-speed is dropping
+// (e.g. receding), placing the detection "behind" it → a false reverse-direction
+// reading. Measuring from the last seen point gives the real motion since then.
+function dirScoreRef(vel: VelInfo | null, refCx: number, refCy: number, det: DetectionResult): number {
+  if (!vel || vel.mag < VEL_MAG_THRESHOLD || vel.confirmedFrames < MIN_FRAMES_FOR_DIRECTION) return 0.5
+  const dx = (det.x1 + det.x2) / 2 - refCx
+  const dy = (det.y1 + det.y2) / 2 - refCy
+  const m = Math.hypot(dx, dy)
+  if (m < 1e-6) return 0.5
+  const cos = (vel.vx * dx + vel.vy * dy) / (vel.mag * m)
+  return (cos + 1) / 2
+}
+
 function greedyMatch(
   predicted: Box[],
   trackIndices: number[],
@@ -216,6 +230,7 @@ function greedyMatchMotion(
   threshold: number,
   velocities: Array<VelInfo | null>,
   gateRadii: number[],
+  lastCenters: Array<{ cx: number; cy: number }>,
 ): Array<{ ti: number; di: number }> {
   const candidates: Array<{ ti: number; di: number; score: number }> = []
   for (const ti of trackIndices) {
@@ -224,6 +239,7 @@ function greedyMatchMotion(
     const pcy = (p.y1 + p.y2) / 2
     const gate = gateRadii[ti]
     const vel = velocities[ti]
+    const last = lastCenters[ti]
     const established = !!vel && vel.mag >= VEL_MAG_THRESHOLD && vel.confirmedFrames >= MIN_FRAMES_FOR_DIRECTION
     for (const di of detIndices) {
       const det = detections[di]
@@ -234,7 +250,8 @@ function greedyMatchMotion(
       const overlaps = iouScore >= threshold
       const withinGate = centerDist <= gate
       if (!overlaps && !withinGate) continue                          // dual gate
-      const ds = dirScore(vel, p, det)
+      // Heading from the last OBSERVED centre — robust to prediction overshoot.
+      const ds = dirScoreRef(vel, last.cx, last.cy, det)
       if (established && ds < REVERSE_DIR_SCORE && !overlaps) continue // reverse-direction veto
       const distNorm = Math.min(centerDist / Math.max(gate, 1e-6), 1)
       const score = W_IOU * iouScore + W_DIST * (1 - distNorm) + W_DIR * ds
@@ -294,6 +311,11 @@ export class Tracker {
       confirmedFrames: t.confirmedFrames,
     }))
 
+    // Last OBSERVED centre per track (predict() above mutates kf.cx/cy but not
+    // t.cx/cy, so these still hold the previous frame's settled centre) — used as
+    // the heading reference so prediction overshoot can't trigger a false veto.
+    const lastCenters = this.tracks.map((t) => ({ cx: t.cx, cy: t.cy }))
+
     const motionGated = this.cfg.motionGated
     let m1: Array<{ ti: number; di: number }>
     let m2: Array<{ ti: number; di: number }>
@@ -309,10 +331,10 @@ export class Tracker {
         if (t.confirmedFrames < MIN_FRAMES_FOR_DIRECTION) s *= 2
         return Math.min(Math.max(s, GATE_MIN_PX), gmax)
       })
-      m1 = greedyMatchMotion(predicted, allTI, detections, highDI, iouStage1, velocities, gateRadii)
+      m1 = greedyMatchMotion(predicted, allTI, detections, highDI, iouStage1, velocities, gateRadii, lastCenters)
       const matchedT1 = new Set(m1.map(m => m.ti))
       const unmatchedTI = allTI.filter(i => !matchedT1.has(i))
-      m2 = greedyMatchMotion(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities, gateRadii)
+      m2 = greedyMatchMotion(predicted, unmatchedTI, detections, lowDI, iouStage2, velocities, gateRadii, lastCenters)
     } else {
       m1 = greedyMatch(predicted, allTI, detections, highDI, iouStage1, velocities)
       const matchedT1 = new Set(m1.map(m => m.ti))
