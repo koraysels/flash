@@ -833,6 +833,18 @@ export default function CameraCalibrate() {
             </p>
           </div>
         </div>
+        <div className="mt-4 pt-3 border-t border-stone-200">
+          <button
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            className="text-xs uppercase tracking-widest border-2 border-black px-6 py-2 font-bold hover:bg-black hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? 'Saving…' : canSave
+              ? pairsCount >= 4 ? `Save calibration (${pairsCount} pairs)` : 'Save lines & speed limit'
+              : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
+          </button>
+          <span className="ml-3 text-xs text-stone-400">punten · lijnen · snelheidslimiet</span>
+        </div>
       </div>
 
       <div className="border-2 border-black p-4 mb-6">
@@ -929,16 +941,6 @@ export default function CameraCalibrate() {
         onSave={handleSaveTracking}
         saving={savingTracking}
       />
-
-      <button
-        onClick={handleSave}
-        disabled={!canSave || saving}
-        className="text-xs uppercase tracking-widest border-2 border-black px-6 py-2 hover:bg-black hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        {saving ? 'Saving…' : canSave
-          ? pairsCount >= 4 ? `Save (${pairsCount} pairs)` : 'Save lines & speed limit'
-          : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
-      </button>
     </div>
   )
 }
