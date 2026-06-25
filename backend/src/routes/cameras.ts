@@ -13,6 +13,9 @@ import { publishSpeed, mqttConnected, HLS_LATENCY_S, type SpeedEvent } from '../
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
 const hlsUrlCache = new Map<string, string>()
 
+// Fixed kiosk slots (match the Pi hostnames). One camera per slot.
+const DISPLAY_SLOTS = ['FLASH-PI-01', 'FLASH-PI-02', 'FLASH-PI-03']
+
 // ~4 frames at expected JPEG size (~40KB); keeps per-client buffering below ~200ms of latency
 const MJPEG_DROP_WATERMARK = 200 * 1024
 
@@ -217,6 +220,36 @@ export async function cameraRoutes(app: FastifyInstance) {
     publishSpeed(event)
     return reply.send({ ok: true, connected: mqttConnected(), payload: event })
   })
+
+  // Resolve a kiosk slug -> cameraId. Accepts a fixed slot name (FLASH-PI-01/02/03,
+  // case-insensitive) or a raw camera id. Public — the Pi kiosk has no login.
+  app.get<{ Params: { slug: string } }>('/api/display/:slug', async (req, reply) => {
+    const slug = req.params.slug
+    const bySlot = await db.camera.findFirst({ where: { displaySlot: slug.toUpperCase() } })
+    if (bySlot) return reply.send({ cameraId: bySlot.id, slot: bySlot.displaySlot })
+    const byId = await db.camera.findUnique({ where: { id: slug } })
+    if (byId) return reply.send({ cameraId: byId.id, slot: byId.displaySlot })
+    return reply.code(404).send({ error: 'Unknown display slug' })
+  })
+
+  // Assign which camera a fixed kiosk slot shows (slot is unique → frees it from
+  // any other camera first). slot null clears it.
+  app.post<{ Params: { id: string }; Body: { slot: string | null } }>(
+    '/api/cameras/:id/display-slot', { preHandler: requireAuth }, async (req, reply) => {
+      const { id } = req.params
+      let slot = req.body?.slot ?? null
+      if (slot !== null) {
+        slot = String(slot).toUpperCase()
+        if (!DISPLAY_SLOTS.includes(slot)) { reply.code(400).send({ error: 'Invalid slot' }); return }
+      }
+      await db.$transaction(async (tx) => {
+        if (slot !== null) {
+          await tx.camera.updateMany({ where: { displaySlot: slot, NOT: { id } }, data: { displaySlot: null } })
+        }
+        await tx.camera.update({ where: { id }, data: { displaySlot: slot } })
+      })
+      return reply.send({ ok: true, slot })
+    })
 
   app.get<{ Params: { id: string } }>('/api/cameras/:id/mjpeg', (req, reply) => {
     const streamer = getStreamer(req.params.id)

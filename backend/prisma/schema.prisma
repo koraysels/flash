@@ -30,6 +30,7 @@ model Camera {
   countingLineBPoints Float[] // same for line B
   trapSpeedEnabled    Boolean  @default(false)
   trackingConfig      Json?
+  displaySlot         String?  @unique   // fixed kiosk slot (FLASH-PI-01/02/03) this camera is shown on
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

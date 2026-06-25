@@ -44,8 +44,27 @@ export type Camera = {
   countingLineBPoints: number[]
   trapSpeedEnabled: boolean
   trackingConfig: TrackerConfig | null
+  displaySlot: string | null
   createdAt: string
   updatedAt: string
+}
+
+export const DISPLAY_SLOTS = ['FLASH-PI-01', 'FLASH-PI-02', 'FLASH-PI-03'] as const
+
+export async function setDisplaySlot(id: string, slot: string | null): Promise<void> {
+  const res = await fetch(`${BASE}/cameras/${id}/display-slot`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ slot }),
+  })
+  if (res.status === 401) clearAuthAndReload()
+  if (!res.ok) throw new Error('Failed to set display slot')
+}
+
+export async function resolveDisplay(slug: string): Promise<string> {
+  const res = await fetch(`${BASE}/display/${encodeURIComponent(slug)}`)
+  if (!res.ok) throw new Error('Unknown display slug')
+  return (await res.json()).cameraId as string
 }
 
 function authHeaders(): Record<string, string> {

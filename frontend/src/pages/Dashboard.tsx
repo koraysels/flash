@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCameras } from '../hooks/useCameras'
 import { useCameraFeed } from '../hooks/useCameraFeed'
 import { CameraStream } from '../components/CameraStream'
-import { Camera, resetCounts, testMqttFlash } from '../lib/api'
+import { Camera, resetCounts, testMqttFlash, setDisplaySlot, DISPLAY_SLOTS } from '../lib/api'
 import type { TrapMeasurement } from '../hooks/useCameraFeed'
 
 function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null; label: string }) {
@@ -57,8 +58,14 @@ function TrapLog({ measurements, maxSpeedKmh }: { measurements: TrapMeasurement[
 
 function CameraCard({ cam }: { cam: Camera }) {
   const [resetting, setResetting] = useState(false)
+  const qc = useQueryClient()
   const { aiFps, videoFps, counts, avgSpeedKmh, active, recentTrapMeasurements } = useCameraFeed(cam.id)
   const totalVehicles = counts.AB + counts.BA
+
+  const onSlotChange = async (slot: string) => {
+    await setDisplaySlot(cam.id, slot || null)
+    qc.invalidateQueries({ queryKey: ['cameras'] })
+  }
 
   return (
     <div className="border-2 border-black bg-white">
@@ -72,6 +79,19 @@ function CameraCard({ cam }: { cam: Camera }) {
           >
             Calibrate / tracking →
           </a>
+          <div className="mt-1">
+            <select
+              value={cam.displaySlot ?? ''}
+              onChange={(e) => onSlotChange(e.target.value)}
+              className="text-xs border border-stone-300 px-1 py-0.5 bg-white hover:border-black"
+              title="Which fixed Pi kiosk shows this camera"
+            >
+              <option value="">— no Pi —</option>
+              {DISPLAY_SLOTS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
         </div>
         {active ? (
           <div className="flex items-center gap-3 text-xs tabular-nums">
@@ -188,6 +208,24 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Fixed Pi kiosk slots — put these URLs on each Pi; assign cameras via the
+          dropdown on each card below. */}
+      <div className="border-2 border-black mb-6 text-xs">
+        <p className="px-3 py-1.5 border-b-2 border-black font-bold uppercase tracking-widest">Pi kiosk slots</p>
+        {DISPLAY_SLOTS.map((s) => {
+          const cam = cameras.find((c) => c.displaySlot === s)
+          const url = `${window.location.origin}/display/${s}`
+          return (
+            <div key={s} className="flex items-center gap-3 px-3 py-1.5 border-b border-stone-200 last:border-b-0">
+              <span className="font-mono font-bold w-24 shrink-0">{s}</span>
+              <a href={url} target="_blank" rel="noreferrer" className="font-mono underline text-stone-500 hover:text-black truncate flex-1">{url}</a>
+              <span className={`shrink-0 ${cam ? 'text-black' : 'text-stone-400'}`}>{cam ? cam.name : '— unassigned —'}</span>
+            </div>
+          )
+        })}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {cameras.map((cam) => (
           <CameraCard key={cam.id} cam={cam} />

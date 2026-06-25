@@ -1,10 +1,28 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import Hls from 'hls.js'
+import { resolveDisplay } from '../lib/api'
 
 export default function PiDisplay() {
-  const { cameraId } = useParams<{ cameraId: string }>()
+  const { cameraId: slug } = useParams<{ cameraId: string }>()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [cameraId, setCameraId] = useState<string | null>(null)
+  const [error, setError] = useState(false)
+
+  // Resolve the URL slug — a fixed kiosk slot (FLASH-PI-01/02/03) or a raw camera
+  // id — to the real cameraId. Re-poll periodically so re-assigning the slot in
+  // the dashboard switches the Pi without touching the Pi.
+  useEffect(() => {
+    if (!slug) return
+    let cancelled = false
+    const resolve = () =>
+      resolveDisplay(slug)
+        .then((id) => { if (!cancelled) { setCameraId((prev) => (prev === id ? prev : id)); setError(false) } })
+        .catch(() => { if (!cancelled) setError(true) })
+    resolve()
+    const t = setInterval(resolve, 15_000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [slug])
 
   useEffect(() => {
     const video = videoRef.current
@@ -43,6 +61,11 @@ export default function PiDisplay() {
 
   return (
     <div className="fixed inset-0 bg-black">
+      {error && !cameraId && (
+        <div className="absolute inset-0 flex items-center justify-center text-stone-500 text-sm uppercase tracking-widest">
+          No camera assigned to "{slug}"
+        </div>
+      )}
       <video
         ref={videoRef}
         muted
