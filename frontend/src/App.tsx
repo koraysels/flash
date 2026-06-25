@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard'
 import Cameras from './pages/Cameras'
 import CameraCalibrate from './pages/CameraCalibrate'
 import PiDisplay from './pages/PiDisplay'
+import CameraDisplay from './pages/CameraDisplay'
 import PinGate from './components/PinGate'
 
 function Layout() {
@@ -48,7 +49,8 @@ export default function App() {
           <Route path="/cameras" element={<Cameras />} />
           <Route path="/cameras/:id/calibrate" element={<CameraCalibrate />} />
         </Route>
-        <Route path="/display/:cameraId" element={<PiDisplay />} />
+        <Route path="/camera/:cameraId" element={<CameraDisplay />} />
+        <Route path="/display/:slug" element={<PiDisplay />} />
       </Routes>
     </BrowserRouter>
   )

@@ -73,12 +73,22 @@ function CameraCard({ cam }: { cam: Camera }) {
         <div>
           <p className="font-bold text-sm uppercase tracking-wide">{cam.name}</p>
           <p className="text-xs text-stone-500">{cam.location}</p>
-          <a
-            href={`/cameras/${cam.id}/calibrate`}
-            className="text-xs underline text-stone-500 hover:text-black"
-          >
-            Calibrate / tracking →
-          </a>
+          <div className="flex gap-3">
+            <a
+              href={`/cameras/${cam.id}/calibrate`}
+              className="text-xs underline text-stone-500 hover:text-black"
+            >
+              Calibrate / tracking →
+            </a>
+            <a
+              href={`/camera/${cam.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs underline text-stone-500 hover:text-black"
+            >
+              Fullscreen ↗
+            </a>
+          </div>
           <div className="mt-1">
             <select
               value={cam.displaySlot ?? ''}
