@@ -44,6 +44,7 @@ export function connectMqtt(): void {
     console.warn('[mqtt] MQTT_PASS not set — speed publisher disabled')
     return
   }
+  console.log(`[mqtt] connecting to mqtt://${HOST}:${PORT} (user=${USER}, topic=${TOPIC})`)
   client = mqtt.connect(`mqtt://${HOST}:${PORT}`, {
     username: USER,
     password: PASS,
