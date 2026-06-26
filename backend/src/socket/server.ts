@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http'
 import { Server as SocketServer } from 'socket.io'
-import { writeFile, readFile, mkdir } from 'fs/promises'
+import { writeFile, readFile, mkdir, unlink } from 'fs/promises'
 import { join } from 'path'
 
 export type VehicleInfo = {
@@ -107,4 +107,12 @@ export async function getLatestFrameOrDisk(cameraId: string): Promise<string | u
 
 export function evictCameraFrame(cameraId: string): void {
   latestFrames.delete(cameraId)
+}
+
+// Remove the persisted preview too — only on actual camera deletion (a mere stop
+// keeps the file so the last preview survives a restart).
+export async function removeSnapshotFile(cameraId: string): Promise<void> {
+  latestFrames.delete(cameraId)
+  lastDiskWrite.delete(cameraId)
+  try { await unlink(join(SNAP_DIR, `${cameraId}.jpg`)) } catch { /* already gone */ }
 }

@@ -29,6 +29,9 @@ services:
               capabilities: [gpu]
     volumes:
       - flash_models:/app/backend/models
+      # Last-frame preview cache: one overwritten JPEG per camera, so size is
+      # bounded by camera count (≈100 KB each) and never grows over time.
+      - flash_snapshots:/app/backend/data/snapshots
     networks:
       - flash
 
@@ -54,3 +57,4 @@ networks:
 
 volumes:
   flash_models:
+  flash_snapshots:

@@ -109,6 +109,8 @@ export async function cameraRoutes(app: FastifyInstance) {
   app.delete<{ Params: { id: string } }>('/api/cameras/:id', { preHandler: requireAuth }, async (req, reply) => {
     try {
       await db.camera.delete({ where: { id: req.params.id } })
+      const { removeSnapshotFile } = await import('../socket/server')
+      await removeSnapshotFile(req.params.id)
       reply.code(204).send()
     } catch (err) {
       handlePrismaError(err, reply)
