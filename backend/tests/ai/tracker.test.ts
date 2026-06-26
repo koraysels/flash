@@ -281,6 +281,21 @@ describe('Tracker motion-gated association', () => {
     expect(d2).toBeLessThan(d1)
   })
 
+  it('renders the box on the detection, not ahead of a decelerating car', () => {
+    const t = new Tracker({ motionGated: true })
+    t.setFrameSize(768, 576)
+    let ts = 1000
+    // Car decelerating in image (deltas 60→50→40→30) — constant-velocity KF would
+    // overshoot ahead of each measurement; the rendered box must stay on the car.
+    const xs = [100, 160, 210, 250, 280]
+    let rep: ReturnType<typeof t.update> = []
+    for (const x of xs) { rep = t.update([car(x, 100)], ts); ts += 100 }
+    expect(rep).toHaveLength(1)
+    const lastMeasCenter = xs[xs.length - 1] + 50  // car() box is 100 wide
+    // Box centre must not float ahead of where the detector last saw the car.
+    expect(rep[0].cx).toBeLessThanOrEqual(lastMeasCenter + 12)
+  })
+
   it('legacy IoU path is unchanged (default config)', () => {
     const t = new Tracker()   // motionGated defaults false
     t.update([car(100, 100)], 1000)

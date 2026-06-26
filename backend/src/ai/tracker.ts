@@ -81,6 +81,7 @@ const REVERSE_DIR_SCORE = 0.35 // dirScore below this = against heading → veto
 const NEW_TRACK_SUPPRESS_IOU = 0.2  // unmatched high-conf det overlapping a confirmed track this much = duplicate/swap, not a new car → don't spawn
 const NEW_TRACK_PROX_FRAC = 0.6     // OR: within this fraction of a box-size of a SAME-ZONE confirmed track = same car (Kalman overshoot lowered IoU to ~0) → don't spawn
 const COAST_VEL_DAMP = 0.75         // each coasted (unmatched) frame, decay velocity by this — a lost box slows instead of flying ahead at stale speed (perspective decel / occlusion). 0.75^6≈0.18 after a full gap
+const RENDER_MEAS_WEIGHT = 0.7      // matched-frame box render: weight toward the raw detection centre vs the Kalman centre — kills the predict-lead so the box sits on the car (remainder keeps a little KF jitter-damping)
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
@@ -427,13 +428,21 @@ export class Tracker {
       const det = detections[di]
       const r   = rMeas(det.confidence)
 
-      t.kf.update((det.x1 + det.x2) / 2, (det.y1 + det.y2) / 2, r)
+      const mcx = (det.x1 + det.x2) / 2, mcy = (det.y1 + det.y2) / 2
+      t.kf.update(mcx, mcy, r)
       t.w = boxEmaAlpha * (det.x2 - det.x1) + (1 - boxEmaAlpha) * t.w
       t.h = boxEmaAlpha * (det.y2 - det.y1) + (1 - boxEmaAlpha) * t.h
 
-      t.x1 = t.kf.cx - t.w / 2; t.y1 = t.kf.cy - t.h / 2
-      t.x2 = t.kf.cx + t.w / 2; t.y2 = t.kf.cy + t.h / 2
-      t.cx = t.kf.cx; t.cy = t.kf.cy
+      // Render the box on the MEASUREMENT (where the detector actually saw the car),
+      // not the Kalman-predicted centre: predict() leads by a full frame of velocity
+      // and update() only partly corrects it, so a fast car's box floats ahead. The
+      // KF still drives velocity/coasting/gating — this only moves the drawn box (and
+      // the bcx/bcy used for counting) onto the car. A little KF weight damps jitter.
+      const rcx = RENDER_MEAS_WEIGHT * mcx + (1 - RENDER_MEAS_WEIGHT) * t.kf.cx
+      const rcy = RENDER_MEAS_WEIGHT * mcy + (1 - RENDER_MEAS_WEIGHT) * t.kf.cy
+      t.x1 = rcx - t.w / 2; t.y1 = rcy - t.h / 2
+      t.x2 = rcx + t.w / 2; t.y2 = rcy + t.h / 2
+      t.cx = rcx; t.cy = rcy
       t.bcx = t.cx; t.bcy = t.y2 - t.h * 0.05
 
       t.confidence = det.confidence
