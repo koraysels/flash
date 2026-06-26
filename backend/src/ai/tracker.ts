@@ -80,6 +80,7 @@ const W_DIR = 0.15
 const REVERSE_DIR_SCORE = 0.35 // dirScore below this = against heading → veto unless boxes overlap
 const NEW_TRACK_SUPPRESS_IOU = 0.2  // unmatched high-conf det overlapping a confirmed track this much = duplicate/swap, not a new car → don't spawn
 const NEW_TRACK_PROX_FRAC = 0.6     // OR: within this fraction of a box-size of a SAME-ZONE confirmed track = same car (Kalman overshoot lowered IoU to ~0) → don't spawn
+const COAST_VEL_DAMP = 0.75         // each coasted (unmatched) frame, decay velocity by this — a lost box slows instead of flying ahead at stale speed (perspective decel / occlusion). 0.75^6≈0.18 after a full gap
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
@@ -457,6 +458,12 @@ export class Tracker {
       if (!matchedTSet.has(ti)) {
         const t = this.tracks[ti]
         t.missedFrames++
+        // Damp velocity while coasting so the predicted box doesn't run ahead of a
+        // car that has slowed (perspective) or vanished behind an occluder. Without
+        // this the box leads the car further every missed frame (the "box precedes
+        // the car" overshoot). Next frame's predict() uses the decayed velocity.
+        t.kf.vx *= COAST_VEL_DAMP
+        t.kf.vy *= COAST_VEL_DAMP
         t.cx = t.kf.cx; t.cy = t.kf.cy
         t.x1 = t.cx - t.w / 2; t.y1 = t.cy - t.h / 2
         t.x2 = t.cx + t.w / 2; t.y2 = t.cy + t.h / 2

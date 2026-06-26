@@ -262,6 +262,25 @@ describe('Tracker motion-gated association', () => {
     expect(rep[0].id).toBe(id)
   })
 
+  it('decelerates a coasted box instead of running it ahead at stale speed', () => {
+    const t = new Tracker({ motionGated: true })
+    t.setFrameSize(768, 576)
+    let ts = 1000
+    // Establish a fast rightward track.
+    for (let x = 100; x <= 280; x += 60) { t.update([car(x, 100)], ts); ts += 100 }
+    // Now lose it — capture the coasted centre each missed frame.
+    const xs: number[] = []
+    for (let i = 0; i < 4; i++) {
+      const rep = t.update([], ts); ts += 100
+      if (rep.length) xs.push(rep[0].cx)
+    }
+    expect(xs.length).toBeGreaterThanOrEqual(3)
+    // Per-frame advance must shrink (decelerating), not stay constant.
+    const d1 = xs[1] - xs[0]
+    const d2 = xs[2] - xs[1]
+    expect(d2).toBeLessThan(d1)
+  })
+
   it('legacy IoU path is unchanged (default config)', () => {
     const t = new Tracker()   // motionGated defaults false
     t.update([car(100, 100)], 1000)
