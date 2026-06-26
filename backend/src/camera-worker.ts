@@ -124,6 +124,7 @@ export class CameraWorkerManager {
         camera.location,
         (camera.roiPolygon as number[] | null) ?? [],
         (camera.directionZones as Array<{ polygon: number[]; arrow: number[] }> | null) ?? [],
+        camera.displaySlot,
       )
       await streamer.init()
       streamer.start()

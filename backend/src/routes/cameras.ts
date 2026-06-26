@@ -45,6 +45,41 @@ export async function cameraRoutes(app: FastifyInstance) {
     return camera
   })
 
+  // Duplicate a camera with all its calibration/tracking config, for A/B tuning.
+  // The clone never inherits the kiosk slot (displaySlot is unique anyway) so it
+  // tracks/counts/previews but fires no real-world strobe until you assign it.
+  app.post<{ Params: { id: string } }>('/api/cameras/:id/duplicate', { preHandler: requireAuth }, async (req, reply) => {
+    try {
+      const src = await db.camera.findUniqueOrThrow({ where: { id: req.params.id } })
+      const camera = await db.camera.create({
+        data: {
+          name: `${src.name} (copy)`,
+          location: src.location,
+          streamUrl: src.streamUrl,
+          active: src.active,
+          maxSpeedKmh: src.maxSpeedKmh,
+          homographyMatrix: src.homographyMatrix,
+          calibrationPoints: src.calibrationPoints === null ? Prisma.JsonNull : (src.calibrationPoints as Prisma.InputJsonValue),
+          calibrationWidth: src.calibrationWidth,
+          calibrationHeight: src.calibrationHeight,
+          countingLineA: src.countingLineA,
+          countingLineB: src.countingLineB,
+          countingLineAPoints: src.countingLineAPoints,
+          countingLineBPoints: src.countingLineBPoints,
+          trapSpeedEnabled: src.trapSpeedEnabled,
+          trackingConfig: src.trackingConfig === null ? Prisma.JsonNull : (src.trackingConfig as Prisma.InputJsonValue),
+          roiPolygon: src.roiPolygon,
+          directionZones: src.directionZones === null ? Prisma.JsonNull : (src.directionZones as Prisma.InputJsonValue),
+          // displaySlot intentionally omitted → null
+        },
+      })
+      reply.code(201)
+      return camera
+    } catch (err) {
+      handlePrismaError(err, reply)
+    }
+  })
+
   app.put<{
     Params: { id: string }
     Body: Partial<{

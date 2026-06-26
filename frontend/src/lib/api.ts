@@ -152,6 +152,16 @@ export async function deleteCamera(id: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete camera')
 }
 
+export async function duplicateCamera(id: string): Promise<Camera> {
+  const res = await fetch(`${BASE}/cameras/${id}/duplicate`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  if (res.status === 401) clearAuthAndReload()
+  if (!res.ok) throw new Error('Failed to duplicate camera')
+  return res.json()
+}
+
 export type CalibrationPoint = {
   px: number
   py: number

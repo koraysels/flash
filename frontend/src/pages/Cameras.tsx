@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCameras, useCreateCamera, useDeleteCamera, useUpdateCamera } from '../hooks/useCameras'
+import { useCameras, useCreateCamera, useDeleteCamera, useUpdateCamera, useDuplicateCamera } from '../hooks/useCameras'
 
 export default function Cameras() {
   const { data: cameras, isLoading, error } = useCameras()
   const createCamera = useCreateCamera()
   const deleteCamera = useDeleteCamera()
   const updateCamera = useUpdateCamera()
+  const duplicateCamera = useDuplicateCamera()
 
   const [form, setForm] = useState({ name: '', location: '', streamUrl: '' })
   const [showForm, setShowForm] = useState(false)
@@ -174,6 +175,14 @@ export default function Cameras() {
                   >
                     Calibrate
                   </Link>
+                  <button
+                    onClick={() => duplicateCamera.mutate(cam.id)}
+                    disabled={duplicateCamera.isPending}
+                    title="Clone this camera's config (no Pi slot, no strobe) for A/B tuning"
+                    className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
+                  >
+                    {duplicateCamera.isPending ? '…' : 'Duplicate'}
+                  </button>
                   <button
                     onClick={() => deleteCamera.mutate(cam.id)}
                     disabled={deleteCamera.isPending}

@@ -88,6 +88,10 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly location: string = '',
     private readonly roiPolygon: number[] = [],
     private readonly directionZones: Array<{ polygon: number[]; arrow: number[] }> = [],
+    // Only cameras assigned to a Pi kiosk slot fire the physical MQTT strobe.
+    // Unassigned cameras (e.g. tuning duplicates) still track/count/preview, but
+    // must not trigger real-world flashes.
+    private readonly displaySlot: string | null = null,
   ) {
     super()
   }
@@ -147,7 +151,8 @@ export class MJPEGStreamer extends EventEmitter {
           if (msg.annotatedJpeg) this.annotatedEncoder?.pushFrame(msg.annotatedJpeg)
 
           // Side-channel: publish confident speed events to MQTT (non-blocking).
-          if (msg.speedEvents) {
+          // Gated to Pi-assigned cameras only — no strobe for unassigned/tuning cams.
+          if (this.displaySlot && msg.speedEvents) {
             for (const e of msg.speedEvents) {
               publishSpeed({
                 feed: this.cameraId,

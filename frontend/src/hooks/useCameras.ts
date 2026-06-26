@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCameras, createCamera, updateCamera, deleteCamera, Camera } from '../lib/api'
+import { getCameras, createCamera, updateCamera, deleteCamera, duplicateCamera, Camera } from '../lib/api'
 
 export function useCameras() {
   return useQuery({
@@ -30,6 +30,14 @@ export function useDeleteCamera() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: deleteCamera,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cameras'] }),
+  })
+}
+
+export function useDuplicateCamera() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: duplicateCamera,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cameras'] }),
   })
 }
