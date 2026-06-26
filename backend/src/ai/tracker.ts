@@ -78,7 +78,8 @@ const W_IOU = 0.5              // cost weights (sum = 1)
 const W_DIST = 0.35
 const W_DIR = 0.15
 const REVERSE_DIR_SCORE = 0.35 // dirScore below this = against heading → veto unless boxes overlap
-const NEW_TRACK_SUPPRESS_IOU = 0.3 // unmatched high-conf det overlapping a confirmed track this much = duplicate/swap, not a new car → don't spawn
+const NEW_TRACK_SUPPRESS_IOU = 0.2  // unmatched high-conf det overlapping a confirmed track this much = duplicate/swap, not a new car → don't spawn
+const NEW_TRACK_PROX_FRAC = 0.6     // OR: within this fraction of a box-size of a SAME-ZONE confirmed track = same car (Kalman overshoot lowered IoU to ~0) → don't spawn
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
@@ -498,16 +499,22 @@ export class Tracker {
           near = { id: t.id, iou: iou(t, det), d, missed: t.missedFrames, cx: t.cx, cy: t.cy }
         }
       }
-      const suppress = !!near && near.iou > NEW_TRACK_SUPPRESS_IOU
-      // Diagnostic (per-camera trackDebug): every new id within 200px of a confirmed
-      // track = a candidate swap. Marked SUPPRESS (guard caught it) or SPAWN (slipped
-      // through → needs a different rule). detZone/trackZone reveal whether the swap
-      // crosses a direction zone — i.e. whether the direction maps could catch it.
+      // Two suppression signals, both meaning "same car, not a new one":
+      //  1. overlap — IoU above threshold (duplicate box / class flip).
+      //  2. SAME-ZONE proximity — Kalman overshoot after occlusion runs the track
+      //     box ahead of the car, dropping IoU to ~0; but if the orphan detection
+      //     sits within ~half a box of a confirmed track IN THE SAME DIRECTION ZONE,
+      //     it's that car re-detected behind its own prediction, not a new one.
+      //     Gated by same-zone so we never merge across lanes (that veto caused
+      //     swaps before — c2465d5 — but here it suppresses a SPAWN, never a match).
+      const dz = near ? this.zoneOf((det.x1 + det.x2) / 2, det.y2) : -1
+      const tz = near ? this.zoneOf(near.cx, near.cy) : -1
+      const sameZone = dz >= 0 && dz === tz
+      const proxPx = NEW_TRACK_PROX_FRAC * Math.max(w, h)
+      const suppress = !!near && (near.iou > NEW_TRACK_SUPPRESS_IOU || (sameZone && near.d < proxPx))
       if (this.cfg.trackDebug && near && near.d < 200) {
-        const dz = this.zoneOf((det.x1 + det.x2) / 2, det.y2)
-        const tz = this.zoneOf(near.cx, near.cy)
         const tag = suppress ? 'SUPPRESS' : `SPAWN#${this.nextId}`
-        process.stderr.write(`[track-debug] ${tag} det(conf=${det.confidence.toFixed(2)} ${Math.round(w)}x${Math.round(h)}) near #${near.id} dist=${near.d.toFixed(0)} iou=${near.iou.toFixed(2)} missed=${near.missed} detZone=${dz} trackZone=${tz}${dz >= 0 && dz === tz ? ' SAME-ZONE' : ''}\n`)
+        process.stderr.write(`[track-debug] ${tag} det(conf=${det.confidence.toFixed(2)} ${Math.round(w)}x${Math.round(h)}) near #${near.id} dist=${near.d.toFixed(0)} iou=${near.iou.toFixed(2)} missed=${near.missed} detZone=${dz} trackZone=${tz}${sameZone ? ' SAME-ZONE' : ''}\n`)
       }
       if (suppress) continue
       this.tracks.push({

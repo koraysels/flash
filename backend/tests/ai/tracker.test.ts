@@ -240,6 +240,28 @@ describe('Tracker motion-gated association', () => {
     expect(rep[0].id).toBe(id)
   })
 
+  it('does not spawn a twin from a low-IoU same-zone detection (occlusion overshoot)', () => {
+    // After occlusion the Kalman box overshoots ahead of the car, so the
+    // re-detection behind it has near-zero IoU with its own track. If it lands in
+    // the same direction zone within ~half a box, it's that car — not a new id.
+    const wide = (x1: number, y1: number): DetectionResult => ({
+      x1, y1, x2: x1 + 100, y2: y1 + 40, confidence: 0.9, class: 'car',
+    })
+    const t = new Tracker({ motionGated: true })
+    t.setFrameSize(768, 576)
+    t.setDirectionZones([{ polygon: [0, 0, 1, 0, 1, 1, 0, 1], arrow: [0.1, 0.5, 0.9, 0.5] }])
+    let ts = 1000
+    t.update([wide(100, 100)], ts); ts += 100
+    const est = t.update([wide(130, 100)], ts); ts += 100
+    expect(est).toHaveLength(1)
+    const id = est[0].id
+    // Frame: the car (matched) + an orphan re-detection shifted down (IoU ~0.07),
+    // same zone, within half a box. Must not become a second id.
+    const rep = t.update([wide(160, 100), wide(160, 135)], ts); ts += 100
+    expect(rep).toHaveLength(1)
+    expect(rep[0].id).toBe(id)
+  })
+
   it('legacy IoU path is unchanged (default config)', () => {
     const t = new Tracker()   // motionGated defaults false
     t.update([car(100, 100)], 1000)
