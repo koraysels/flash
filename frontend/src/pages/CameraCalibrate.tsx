@@ -6,6 +6,8 @@ import useImage from 'use-image'
 import { FramePointPicker } from '../components/FramePointPicker'
 import { ROIEditor } from '../components/ROIEditor'
 import { DirectionZonesEditor, type Zone } from '../components/DirectionZonesEditor'
+import { Tabs, TabPanel } from '../components/ui/Tabs'
+import { Panel, SectionTitle, Toggle, Button } from '../components/ui/primitives'
 import {
   getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig, saveRoi, saveDirectionZones,
   type Camera, type CalibrationPoint, type TrackerConfig, DEFAULT_TRACKER_CONFIG,
@@ -170,127 +172,121 @@ interface TrackingTuningProps {
   saving: boolean
 }
 
+// Sliders grouped by what they control, so the 10 knobs read as a few coherent
+// sections instead of a flat wall. `note` is conditional on motion-gated mode.
+const SLIDER_GROUPS: { label: string; keys: (keyof TrackerConfig)[]; note?: (motionGated: boolean) => string | null }[] = [
+  { label: 'Detectie', keys: ['highConfidence'] },
+  {
+    label: 'ID-matching (IoU)',
+    keys: ['iouStage1', 'iouStage2'],
+    note: (mg) => (mg ? 'Met motion-gated aan is dit enkel de overlap-helft van de gate — minder kritisch.' : null),
+  },
+  { label: 'Track-leven', keys: ['maxPredictedGap', 'maxMissedFrames', 'minConfirmedFrames'] },
+  {
+    label: 'Bewegingsmodel (Kalman)',
+    keys: ['qPos', 'qVel', 'boxEmaAlpha'],
+    note: (mg) => (mg ? 'Drijft de motion-gated gate én de coasting — hier zit de meeste winst.' : 'Drijft de coasting-voorspelling.'),
+  },
+  { label: 'Snelheidsfilter', keys: ['speedPlausibilityKmh'] },
+]
+
+function SliderRow({ def, value, onChange }: { def: SliderDef; value: number; onChange: (v: number) => void }) {
+  const fmt = def.format ?? String
+  const pct = ((value - def.min) / (def.max - def.min)) * 100
+  return (
+    <div>
+      <div className="flex justify-between items-baseline mb-1">
+        <label className="text-xs font-bold uppercase tracking-widest">{def.label}</label>
+        <span className="text-xs font-mono tabular-nums text-black">{fmt(value)}</span>
+      </div>
+      <input
+        type="range"
+        min={def.min}
+        max={def.max}
+        step={def.step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full accent-black h-1.5 cursor-pointer"
+        style={{ background: `linear-gradient(to right,#000 ${pct}%,#d6d3d1 ${pct}%)` }}
+      />
+      <div className="flex justify-between text-[10px] text-stone-400 mt-0.5 mb-1.5">
+        <span>{def.min}</span>
+        <span>{def.max}</span>
+      </div>
+      <p className="text-[11px] text-stone-500">{def.description}</p>
+      <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-stone-400">
+        <span className="uppercase tracking-wider text-stone-300">Zie je dit? → doe dit:</span>
+        <span>{def.symptomLow} <b className="text-stone-700">→ zet hoger ↑</b></span>
+        <span>{def.symptomHigh} <b className="text-stone-700">→ zet lager ↓</b></span>
+      </div>
+    </div>
+  )
+}
+
 function TrackingTuning({ config, onChange, onSave, saving }: TrackingTuningProps) {
-  const set = (key: keyof TrackerConfig, value: number) =>
-    onChange({ ...config, [key]: value })
-
-  const applyPreset = (preset: Partial<TrackerConfig>) =>
-    onChange({ ...DEFAULT_TRACKER_CONFIG, ...preset })
-
+  const set = (key: keyof TrackerConfig, value: number) => onChange({ ...config, [key]: value })
+  const applyPreset = (preset: Partial<TrackerConfig>) => onChange({ ...DEFAULT_TRACKER_CONFIG, ...preset })
   const isDefault = JSON.stringify(config) === JSON.stringify(DEFAULT_TRACKER_CONFIG)
+  const mg = config.motionGated
 
   return (
-    <div className="border-2 border-black p-4 mb-6">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest">Tracking Tuning</p>
-          <p className="text-xs text-stone-500 mt-0.5">
-            Pas de tracker-parameters aan voor deze camera. Sla op → camera herstart direct.
-          </p>
-        </div>
-        <button
-          onClick={() => onChange({ ...DEFAULT_TRACKER_CONFIG })}
-          disabled={isDefault}
-          className="text-xs uppercase tracking-widest border border-stone-300 px-2 py-1 hover:border-black disabled:opacity-30 transition-colors"
-        >
-          Reset
-        </button>
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <SectionTitle title="Tracking tuning" hint="Pas de tracker-parameters aan voor deze camera. Opslaan → camera herstart direct." />
+        <Button variant="ghost" onClick={() => onChange({ ...DEFAULT_TRACKER_CONFIG })} disabled={isDefault}>Reset</Button>
       </div>
 
       {/* Presets */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      <div className="flex flex-wrap gap-2">
         {Object.entries(PRESETS).map(([key, preset]) => (
           <button
             key={key}
             onClick={() => applyPreset(preset)}
-            className="text-xs border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
             title={preset.description}
+            className="text-xs border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
           >
             {preset.label}
           </button>
         ))}
       </div>
 
-      {/* Matcher mode toggle */}
-      <div className="flex items-center justify-between border-2 border-black bg-stone-50 px-3 py-2 mb-5">
-        <div className="pr-3">
-          <p className="text-xs font-bold uppercase tracking-widest">Motion-gated matcher</p>
-          <p className="text-[11px] text-stone-500 mt-0.5">
-            Experimenteel: Kalman covariance-gate + richting-veto i.p.v. enkel IoU.
-            Minder ID-verlies bij snelle/voorspelbare beweging. Sla op om te A/B-testen.
-          </p>
+      {/* Mode toggles */}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="flex items-center justify-between border-2 border-black bg-stone-50 px-3 py-2">
+          <div className="pr-3">
+            <p className="text-xs font-bold uppercase tracking-widest">Motion-gated matcher</p>
+            <p className="text-[11px] text-stone-500 mt-0.5">Kalman covariance-gate i.p.v. enkel IoU. Minder ID-verlies bij voorspelbare beweging.</p>
+          </div>
+          <Toggle on={mg} onChange={(v) => onChange({ ...config, motionGated: v })} />
         </div>
-        <button
-          onClick={() => onChange({ ...config, motionGated: !config.motionGated })}
-          className={`shrink-0 text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 transition-colors ${config.motionGated ? 'bg-black text-white' : 'bg-white text-black hover:bg-stone-100'}`}
-        >
-          {config.motionGated ? 'AAN' : 'UIT'}
-        </button>
+        <div className="flex items-center justify-between border-2 border-black bg-stone-50 px-3 py-2">
+          <div className="pr-3">
+            <p className="text-xs font-bold uppercase tracking-widest">ID-swap debug logging</p>
+            <p className="text-[11px] text-stone-500 mt-0.5">Logt swap-diagnostiek naar de backend-console (SUPPRESS/SPAWN + zone). Enkel tijdens diagnose.</p>
+          </div>
+          <Toggle on={config.trackDebug} onChange={(v) => onChange({ ...config, trackDebug: v })} />
+        </div>
       </div>
 
-      {/* Track-debug logging toggle */}
-      <div className="flex items-center justify-between border-2 border-black bg-stone-50 px-3 py-2 mb-5">
-        <div className="pr-3">
-          <p className="text-xs font-bold uppercase tracking-widest">ID-swap debug logging</p>
-          <p className="text-[11px] text-stone-500 mt-0.5">
-            Logt elke nieuwe ID die vlak naast een bestaande track ontstaat naar de
-            backend-console (SUPPRESS = tegengehouden, SPAWN = glipt erdoor), met zone-info.
-            Alleen aanzetten tijdens diagnose — anders ruis.
-          </p>
-        </div>
-        <button
-          onClick={() => onChange({ ...config, trackDebug: !config.trackDebug })}
-          className={`shrink-0 text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 transition-colors ${config.trackDebug ? 'bg-black text-white' : 'bg-white text-black hover:bg-stone-100'}`}
-        >
-          {config.trackDebug ? 'AAN' : 'UIT'}
-        </button>
-      </div>
-
-      {/* Sliders */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-        {SLIDER_DEFS.map((def) => {
-          const val = config[def.key] as number
-          const fmt = def.format ?? String
-          const pct = ((val - def.min) / (def.max - def.min)) * 100
-          return (
-            <div key={def.key}>
-              <div className="flex justify-between items-baseline mb-1">
-                <label className="text-xs font-bold uppercase tracking-widest">{def.label}</label>
-                <span className="text-xs font-mono tabular-nums text-black">{fmt(val)}</span>
-              </div>
-              <input
-                type="range"
-                min={def.min}
-                max={def.max}
-                step={def.step}
-                value={val}
-                onChange={(e) => set(def.key, parseFloat(e.target.value))}
-                className="w-full accent-black h-1.5 cursor-pointer"
-                style={{ background: `linear-gradient(to right,#000 ${pct}%,#d6d3d1 ${pct}%)` }}
-              />
-              <div className="flex justify-between text-[10px] text-stone-400 mt-0.5 mb-1.5">
-                <span>{def.min}</span>
-                <span>{def.max}</span>
-              </div>
-              <p className="text-[11px] text-stone-500">{def.description}</p>
-              {/* Symptom → remedy: see the problem on the left, do the action on the right. */}
-              <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-stone-400">
-                <span className="uppercase tracking-wider text-stone-300">Zie je dit? → doe dit:</span>
-                <span>{def.symptomLow} <b className="text-stone-700">→ zet hoger ↑</b></span>
-                <span>{def.symptomHigh} <b className="text-stone-700">→ zet lager ↓</b></span>
-              </div>
+      {/* Grouped sliders */}
+      {SLIDER_GROUPS.map((group) => {
+        const note = group.note?.(mg)
+        return (
+          <div key={group.label}>
+            <div className="flex flex-wrap items-baseline gap-2 border-b border-stone-300 pb-1 mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-stone-600">{group.label}</span>
+              {note && <span className="text-[10px] text-stone-400">{note}</span>}
             </div>
-          )
-        })}
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+              {group.keys.map((k) => (
+                <SliderRow key={k} def={SLIDER_DEFS.find((d) => d.key === k)!} value={config[k] as number} onChange={(v) => set(k, v)} />
+              ))}
+            </div>
+          </div>
+        )
+      })}
 
-      <button
-        onClick={onSave}
-        disabled={saving}
-        className="mt-5 text-xs uppercase tracking-widest border-2 border-black px-5 py-2 hover:bg-black hover:text-white disabled:opacity-30 transition-colors"
-      >
-        {saving ? 'Opslaan…' : 'Tracking opslaan & camera herstarten'}
-      </button>
+      <Button onClick={onSave} disabled={saving}>{saving ? 'Opslaan…' : 'Tracking opslaan & camera herstarten'}</Button>
     </div>
   )
 }
@@ -714,6 +710,16 @@ export default function CameraCalibrate() {
         </div>
       )}
 
+      <Tabs
+        defaultValue="calib"
+        tabs={[
+          { value: 'calib', label: 'Calibration', hint: 'Point pairs ↔ map → homography' },
+          { value: 'count', label: 'Counting & Speed', hint: 'Counting lines, speed limit, method' },
+          { value: 'tracking', label: 'Tracking', hint: 'Tracker tuning + matcher' },
+          { value: 'zones', label: 'Zones', hint: 'Road ROI + direction zones' },
+        ]}
+      >
+      <TabPanel value="calib">
       {/* Status bar */}
       <div className="flex items-center gap-4 mb-3 text-xs">
         <span className={`uppercase tracking-widest font-bold ${pairsCount >= 4 ? 'text-black' : hasExistingHomography ? 'text-stone-400' : 'text-stone-600'}`}>
@@ -726,7 +732,7 @@ export default function CameraCalibrate() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">① Camera image — click landmarks</p>
           {snapshot ? (
@@ -799,8 +805,17 @@ export default function CameraCalibrate() {
         </div>
       </div>
 
-      {/* Counting lines + settings */}
-      <div className="border-2 border-black p-4 mb-6">
+      {/* Save persists points + lines + speed together (one saveCalibration call). */}
+      <div className="pt-3 border-t border-stone-200 flex items-center gap-3">
+        <Button onClick={handleSave} disabled={!canSave || saving}>
+          {saving ? 'Saving…' : canSave ? (pairsCount >= 4 ? `Save calibration (${pairsCount} pairs)` : 'Save lines & speed limit') : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
+        </Button>
+        <span className="text-xs text-stone-400">punten · lijnen · snelheidslimiet</span>
+      </div>
+      </TabPanel>
+
+      <TabPanel value="count">
+      <Panel>
         <p className="text-xs font-bold uppercase tracking-widest mb-1">Counting Lines</p>
         <p className="text-xs text-stone-500 mb-3">
           Drag endpoints to align each line across the road.
@@ -851,21 +866,26 @@ export default function CameraCalibrate() {
             </p>
           </div>
         </div>
-        <div className="mt-4 pt-3 border-t border-stone-200">
-          <button
-            onClick={handleSave}
-            disabled={!canSave || saving}
-            className="text-xs uppercase tracking-widest border-2 border-black px-6 py-2 font-bold hover:bg-black hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? 'Saving…' : canSave
-              ? pairsCount >= 4 ? `Save calibration (${pairsCount} pairs)` : 'Save lines & speed limit'
-              : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
-          </button>
-          <span className="ml-3 text-xs text-stone-400">punten · lijnen · snelheidslimiet</span>
+        <div className="mt-4 pt-3 border-t border-stone-200 flex items-center gap-3">
+          <Button onClick={handleSave} disabled={!canSave || saving}>
+            {saving ? 'Saving…' : canSave ? (pairsCount >= 4 ? `Save calibration (${pairsCount} pairs)` : 'Save lines & speed limit') : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
+          </Button>
+          <span className="text-xs text-stone-400">punten · lijnen · snelheidslimiet</span>
         </div>
-      </div>
+      </Panel>
+      </TabPanel>
 
-      <div className="border-2 border-black p-4 mb-6">
+      <TabPanel value="tracking">
+        <TrackingTuning
+          config={trackingConfig}
+          onChange={setTrackingConfig}
+          onSave={handleSaveTracking}
+          saving={savingTracking}
+        />
+      </TabPanel>
+
+      <TabPanel value="zones">
+      <Panel className="mb-4">
         <p className="text-xs font-bold uppercase tracking-widest">Road ROI mask</p>
         <p className="text-xs text-stone-500 mt-0.5 mb-3">
           Click to paint the drivable road. Detections whose ground point falls outside are
@@ -896,9 +916,9 @@ export default function CameraCalibrate() {
           </button>
           <span className="text-xs text-stone-400">{roiPolygon.length / 2} points</span>
         </div>
-      </div>
+      </Panel>
 
-      <div className="border-2 border-black p-4 mb-6">
+      <Panel>
         <p className="text-xs font-bold uppercase tracking-widest">Richting-zones (per rijrichting)</p>
         <p className="text-xs text-stone-500 mt-0.5 mb-3">
           Teken een zone per rijrichting en sleep de pijl in de rijrichting. De tracker gebruikt
@@ -951,14 +971,9 @@ export default function CameraCalibrate() {
           </button>
           <span className="text-xs text-stone-400">{directionZones.length} zones</span>
         </div>
-      </div>
-
-      <TrackingTuning
-        config={trackingConfig}
-        onChange={setTrackingConfig}
-        onSave={handleSaveTracking}
-        saving={savingTracking}
-      />
+      </Panel>
+      </TabPanel>
+      </Tabs>
     </div>
   )
 }
