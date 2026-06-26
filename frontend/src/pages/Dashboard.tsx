@@ -5,6 +5,7 @@ import { useCameraFeed } from '../hooks/useCameraFeed'
 import { CameraStream } from '../components/CameraStream'
 import { Camera, resetCounts, testMqttFlash, setDisplaySlot, DISPLAY_SLOTS } from '../lib/api'
 import type { TrapMeasurement } from '../hooks/useCameraFeed'
+import { Spinner, LoadingOverlay } from '../components/ui/Spinner'
 
 function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null; label: string }) {
   const now = Date.now()
@@ -112,19 +113,25 @@ function CameraCard({ cam }: { cam: Camera }) {
             </span>
           </div>
         ) : (
-          <span className="text-xs text-stone-400 border border-stone-300 px-2 py-0.5">STARTING</span>
+          <span className="text-xs text-stone-500 border border-stone-300 px-2 py-0.5 flex items-center gap-1.5">
+            <Spinner className="h-3 w-3" />
+            STARTING
+          </span>
         )}
       </div>
 
-      <CameraStream
-        cameraId={cam.id}
-        lineA={cam.countingLineA}
-        lineB={cam.countingLineB}
-        lineAPoints={cam.countingLineAPoints}
-        lineBPoints={cam.countingLineBPoints}
-        maxSpeedKmh={cam.maxSpeedKmh}
-        className="aspect-[4/3]"
-      />
+      <div className="relative">
+        <CameraStream
+          cameraId={cam.id}
+          lineA={cam.countingLineA}
+          lineB={cam.countingLineB}
+          lineAPoints={cam.countingLineAPoints}
+          lineBPoints={cam.countingLineBPoints}
+          maxSpeedKmh={cam.maxSpeedKmh}
+          className="aspect-[4/3]"
+        />
+        {!active && <LoadingOverlay label="Starting…" sub="camera connecting / restarting — please wait" />}
+      </div>
 
       <div className="grid grid-cols-3 border-t-2 border-black">
         <div className="py-3 text-center border-r-2 border-black">
@@ -195,7 +202,7 @@ export default function Dashboard() {
     }
   }
 
-  if (isLoading) return <div className="text-stone-400 text-xs uppercase tracking-widest p-8">Loading...</div>
+  if (isLoading) return <div className="flex items-center gap-2 text-stone-400 text-xs uppercase tracking-widest p-8"><Spinner /> Loading…</div>
   if (error) return <div className="text-red-600 text-xs uppercase tracking-widest p-8">Failed to load cameras</div>
   if (!cameras?.length) return (
     <div className="p-8 text-xs text-stone-500 uppercase tracking-widest">
