@@ -68,44 +68,18 @@ function CameraCard({ cam }: { cam: Camera }) {
     qc.invalidateQueries({ queryKey: ['cameras'] })
   }
 
+  const calibrated = cam.homographyMatrix?.length === 9
+
   return (
     <div className="border-2 border-black bg-white">
-      <div className="flex justify-between items-center px-3 py-2 border-b-2 border-black">
-        <div>
-          <p className="font-bold text-sm uppercase tracking-wide">{cam.name}</p>
-          <p className="text-xs text-stone-500">{cam.location}</p>
-          <div className="flex gap-3">
-            <a
-              href={`/cameras/${cam.id}/calibrate`}
-              className="text-xs underline text-stone-500 hover:text-black"
-            >
-              Calibrate / tracking →
-            </a>
-            <a
-              href={`/camera/${cam.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs underline text-stone-500 hover:text-black"
-            >
-              Fullscreen ↗
-            </a>
-          </div>
-          <div className="mt-1">
-            <select
-              value={cam.displaySlot ?? ''}
-              onChange={(e) => onSlotChange(e.target.value)}
-              className="text-xs border border-stone-300 px-1 py-0.5 bg-white hover:border-black"
-              title="Which fixed Pi kiosk shows this camera"
-            >
-              <option value="">— no Pi —</option>
-              {DISPLAY_SLOTS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
+      {/* Header: identity + live status only */}
+      <div className="flex justify-between items-start px-3 py-2 border-b-2 border-black">
+        <div className="min-w-0">
+          <p className="font-bold text-sm uppercase tracking-wide truncate">{cam.name}</p>
+          <p className="text-xs text-stone-500 truncate">{cam.location}</p>
         </div>
         {active ? (
-          <div className="flex items-center gap-3 text-xs tabular-nums">
+          <div className="flex items-center gap-3 text-xs tabular-nums shrink-0">
             <span className="text-stone-400">{videoFps}fps</span>
             <span className="border border-black px-1.5 py-0.5 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
@@ -113,7 +87,7 @@ function CameraCard({ cam }: { cam: Camera }) {
             </span>
           </div>
         ) : (
-          <span className="text-xs text-stone-500 border border-stone-300 px-2 py-0.5 flex items-center gap-1.5">
+          <span className="text-xs text-stone-500 border border-stone-300 px-2 py-0.5 flex items-center gap-1.5 shrink-0">
             <Spinner className="h-3 w-3" />
             STARTING
           </span>
@@ -152,32 +126,55 @@ function CameraCard({ cam }: { cam: Camera }) {
         <TrapLog measurements={recentTrapMeasurements} maxSpeedKmh={cam.maxSpeedKmh} />
       )}
 
+      {/* Speed status strip (info only — no navigation here) */}
       <div className="flex items-center justify-between px-3 py-2 border-t-2 border-black text-xs">
         <span>
-          {cam.homographyMatrix?.length === 9
+          {calibrated
             ? avgSpeedKmh !== null
               ? <span className="font-bold">AVG {Math.round(avgSpeedKmh)} KM/H</span>
               : <span className="text-stone-500">SPEED CALIBRATED</span>
-            : <a href={`/cameras/${cam.id}/calibrate`} className="underline text-stone-500 hover:text-black">CALIBRATE →</a>}
+            : <span className="text-amber-600 font-bold uppercase tracking-widest">Not calibrated</span>}
         </span>
-        <div className="flex items-center gap-4">
-          {cam.maxSpeedKmh != null && counts.speeders > 0 && (
-            <span className="text-red-600 font-bold">{counts.speeders}× &gt;{cam.maxSpeedKmh}</span>
-          )}
-          <a href={`/display/${cam.id}`} target="_blank" rel="noopener noreferrer" className="text-stone-500 underline hover:text-black">
-            DISPLAY →
-          </a>
-          <button
-            onClick={async () => {
-              setResetting(true)
-              try { await resetCounts(cam.id) } finally { setResetting(false) }
-            }}
-            disabled={resetting}
-            className="border border-black px-2 py-0.5 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
-          >
-            RESET
-          </button>
-        </div>
+        {cam.maxSpeedKmh != null && counts.speeders > 0 && (
+          <span className="text-red-600 font-bold">{counts.speeders}× &gt;{cam.maxSpeedKmh}</span>
+        )}
+      </div>
+
+      {/* Action bar — one consistent place for every camera action */}
+      <div className="flex items-center gap-2 px-3 py-2 border-t-2 border-black">
+        <select
+          value={cam.displaySlot ?? ''}
+          onChange={(e) => onSlotChange(e.target.value)}
+          title="Which fixed Pi kiosk shows this camera"
+          className="text-xs uppercase tracking-wide border border-black px-1.5 py-1 bg-white hover:bg-stone-50 focus:outline-none"
+        >
+          <option value="">— No Pi —</option>
+          {DISPLAY_SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <a
+          href={`/cameras/${cam.id}/calibrate`}
+          className="text-xs uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+        >
+          {calibrated ? 'Calibrate' : 'Calibrate ⚠'}
+        </a>
+        <a
+          href={`/camera/${cam.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+        >
+          Live ↗
+        </a>
+        <button
+          onClick={async () => {
+            setResetting(true)
+            try { await resetCounts(cam.id) } finally { setResetting(false) }
+          }}
+          disabled={resetting}
+          className="ml-auto text-xs uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
+        >
+          {resetting ? '…' : 'Reset'}
+        </button>
       </div>
     </div>
   )
