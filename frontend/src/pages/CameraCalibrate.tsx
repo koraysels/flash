@@ -228,6 +228,24 @@ function TrackingTuning({ config, onChange, onSave, saving }: TrackingTuningProp
         </button>
       </div>
 
+      {/* Track-debug logging toggle */}
+      <div className="flex items-center justify-between border-2 border-black bg-stone-50 px-3 py-2 mb-5">
+        <div className="pr-3">
+          <p className="text-xs font-bold uppercase tracking-widest">ID-swap debug logging</p>
+          <p className="text-[11px] text-stone-500 mt-0.5">
+            Logt elke nieuwe ID die vlak naast een bestaande track ontstaat naar de
+            backend-console (SUPPRESS = tegengehouden, SPAWN = glipt erdoor), met zone-info.
+            Alleen aanzetten tijdens diagnose — anders ruis.
+          </p>
+        </div>
+        <button
+          onClick={() => onChange({ ...config, trackDebug: !config.trackDebug })}
+          className={`shrink-0 text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 transition-colors ${config.trackDebug ? 'bg-black text-white' : 'bg-white text-black hover:bg-stone-100'}`}
+        >
+          {config.trackDebug ? 'AAN' : 'UIT'}
+        </button>
+      </div>
+
       {/* Sliders */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
         {SLIDER_DEFS.map((def) => {

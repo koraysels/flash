@@ -222,6 +222,24 @@ describe('Tracker motion-gated association', () => {
     }
   })
 
+  it('does not spawn a phantom twin from a duplicate overlapping detection', () => {
+    // YOLO sometimes emits two overlapping boxes for one vehicle (large/long
+    // vehicles, car/truck class flip). Stage-1 matches one to the track; the
+    // other unmatched high-conf box must NOT birth a second id on top of it.
+    const t = new Tracker({ motionGated: true })
+    t.setFrameSize(768, 576)
+    let ts = 1000
+    t.update([car(100, 100)], ts); ts += 100
+    const est = t.update([car(112, 104)], ts); ts += 100
+    expect(est).toHaveLength(1)
+    const id = est[0].id
+    // Two consecutive frames of duplicate detections (so a phantom would confirm).
+    t.update([car(124, 108), car(130, 112)], ts); ts += 100
+    const rep = t.update([car(136, 112), car(142, 116)], ts); ts += 100
+    expect(rep).toHaveLength(1)
+    expect(rep[0].id).toBe(id)
+  })
+
   it('legacy IoU path is unchanged (default config)', () => {
     const t = new Tracker()   // motionGated defaults false
     t.update([car(100, 100)], 1000)

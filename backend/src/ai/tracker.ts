@@ -35,6 +35,9 @@ export type TrackerConfig = {
   /** Use the motion-gated matcher (Kalman covariance gate + direction veto)
    *  instead of the legacy IoU-only matcher. Toggle per camera to A/B test. */
   motionGated: boolean
+  /** Log id-swap diagnostics to stderr: every new id spawning within 200px of a
+   *  confirmed track, marked SUPPRESS (guard caught it) or SPAWN (slipped through). */
+  trackDebug: boolean
 }
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
@@ -54,12 +57,12 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   qVel: 0.05,
   speedPlausibilityKmh: 170,
   motionGated: false,   // default to the proven legacy IoU matcher
+  trackDebug: false,
 }
 
 const VEL_MAG_THRESHOLD = 20
 const MIN_FRAMES_FOR_DIRECTION = 3
 const IOU_WEIGHT = 0.7   // legacy IoU matcher: IoU fraction in combined score
-const TRACK_DEBUG = process.env.FLASH_TRACK_DEBUG === '1'   // log id-handoff diagnostics
 
 // --- Motion-gated association tuning (SORT Kalman + DeepSORT covariance gate +
 // OC-SORT direction consistency). A (track,det) pair is a candidate if the boxes
@@ -75,6 +78,7 @@ const W_IOU = 0.5              // cost weights (sum = 1)
 const W_DIST = 0.35
 const W_DIR = 0.15
 const REVERSE_DIR_SCORE = 0.35 // dirScore below this = against heading → veto unless boxes overlap
+const NEW_TRACK_SUPPRESS_IOU = 0.3 // unmatched high-conf det overlapping a confirmed track this much = duplicate/swap, not a new car → don't spawn
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
@@ -333,6 +337,14 @@ export class Tracker {
       })
   }
 
+  /** Direction-zone index containing pixel point (px,py), or -1 if none/unset. */
+  private zoneOf(px: number, py: number): number {
+    if (!this.dirZones.length) return -1
+    const nx = px / this.frameW, ny = py / this.frameH
+    for (let z = 0; z < this.dirZones.length; z++) if (pointInPoly(nx, ny, this.dirZones[z].poly)) return z
+    return -1
+  }
+
   update(detections: DetectionResult[], timestamp: number = Date.now()): TrackedVehicle[] {
     const { highConfidence, iouStage1, iouStage2, maxPredictedGap, maxMissedFrames, minConfirmedFrames, boxEmaAlpha } = this.cfg
 
@@ -472,19 +484,32 @@ export class Tracker {
       const cy = (det.y1 + det.y2) / 2
       const w  = det.x2 - det.x1
       const h  = det.y2 - det.y1
-      // Diagnostic: a new id spawning right next to a confirmed track = an id swap.
-      // Log the geometry (dist, IoU, box-size mismatch, missed) to find the cause.
-      if (TRACK_DEBUG) {
-        let best: { id: number; d: number; iou: number; missed: number; bw: number; bh: number } | null = null
-        for (const t of this.tracks) {
-          if (t.confirmedFrames < minConfirmedFrames) continue
-          const d = Math.hypot(t.cx - cx, t.cy - cy)
-          if (!best || d < best.d) best = { id: t.id, d, iou: iou(t, det), missed: t.missedFrames, bw: t.w, bh: t.h }
-        }
-        if (best && best.d < 150) {
-          process.stderr.write(`[track-debug] new#${this.nextId} det(conf=${det.confidence.toFixed(2)} ${Math.round(w)}x${Math.round(h)}) near #${best.id} dist=${best.d.toFixed(0)} iou=${best.iou.toFixed(2)} missed=${best.missed} trackBox=${Math.round(best.bw)}x${Math.round(best.bh)}\n`)
+      // An unmatched high-conf detection that lands ON TOP of a confirmed track is
+      // a duplicate detection (YOLO double-box on large/long vehicles, car/truck
+      // class flip) or a missed greedy match — NOT a new vehicle. Two real cars
+      // can't occupy the same pixels, so a high IoU here is always the same car.
+      // Spawning a new id was the id-swap. Suppress it; the existing track keeps
+      // its id and re-matches this detection next frame.
+      let near: { id: number; iou: number; d: number; missed: number; cx: number; cy: number } | null = null
+      for (const t of this.tracks) {
+        if (t.confirmedFrames < minConfirmedFrames) continue
+        const d = Math.hypot(t.cx - cx, t.cy - cy)
+        if (!near || d < near.d) {
+          near = { id: t.id, iou: iou(t, det), d, missed: t.missedFrames, cx: t.cx, cy: t.cy }
         }
       }
+      const suppress = !!near && near.iou > NEW_TRACK_SUPPRESS_IOU
+      // Diagnostic (per-camera trackDebug): every new id within 200px of a confirmed
+      // track = a candidate swap. Marked SUPPRESS (guard caught it) or SPAWN (slipped
+      // through → needs a different rule). detZone/trackZone reveal whether the swap
+      // crosses a direction zone — i.e. whether the direction maps could catch it.
+      if (this.cfg.trackDebug && near && near.d < 200) {
+        const dz = this.zoneOf((det.x1 + det.x2) / 2, det.y2)
+        const tz = this.zoneOf(near.cx, near.cy)
+        const tag = suppress ? 'SUPPRESS' : `SPAWN#${this.nextId}`
+        process.stderr.write(`[track-debug] ${tag} det(conf=${det.confidence.toFixed(2)} ${Math.round(w)}x${Math.round(h)}) near #${near.id} dist=${near.d.toFixed(0)} iou=${near.iou.toFixed(2)} missed=${near.missed} detZone=${dz} trackZone=${tz}${dz >= 0 && dz === tz ? ' SAME-ZONE' : ''}\n`)
+      }
+      if (suppress) continue
       this.tracks.push({
         ...det,
         id: this.nextId++,
