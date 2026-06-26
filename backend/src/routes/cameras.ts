@@ -349,8 +349,8 @@ export async function cameraRoutes(app: FastifyInstance) {
   })
 
   app.get<{ Params: { id: string } }>('/api/cameras/:id/snapshot', async (req, reply) => {
-    const { getLatestFrame } = await import('../socket/server')
-    const frame = getLatestFrame(req.params.id)
+    const { getLatestFrameOrDisk } = await import('../socket/server')
+    const frame = await getLatestFrameOrDisk(req.params.id)
     if (!frame) {
       reply.code(404)
       return { error: 'No frame available yet — make sure the camera stream is active' }

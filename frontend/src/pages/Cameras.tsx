@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCameras, useCreateCamera, useDeleteCamera, useUpdateCamera, useDuplicateCamera } from '../hooks/useCameras'
+import { CameraThumbnail } from '../components/CameraThumbnail'
 
 export default function Cameras() {
   const { data: cameras, isLoading, error } = useCameras()
@@ -46,7 +47,7 @@ export default function Cameras() {
   if (error) return <div className="text-xs text-red-600 uppercase tracking-widest">Failed to load cameras.</div>
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <div className="flex justify-between items-center mb-6">
         <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Camera Management</p>
         <button
@@ -154,21 +155,35 @@ export default function Cameras() {
                 </div>
               </div>
             ) : (
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-bold uppercase">{cam.name}</p>
-                  <p className="text-xs text-stone-500">{cam.location}</p>
-                  {cam.maxSpeedKmh && (
-                    <p className="text-xs text-stone-400 mt-0.5">MAX {cam.maxSpeedKmh} KM/H</p>
-                  )}
+              <div className="flex justify-between items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <CameraThumbnail cameraId={cam.id} className="w-24 aspect-[4/3] border border-black shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold uppercase truncate">{cam.name}</p>
+                    <p className="text-xs text-stone-500 truncate">{cam.location}</p>
+                    {cam.maxSpeedKmh && (
+                      <p className="text-xs text-stone-400 mt-0.5">MAX {cam.maxSpeedKmh} KM/H</p>
+                    )}
+                    {cam.displaySlot && (
+                      <p className="text-[10px] text-stone-400 mt-0.5 font-mono">{cam.displaySlot}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => startEdit(cam)}
                     className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
                   >
                     Edit
                   </button>
+                  <a
+                    href={`/camera/${cam.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+                  >
+                    Live ↗
+                  </a>
                   <Link
                     to={`/cameras/${cam.id}/calibrate`}
                     className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
