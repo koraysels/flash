@@ -269,9 +269,12 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
         // Trap mode: time between line A and B crossings — speed locked in after both crossed
         if (!v.isPredicted) trapCalc.update(v.id, v.bcx, v.bcy, ny, lineAY, lineBY, msg.frameTime)
         speedKmh = trapCalc.getSpeed(v.id)
-        if (speedKmh !== null && !countedSpeeders.has(v.id)) {
+        // Only true speeders enter countedSpeeders — it both dedups the count AND
+        // drives the red strobe (annotator). Adding sub-limit cars here strobed
+        // them red without counting them. Matches the continuous-mode gating above.
+        if (speedKmh !== null && maxSpeedKmh !== null && speedKmh > maxSpeedKmh && !countedSpeeders.has(v.id)) {
           countedSpeeders.add(v.id)
-          if (maxSpeedKmh !== null && speedKmh > maxSpeedKmh) speeders++
+          speeders++
         }
       } else if (speedCalc) {
         // Continuous mode: EMA-smoothed homography speed with zone-based speeder detection
