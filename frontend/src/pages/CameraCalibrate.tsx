@@ -389,6 +389,7 @@ export default function CameraCalibrate() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [camera, setCamera] = useState<Camera | null>(null)
+  const [allCameras, setAllCameras] = useState<Camera[]>([])
   const [snapshot, setSnapshot] = useState<string | null>(null)
   const [snapshotDims, setSnapshotDims] = useState<{ w: number; h: number } | null>(null)
   const [imagePoints, setImagePoints] = useState<Pt[]>([])
@@ -439,6 +440,7 @@ export default function CameraCalibrate() {
 
     getCameras().then((cams) => {
       if (cancelled) return
+      setAllCameras(cams)
       const cam = cams.find((c) => c.id === id)
       if (!cam) return
       setCamera(cam)
@@ -671,6 +673,12 @@ export default function CameraCalibrate() {
   const hasExistingHomography = (camera?.homographyMatrix?.length ?? 0) === 9
   const canSave = (pairsCount >= 4 && imagePoints.length === mapPoints.length) || hasExistingHomography
 
+  // Camera switcher — jump straight to another camera's calibrate page (full nav
+  // for clean state) instead of going back to the list and in again.
+  const camIdx = allCameras.findIndex((c) => c.id === id)
+  const prevCam = camIdx > 0 ? allCameras[camIdx - 1] : null
+  const nextCam = camIdx >= 0 && camIdx < allCameras.length - 1 ? allCameras[camIdx + 1] : null
+
   return (
     <div className="max-w-screen-2xl">
       <div className="flex justify-between items-center mb-6">
@@ -679,9 +687,33 @@ export default function CameraCalibrate() {
           <h1 className="text-lg font-bold uppercase">{camera?.name ?? '...'}</h1>
           <p className="text-xs text-stone-500">{camera?.location}</p>
         </div>
-        <button onClick={() => navigate('/cameras')} className="text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors">
-          ← Back
-        </button>
+        <div className="flex items-center gap-2">
+          {allCameras.length > 1 && (
+            <div className="flex items-stretch border-2 border-black">
+              <a
+                href={prevCam ? `/cameras/${prevCam.id}/calibrate` : undefined}
+                title={prevCam ? `← ${prevCam.name}` : 'First camera'}
+                className={`flex items-center px-2 text-xs transition-colors ${prevCam ? 'hover:bg-black hover:text-white' : 'opacity-30 pointer-events-none'}`}
+              >←</a>
+              <select
+                value={id}
+                onChange={(e) => { window.location.href = `/cameras/${e.target.value}/calibrate` }}
+                title="Jump to another camera"
+                className="text-xs uppercase tracking-wide border-x-2 border-black px-2 py-1.5 bg-white focus:outline-none max-w-[11rem]"
+              >
+                {allCameras.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <a
+                href={nextCam ? `/cameras/${nextCam.id}/calibrate` : undefined}
+                title={nextCam ? `${nextCam.name} →` : 'Last camera'}
+                className={`flex items-center px-2 text-xs transition-colors ${nextCam ? 'hover:bg-black hover:text-white' : 'opacity-30 pointer-events-none'}`}
+              >→</a>
+            </div>
+          )}
+          <button onClick={() => navigate('/cameras')} className="text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors">
+            ← Back
+          </button>
+        </div>
       </div>
 
       <CalibrationHelp />
