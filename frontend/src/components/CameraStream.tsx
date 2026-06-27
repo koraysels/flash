@@ -103,10 +103,18 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
     if (rect.width === 0 || rect.height === 0) return
 
     const dpr = window.devicePixelRatio || 1
-    canvas.width = rect.width * dpr
-    canvas.height = rect.height * dpr
+    const cw = Math.round(rect.width * dpr)
+    const ch = Math.round(rect.height * dpr)
     const ctx = canvas.getContext('2d')!
-    ctx.scale(dpr, dpr)
+    // Only resize when the dimensions actually change — assigning canvas.width/height
+    // clears the canvas, and recomputeLayout runs on every MJPEG frame. Clearing it
+    // each frame made the overlay flicker between the clear and the next draw.
+    if (canvas.width !== cw || canvas.height !== ch) {
+      canvas.width = cw
+      canvas.height = ch
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.scale(dpr, dpr)
+    }
 
     const fw = frameSizeRef.current?.width ?? img.naturalWidth
     const fh = frameSizeRef.current?.height ?? img.naturalHeight
