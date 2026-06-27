@@ -5,6 +5,7 @@ import { authRoutes } from './auth'
 import { initSocketServer } from './socket/server'
 import { CameraWorkerManager, setManager } from './camera-worker'
 import { connectMqtt } from './mqtt/publisher'
+import { startDailyCountPersistence } from './daily-counts'
 import { config } from './config'
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
@@ -29,6 +30,7 @@ if (require.main === module) {
     workerManager.start().catch((err) => {
       console.error('Worker manager failed to start:', err)
     })
+    startDailyCountPersistence()
   }).catch((err) => {
     console.error('Failed to start server:', err)
     process.exit(1)

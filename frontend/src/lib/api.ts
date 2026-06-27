@@ -147,6 +147,22 @@ export async function reloadKiosk(slug: string): Promise<void> {
   if (!res.ok) throw new Error('Reload failed')
 }
 
+export type DailyCountRow = {
+  id: string
+  cameraId: string
+  date: string
+  directionAB: number
+  directionBA: number
+  speeders: number
+  camera?: { name: string }
+}
+
+export async function getDailyHistory(days = 14): Promise<DailyCountRow[]> {
+  const res = await fetch(`${BASE}/daily?days=${days}`)
+  if (!res.ok) throw new Error('History fetch failed')
+  return res.json()
+}
+
 export async function getCameras(): Promise<Camera[]> {
   const res = await fetch(`${BASE}/cameras`)
   if (!res.ok) throw new Error('Failed to fetch cameras')

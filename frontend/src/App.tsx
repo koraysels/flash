@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Cameras from './pages/Cameras'
+import History from './pages/History'
 import CameraCalibrate from './pages/CameraCalibrate'
 import PiDisplay from './pages/PiDisplay'
 import CameraDisplay from './pages/CameraDisplay'
@@ -32,6 +33,16 @@ function Layout() {
         >
           Camera's
         </NavLink>
+        <NavLink
+          to="/history"
+          className={({ isActive }) =>
+            isActive
+              ? 'text-xs tracking-widest uppercase bg-black text-white px-2 py-1'
+              : 'text-xs tracking-widest uppercase text-stone-400 hover:text-black px-2 py-1'
+          }
+        >
+          Historiek
+        </NavLink>
       </nav>
       <main className="p-6">
         <Outlet />
@@ -47,6 +58,7 @@ export default function App() {
         <Route element={<PinGate><Layout /></PinGate>}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/cameras" element={<Cameras />} />
+          <Route path="/history" element={<History />} />
           <Route path="/cameras/:id/calibrate" element={<CameraCalibrate />} />
         </Route>
         <Route path="/camera/:cameraId" element={<CameraDisplay />} />

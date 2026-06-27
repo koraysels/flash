@@ -286,6 +286,29 @@ export async function cameraRoutes(app: FastifyInstance) {
     return reply.send({ ok: true })
   })
 
+  // Daily count history across all cameras (newest first).
+  app.get<{ Querystring: { days?: string } }>('/api/daily', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query.days ?? '14', 10) || 14, 1), 365)
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    return db.dailyCount.findMany({
+      where: { date: { gte: since } },
+      orderBy: [{ date: 'desc' }, { cameraId: 'asc' }],
+      include: { camera: { select: { name: true } } },
+    })
+  })
+
+  // Daily count history for one camera.
+  app.get<{ Params: { id: string }; Querystring: { days?: string } }>('/api/cameras/:id/daily', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query.days ?? '30', 10) || 30, 1), 365)
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    return db.dailyCount.findMany({
+      where: { cameraId: req.params.id, date: { gte: since } },
+      orderBy: { date: 'desc' },
+    })
+  })
+
   // Resolve a kiosk slug -> cameraId. Accepts a fixed slot name (FLASH-PI-01/02/03,
   // case-insensitive) or a raw camera id. Public — the Pi kiosk has no login.
   app.get<{ Params: { slug: string } }>('/api/display/:slug', async (req, reply) => {

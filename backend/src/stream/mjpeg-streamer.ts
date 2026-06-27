@@ -390,4 +390,9 @@ export class MJPEGStreamer extends EventEmitter {
   resetDailyCounts(): void {
     this.aiWorker?.postMessage({ type: 'reset-counts' })
   }
+
+  /** Current running counts for this camera (since the last daily reset). */
+  getCounts(): { AB: number; BA: number; speeders: number } {
+    return { ...this.counts }
+  }
 }
