@@ -9,8 +9,8 @@ html, body, #root { height: 100%; }
     font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'Courier New', monospace;
   }
   body {
-    background: white;
-    color: black;
+    background: #fcfbf9; /* paper */
+    color: #1b1d22;      /* ink */
   }
   input, textarea, select {
     font-family: inherit;
