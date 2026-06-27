@@ -44,7 +44,7 @@ export function CameraThumbnail({
         <img src={src} alt="" className="w-full h-full object-cover" />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-stone-300">
-          {tried ? <span className="text-[10px] uppercase tracking-widest">No preview</span> : <Spinner />}
+          {tried ? <span className="text-[10px] uppercase tracking-widest">Geen preview</span> : <Spinner />}
         </div>
       )}
     </div>

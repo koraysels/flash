@@ -25,7 +25,7 @@ export default function Cameras() {
       setForm({ name: '', location: '', streamUrl: '' })
       setShowForm(false)
     } catch {
-      setSubmitError('Failed to save camera.')
+      setSubmitError('Camera opslaan mislukt.')
     }
   }
 
@@ -43,27 +43,27 @@ export default function Cameras() {
     setEditingId(null)
   }
 
-  if (isLoading) return <div className="text-xs text-stone-400 uppercase tracking-widest">Loading...</div>
-  if (error) return <div className="text-xs text-red-600 uppercase tracking-widest">Failed to load cameras.</div>
+  if (isLoading) return <div className="text-xs text-stone-400 uppercase tracking-widest">Laden…</div>
+  if (error) return <div className="text-xs text-red-600 uppercase tracking-widest">Camera's laden mislukt.</div>
 
   return (
     <div className="max-w-4xl">
       <div className="flex justify-between items-center mb-6">
-        <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Camera Management</p>
+        <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Camera-beheer</p>
         <button
           onClick={() => setShowForm(!showForm)}
           className="text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
         >
-          + Add Camera
+          + Camera toevoegen
         </button>
       </div>
 
       {showForm && (
         <form onSubmit={handleSubmit} className="border-2 border-black p-5 mb-6 space-y-4">
-          <p className="text-xs font-bold uppercase tracking-widest">New Camera</p>
+          <p className="text-xs font-bold uppercase tracking-widest">Nieuwe camera</p>
           {submitError && <p className="text-xs text-red-600 uppercase">{submitError}</p>}
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Name</label>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Naam</label>
             <input
               required
               value={form.name}
@@ -73,7 +73,7 @@ export default function Cameras() {
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Location</label>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Locatie</label>
             <input
               required
               value={form.location}
@@ -83,7 +83,7 @@ export default function Cameras() {
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Stream URL</label>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Stream-URL</label>
             <input
               required
               value={form.streamUrl}
@@ -98,14 +98,14 @@ export default function Cameras() {
               disabled={createCamera.isPending}
               className="text-xs uppercase tracking-widest border-2 border-black px-4 py-2 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
             >
-              {createCamera.isPending ? 'Saving...' : 'Save'}
+              {createCamera.isPending ? 'Opslaan…' : 'Opslaan'}
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
               className="text-xs uppercase tracking-widest text-stone-400 px-4 py-2 hover:text-black"
             >
-              Cancel
+              Annuleren
             </button>
           </div>
         </form>
@@ -114,7 +114,7 @@ export default function Cameras() {
       <div className="border-2 border-black">
         {!cameras?.length && (
           <div className="px-4 py-6 text-xs text-stone-400 uppercase tracking-widest text-center">
-            No cameras configured
+            Geen camera's geconfigureerd
           </div>
         )}
         {cameras?.map((cam, i) => (
@@ -129,13 +129,13 @@ export default function Cameras() {
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="border-2 border-black px-2 py-1 text-sm focus:outline-none bg-white w-36"
-                    placeholder="Name"
+                    placeholder="Naam"
                   />
                   <input
                     value={editForm.location}
                     onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
                     className="border-2 border-black px-2 py-1 text-sm focus:outline-none bg-white w-28"
-                    placeholder="Location"
+                    placeholder="Locatie"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -144,13 +144,13 @@ export default function Cameras() {
                     disabled={updateCamera.isPending}
                     className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
                   >
-                    Save
+                    Opslaan
                   </button>
                   <button
                     onClick={cancelEdit}
                     className="text-xs uppercase tracking-widest text-stone-400 px-2 py-1 hover:text-black"
                   >
-                    Cancel
+                    Annuleren
                   </button>
                 </div>
               </div>
@@ -174,7 +174,7 @@ export default function Cameras() {
                     onClick={() => startEdit(cam)}
                     className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
                   >
-                    Edit
+                    Bewerken
                   </button>
                   <a
                     href={`/camera/${cam.id}`}
@@ -188,22 +188,22 @@ export default function Cameras() {
                     to={`/cameras/${cam.id}/calibrate`}
                     className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
                   >
-                    Calibrate
+                    Kalibreren
                   </Link>
                   <button
                     onClick={() => duplicateCamera.mutate(cam.id)}
                     disabled={duplicateCamera.isPending}
-                    title="Clone this camera's config (no Pi slot, no strobe) for A/B tuning"
+                    title="Kopieer de config van deze camera (geen Pi-slot, geen flits) om te A/B-testen"
                     className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
                   >
-                    {duplicateCamera.isPending ? '…' : 'Duplicate'}
+                    {duplicateCamera.isPending ? '…' : 'Dupliceren'}
                   </button>
                   <button
                     onClick={() => deleteCamera.mutate(cam.id)}
                     disabled={deleteCamera.isPending}
                     className="text-xs uppercase tracking-widest border border-red-600 text-red-600 px-2 py-1 hover:bg-red-600 hover:text-white disabled:opacity-40 transition-colors"
                   >
-                    Delete
+                    Verwijderen
                   </button>
                 </div>
               </div>

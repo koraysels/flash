@@ -20,7 +20,7 @@ function Layout() {
               : 'text-xs tracking-widest uppercase text-stone-400 hover:text-black px-2 py-1'
           }
         >
-          Dashboard
+          Overzicht
         </NavLink>
         <NavLink
           to="/cameras"
@@ -30,7 +30,7 @@ function Layout() {
               : 'text-xs tracking-widest uppercase text-stone-400 hover:text-black px-2 py-1'
           }
         >
-          Cameras
+          Camera's
         </NavLink>
       </nav>
       <main className="p-6">

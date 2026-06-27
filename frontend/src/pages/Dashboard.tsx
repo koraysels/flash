@@ -41,14 +41,14 @@ function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasu
 function TrapLog({ measurements, maxSpeedKmh }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null }) {
   if (!measurements.length) return (
     <div className="border-t-2 border-black px-3 py-2 text-xs text-stone-400 uppercase tracking-widest">
-      No measurements yet — waiting for vehicles to cross both lines
+      Nog geen metingen — wachten op voertuigen die beide lijnen kruisen
     </div>
   )
   const ab = measurements.filter((m) => m.direction === 'AB')
   const ba = measurements.filter((m) => m.direction === 'BA')
   return (
     <div className="border-t-2 border-black">
-      <p className="px-3 pt-2 text-xs uppercase tracking-widest text-stone-400 font-bold">Recent trap measurements</p>
+      <p className="px-3 pt-2 text-xs uppercase tracking-widest text-stone-400 font-bold">Recente trap-metingen</p>
       <div className="flex divide-x divide-stone-200">
         <TrapCol measurements={ab} maxSpeedKmh={maxSpeedKmh} label="A→B" />
         <TrapCol measurements={ba} maxSpeedKmh={maxSpeedKmh} label="B→A" />
@@ -89,7 +89,7 @@ function CameraCard({ cam }: { cam: Camera }) {
         ) : (
           <span className="text-xs text-stone-500 border border-stone-300 px-2 py-0.5 flex items-center gap-1.5 shrink-0">
             <Spinner className="h-3 w-3" />
-            STARTING
+            OPSTARTEN
           </span>
         )}
       </div>
@@ -104,7 +104,7 @@ function CameraCard({ cam }: { cam: Camera }) {
           maxSpeedKmh={cam.maxSpeedKmh}
           className="aspect-[4/3]"
         />
-        {!active && <LoadingOverlay label="Starting…" sub="camera connecting / restarting — please wait" />}
+        {!active && <LoadingOverlay label="Opstarten…" sub="camera verbindt / herstart — even wachten" />}
       </div>
 
       <div className="grid grid-cols-3 border-t-2 border-black">
@@ -117,7 +117,7 @@ function CameraCard({ cam }: { cam: Camera }) {
           <p className="text-2xl font-bold tabular-nums">{counts.BA}</p>
         </div>
         <div className="py-3 text-center">
-          <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Total</p>
+          <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Totaal</p>
           <p className="text-2xl font-bold tabular-nums">{totalVehicles}</p>
         </div>
       </div>
@@ -131,9 +131,9 @@ function CameraCard({ cam }: { cam: Camera }) {
         <span>
           {calibrated
             ? avgSpeedKmh !== null
-              ? <span className="font-bold">AVG {Math.round(avgSpeedKmh)} KM/H</span>
-              : <span className="text-stone-500">SPEED CALIBRATED</span>
-            : <span className="text-amber-600 font-bold uppercase tracking-widest">Not calibrated</span>}
+              ? <span className="font-bold">GEM {Math.round(avgSpeedKmh)} KM/H</span>
+              : <span className="text-stone-500">SNELHEID GEKALIBREERD</span>
+            : <span className="text-amber-600 font-bold uppercase tracking-widest">Niet gekalibreerd</span>}
         </span>
         {cam.maxSpeedKmh != null && counts.speeders > 0 && (
           <span className="text-red-600 font-bold">{counts.speeders}× &gt;{cam.maxSpeedKmh}</span>
@@ -145,17 +145,17 @@ function CameraCard({ cam }: { cam: Camera }) {
         <select
           value={cam.displaySlot ?? ''}
           onChange={(e) => onSlotChange(e.target.value)}
-          title="Which fixed Pi kiosk shows this camera"
+          title="Welke vaste Pi-kiosk deze camera toont"
           className="text-xs uppercase tracking-wide border border-black px-1.5 py-1 bg-white hover:bg-stone-50 focus:outline-none"
         >
-          <option value="">— No Pi —</option>
+          <option value="">— Geen Pi —</option>
           {DISPLAY_SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <a
           href={`/cameras/${cam.id}/calibrate`}
           className="text-xs uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
         >
-          {calibrated ? 'Calibrate' : 'Calibrate ⚠'}
+          {calibrated ? 'Kalibreren' : 'Kalibreren ⚠'}
         </a>
         <a
           href={`/camera/${cam.id}`}
@@ -190,27 +190,27 @@ export default function Dashboard() {
     setFlashMsg(null)
     try {
       const r = await testMqttFlash()
-      setFlashMsg(r.connected ? '✓ Test flash published to krocky/speed' : '⚠ Broker not connected — check MQTT env on the backend')
+      setFlashMsg(r.connected ? '✓ Test-flits gepubliceerd naar krocky/speed' : '⚠ Broker niet verbonden — controleer de MQTT-env op de backend')
     } catch {
-      setFlashMsg('✗ Test failed')
+      setFlashMsg('✗ Test mislukt')
     } finally {
       setFlashing(false)
       setTimeout(() => setFlashMsg(null), 6000)
     }
   }
 
-  if (isLoading) return <div className="flex items-center gap-2 text-stone-400 text-xs uppercase tracking-widest p-8"><Spinner /> Loading…</div>
-  if (error) return <div className="text-red-600 text-xs uppercase tracking-widest p-8">Failed to load cameras</div>
+  if (isLoading) return <div className="flex items-center gap-2 text-stone-400 text-xs uppercase tracking-widest p-8"><Spinner /> Laden…</div>
+  if (error) return <div className="text-red-600 text-xs uppercase tracking-widest p-8">Camera's laden mislukt</div>
   if (!cameras?.length) return (
     <div className="p-8 text-xs text-stone-500 uppercase tracking-widest">
-      No cameras configured. <a href="/cameras" className="underline text-black">Add one →</a>
+      Geen camera's geconfigureerd. <a href="/cameras" className="underline text-black">Voeg er een toe →</a>
     </div>
   )
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Dashboard</p>
+        <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Overzicht</p>
         <div className="flex items-center gap-3">
           {flashMsg && <span className="text-xs text-stone-600">{flashMsg}</span>}
           <button
@@ -218,7 +218,7 @@ export default function Dashboard() {
             disabled={flashing}
             className="border-2 border-black px-3 py-1 text-xs font-bold uppercase tracking-wide bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
           >
-            {flashing ? 'Sending…' : '🚨 Test Flash'}
+            {flashing ? 'Verzenden…' : '🚨 Test-flash'}
           </button>
         </div>
       </div>
@@ -226,7 +226,7 @@ export default function Dashboard() {
       {/* Fixed Pi kiosk slots — put these URLs on each Pi; assign cameras via the
           dropdown on each card below. */}
       <div className="border-2 border-black mb-6 text-xs">
-        <p className="px-3 py-1.5 border-b-2 border-black font-bold uppercase tracking-widest">Pi kiosk slots</p>
+        <p className="px-3 py-1.5 border-b-2 border-black font-bold uppercase tracking-widest">Pi-kiosk-slots</p>
         {DISPLAY_SLOTS.map((s) => {
           const cam = cameras.find((c) => c.displaySlot === s)
           const url = `${window.location.origin}/display/${s}`
@@ -234,7 +234,7 @@ export default function Dashboard() {
             <div key={s} className="flex items-center gap-3 px-3 py-1.5 border-b border-stone-200 last:border-b-0">
               <span className="font-mono font-bold w-24 shrink-0">{s}</span>
               <a href={url} target="_blank" rel="noreferrer" className="font-mono underline text-stone-500 hover:text-black truncate flex-1">{url}</a>
-              <span className={`shrink-0 ${cam ? 'text-black' : 'text-stone-400'}`}>{cam ? cam.name : '— unassigned —'}</span>
+              <span className={`shrink-0 ${cam ? 'text-black' : 'text-stone-400'}`}>{cam ? cam.name : '— niet toegewezen —'}</span>
             </div>
           )
         })}

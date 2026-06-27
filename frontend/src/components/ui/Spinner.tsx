@@ -3,14 +3,14 @@ export function Spinner({ className = '' }: { className?: string }) {
   return (
     <span
       role="status"
-      aria-label="Loading"
+      aria-label="Laden"
       className={`inline-block h-4 w-4 border-2 border-black border-t-transparent animate-spin ${className}`}
     />
   )
 }
 
 // Full-cover overlay for a media/content area that is loading or restarting.
-export function LoadingOverlay({ label = 'Starting…', sub }: { label?: string; sub?: string }) {
+export function LoadingOverlay({ label = 'Opstarten…', sub }: { label?: string; sub?: string }) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white/85 text-xs font-bold uppercase tracking-widest text-stone-600">
       <Spinner />

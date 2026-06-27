@@ -128,7 +128,7 @@ const SLIDER_DEFS: SliderDef[] = [
 
 const PRESETS: Record<string, Partial<TrackerConfig> & { label: string; description: string }> = {
   balanced: {
-    label: 'Balanced',
+    label: 'Gebalanceerd',
     description: 'Standaard — geschikt voor de meeste snelwegcamera\'s',
     ...DEFAULT_TRACKER_CONFIG,
   },
@@ -232,7 +232,7 @@ function TrackingTuning({ config, onChange, onSave, saving }: TrackingTuningProp
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
-        <SectionTitle title="Tracking tuning" hint="Pas de tracker-parameters aan voor deze camera. Opslaan → camera herstart direct." />
+        <SectionTitle title="Tracking-instellingen" hint="Pas de tracker-parameters aan voor deze camera. Opslaan → camera herstart direct." />
         <Button variant="ghost" onClick={() => onChange({ ...DEFAULT_TRACKER_CONFIG })} disabled={isDefault}>Reset</Button>
       </div>
 
@@ -372,12 +372,12 @@ function LineEditor({ frameBase64, lineA, lineB, onChangeA, onChangeB, width = 6
 function CalibrationHelp() {
   return (
     <div className="border-2 border-black p-4 mb-6 text-xs">
-      <p className="font-bold uppercase tracking-widest mb-2">How to calibrate</p>
+      <p className="font-bold uppercase tracking-widest mb-2">Hoe te kalibreren</p>
       <ol className="space-y-1 list-decimal list-inside text-stone-600">
-        <li><strong className="text-black">Find a real-world landmark</strong> visible in the camera image — road marking, corner, pole.</li>
-        <li><strong className="text-black">Click it in the camera image</strong> (left). A numbered pin appears.</li>
-        <li><strong className="text-black">Click the exact same spot on the satellite map</strong> (right). Search first to navigate.</li>
-        <li><strong className="text-black">Repeat ≥4 times</strong> — spread across the frame for accuracy.</li>
+        <li><strong className="text-black">Zoek een herkenningspunt in de echte wereld</strong> dat zichtbaar is in het camerabeeld — wegmarkering, hoek, paal.</li>
+        <li><strong className="text-black">Klik het aan in het camerabeeld</strong> (links). Er verschijnt een genummerde pin.</li>
+        <li><strong className="text-black">Klik exact dezelfde plek op de satellietkaart</strong> (rechts). Zoek eerst om te navigeren.</li>
+        <li><strong className="text-black">Herhaal ≥4 keer</strong> — verspreid over het beeld voor nauwkeurigheid.</li>
       </ol>
     </div>
   )
@@ -586,7 +586,7 @@ export default function CameraCalibrate() {
     try {
       await saveTrackingConfig(id, trackingConfig)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save tracking config failed')
+      setError(err instanceof Error ? err.message : 'Tracking-config opslaan mislukt')
     } finally {
       setSavingTracking(false)
     }
@@ -598,7 +598,7 @@ export default function CameraCalibrate() {
     try {
       await saveRoi(id, roiPolygon)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save ROI failed')
+      setError(err instanceof Error ? err.message : 'ROI opslaan mislukt')
     } finally {
       setSavingRoi(false)
     }
@@ -612,7 +612,7 @@ export default function CameraCalibrate() {
       const valid = directionZones.filter((z) => z.polygon.length >= 6 && z.arrow.length === 4)
       await saveDirectionZones(id, valid)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save direction zones failed')
+      setError(err instanceof Error ? err.message : 'Richting-zones opslaan mislukt')
     } finally {
       setSavingZones(false)
     }
@@ -656,14 +656,14 @@ export default function CameraCalibrate() {
         const { rmsM, maxM, perPointM } = result.calibrationError
         const worst = perPointM.indexOf(Math.max(...perPointM)) + 1
         window.alert(
-          `Calibration saved, but the fit is poor: RMS error ${rmsM.toFixed(2)} m, ` +
-          `worst point #${worst} is off by ${maxM.toFixed(2)} m. ` +
-          `Speeds will be inaccurate — re-pick the worst points.`,
+          `Kalibratie opgeslagen, maar de fit is slecht: RMS-fout ${rmsM.toFixed(2)} m, ` +
+          `slechtste punt #${worst} ligt ${maxM.toFixed(2)} m ernaast. ` +
+          `Snelheden worden onnauwkeurig — kies de slechtste punten opnieuw.`,
         )
       }
       navigate('/cameras')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : 'Opslaan mislukt')
     } finally {
       setSaving(false)
     }
@@ -683,7 +683,7 @@ export default function CameraCalibrate() {
     <div className="max-w-screen-2xl">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Calibrate</p>
+          <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Kalibreren</p>
           <h1 className="text-lg font-bold uppercase">{camera?.name ?? '...'}</h1>
           <p className="text-xs text-stone-500">{camera?.location}</p>
         </div>
@@ -692,26 +692,26 @@ export default function CameraCalibrate() {
             <div className="flex items-stretch border-2 border-black">
               <a
                 href={prevCam ? `/cameras/${prevCam.id}/calibrate` : undefined}
-                title={prevCam ? `← ${prevCam.name}` : 'First camera'}
+                title={prevCam ? `← ${prevCam.name}` : 'Eerste camera'}
                 className={`flex items-center px-2 text-xs transition-colors ${prevCam ? 'hover:bg-black hover:text-white' : 'opacity-30 pointer-events-none'}`}
               >←</a>
               <select
                 value={id}
                 onChange={(e) => { window.location.href = `/cameras/${e.target.value}/calibrate` }}
-                title="Jump to another camera"
+                title="Spring naar een andere camera"
                 className="text-xs uppercase tracking-wide border-x-2 border-black px-2 py-1.5 bg-white focus:outline-none max-w-[11rem]"
               >
                 {allCameras.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <a
                 href={nextCam ? `/cameras/${nextCam.id}/calibrate` : undefined}
-                title={nextCam ? `${nextCam.name} →` : 'Last camera'}
+                title={nextCam ? `${nextCam.name} →` : 'Laatste camera'}
                 className={`flex items-center px-2 text-xs transition-colors ${nextCam ? 'hover:bg-black hover:text-white' : 'opacity-30 pointer-events-none'}`}
               >→</a>
             </div>
           )}
           <button onClick={() => navigate('/cameras')} className="text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors">
-            ← Back
+            ← Terug
           </button>
         </div>
       </div>
@@ -723,12 +723,12 @@ export default function CameraCalibrate() {
       )}
       {snapshotMissing && !snapshot && (
         <div className="border-2 border-black p-3 mb-4 text-xs">
-          No live snapshot — camera may still be starting. Upload a screenshot to calibrate now.
+          Geen live snapshot — de camera start mogelijk nog op. Upload een screenshot om nu te kalibreren.
         </div>
       )}
       {hasExistingHomography && mapPoints.length === 0 && (
         <div className="border-2 border-black p-3 mb-4 text-xs">
-          Calibration saved. Speed measurement active. To restore map markers: search the camera location, re-pick 4+ point pairs, and save once.
+          Kalibratie opgeslagen. Snelheidsmeting actief. Om de kaartmarkers te herstellen: zoek de cameralocatie, kies opnieuw 4+ puntparen en sla één keer op.
         </div>
       )}
       {approximateMapPoints && (
@@ -738,41 +738,41 @@ export default function CameraCalibrate() {
       )}
       {hasExistingHomography && mapPoints.length > 0 && !approximateMapPoints && (
         <div className="border-2 border-black p-3 mb-4 text-xs">
-          Calibration saved. Update lines and speed limit, or re-pick all points to recalibrate.
+          Kalibratie opgeslagen. Pas de lijnen en snelheidslimiet aan, of kies alle punten opnieuw om te herkalibreren.
         </div>
       )}
 
       <Tabs
         defaultValue="calib"
         tabs={[
-          { value: 'calib', label: 'Calibration', hint: 'Point pairs ↔ map → homography' },
-          { value: 'count', label: 'Counting & Speed', hint: 'Counting lines, speed limit, method' },
-          { value: 'tracking', label: 'Tracking', hint: 'Tracker tuning + matcher' },
-          { value: 'zones', label: 'Zones', hint: 'Road ROI + direction zones' },
+          { value: 'calib', label: 'Kalibratie', hint: 'Puntparen ↔ kaart → homografie' },
+          { value: 'count', label: 'Tellen & snelheid', hint: 'Tellijnen, snelheidslimiet, methode' },
+          { value: 'tracking', label: 'Tracking', hint: 'Tracker-tuning + matcher' },
+          { value: 'zones', label: 'Zones', hint: 'Weg-ROI + richting-zones' },
         ]}
       >
       <TabPanel value="calib">
       {/* Status bar */}
       <div className="flex items-center gap-4 mb-3 text-xs">
         <span className={`uppercase tracking-widest font-bold ${pairsCount >= 4 ? 'text-black' : hasExistingHomography ? 'text-stone-400' : 'text-stone-600'}`}>
-          {pairsCount} / 4+ pairs {pairsCount >= 4 ? '✓' : hasExistingHomography ? '(saved)' : ''}
+          {pairsCount} / 4+ paren {pairsCount >= 4 ? '✓' : hasExistingHomography ? '(opgeslagen)' : ''}
         </span>
-        {awaitingMapPoint && <span className="animate-pulse uppercase tracking-widest">→ Click same spot on map</span>}
-        {awaitingFramePoint && <span className="animate-pulse uppercase tracking-widest">← Click same spot on image</span>}
+        {awaitingMapPoint && <span className="animate-pulse uppercase tracking-widest">→ Klik dezelfde plek op de kaart</span>}
+        {awaitingFramePoint && <span className="animate-pulse uppercase tracking-widest">← Klik dezelfde plek op het beeld</span>}
         <button onClick={removeLastPair} disabled={pairsCount === 0} className="ml-auto border border-black px-2 py-1 uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-30 transition-colors">
-          Remove last pair
+          Laatste paar verwijderen
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">① Camera image — click landmarks</p>
+          <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">① Camerabeeld — klik herkenningspunten</p>
           {snapshot ? (
             <FramePointPicker frameBase64={snapshot} points={imagePoints} onChange={handleFramePoint} width={640} />
           ) : snapshotMissing ? (
             <label className="border-2 border-black border-dashed aspect-video flex flex-col items-center justify-center text-stone-400 text-sm cursor-pointer gap-2 hover:border-solid">
               <span className="text-3xl">↑</span>
-              <span className="text-xs uppercase tracking-widest">Upload screenshot</span>
+              <span className="text-xs uppercase tracking-widest">Screenshot uploaden</span>
               <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (!file) return
@@ -786,19 +786,19 @@ export default function CameraCalibrate() {
             </label>
           ) : (
             <div className="border-2 border-black aspect-video flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
-              Loading snapshot...
+              Snapshot laden…
             </div>
           )}
         </div>
 
         <div>
-          <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">② Satellite map — click same locations</p>
+          <p className="text-xs uppercase tracking-widest text-stone-500 mb-2">② Satellietkaart — klik dezelfde locaties</p>
           {isLoaded ? (
             <div>
               <StandaloneSearchBox onLoad={onSearchBoxLoad} onPlacesChanged={onPlacesChanged}>
                 <input
                   type="text"
-                  placeholder="Search location..."
+                  placeholder="Locatie zoeken…"
                   className="w-full border-2 border-black px-3 py-2 text-xs mb-2 focus:outline-none bg-white"
                 />
               </StandaloneSearchBox>
@@ -826,10 +826,10 @@ export default function CameraCalibrate() {
             </div>
           ) : (
             <div className="border-2 border-black aspect-video flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
-              {GOOGLE_MAPS_API_KEY ? 'Loading map...' : (
+              {GOOGLE_MAPS_API_KEY ? 'Kaart laden…' : (
                 <div className="text-center px-4">
-                  <p>Google Maps not configured</p>
-                  <p className="text-stone-400 mt-1">Add VITE_GOOGLE_MAPS_API_KEY to frontend/.env</p>
+                  <p>Google Maps niet geconfigureerd</p>
+                  <p className="text-stone-400 mt-1">Voeg VITE_GOOGLE_MAPS_API_KEY toe aan frontend/.env</p>
                 </div>
               )}
             </div>
@@ -840,7 +840,7 @@ export default function CameraCalibrate() {
       {/* Save persists points + lines + speed together (one saveCalibration call). */}
       <div className="pt-3 border-t border-stone-200 flex items-center gap-3">
         <Button onClick={handleSave} disabled={!canSave || saving}>
-          {saving ? 'Saving…' : canSave ? (pairsCount >= 4 ? `Save calibration (${pairsCount} pairs)` : 'Save lines & speed limit') : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
+          {saving ? 'Opslaan…' : canSave ? (pairsCount >= 4 ? `Kalibratie opslaan (${pairsCount} paren)` : 'Lijnen & limiet opslaan') : `Nog ${Math.max(0, 4 - pairsCount)} paren nodig`}
         </Button>
         <span className="text-xs text-stone-400">punten · lijnen · snelheidslimiet</span>
       </div>
@@ -848,10 +848,10 @@ export default function CameraCalibrate() {
 
       <TabPanel value="count">
       <Panel>
-        <p className="text-xs font-bold uppercase tracking-widest mb-1">Counting Lines</p>
+        <p className="text-xs font-bold uppercase tracking-widest mb-1">Tellijnen</p>
         <p className="text-xs text-stone-500 mb-3">
-          Drag endpoints to align each line across the road.
-          A→B: crosses A then B. B→A: crosses B then A.
+          Sleep de eindpunten om elke lijn over de weg uit te lijnen.
+          A→B: kruist A dan B. B→A: kruist B dan A.
         </p>
         {snapshot ? (
           <LineEditor
@@ -864,13 +864,13 @@ export default function CameraCalibrate() {
           />
         ) : (
           <div className="border border-stone-200 h-32 flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
-            Waiting for snapshot…
+            Wachten op snapshot…
           </div>
         )}
 
         <div className="mt-4 flex flex-wrap gap-6 items-start">
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Max speed (km/h)</label>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Max. snelheid (km/h)</label>
             <input
               type="number"
               value={maxSpeedKmh}
@@ -880,7 +880,7 @@ export default function CameraCalibrate() {
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Speed Method</label>
+            <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Snelheidsmethode</label>
             <button
               type="button"
               onClick={() => setTrapSpeedEnabled((v) => !v)}
@@ -891,16 +891,16 @@ export default function CameraCalibrate() {
               <span className={`w-8 h-4 border border-current flex items-center px-0.5 transition-colors ${trapSpeedEnabled ? 'bg-white' : 'bg-transparent'}`}>
                 <span className={`w-3 h-3 transition-transform ${trapSpeedEnabled ? 'bg-black translate-x-4' : 'bg-current translate-x-0'}`} />
               </span>
-              {trapSpeedEnabled ? 'Trap (A→B time)' : 'Continuous (homography)'}
+              {trapSpeedEnabled ? 'Trap (A→B tijd)' : 'Continu (homografie)'}
             </button>
             <p className="text-xs text-stone-400 mt-1">
-              {trapSpeedEnabled ? 'Exact — like trajectcontrole' : 'Real-time per-frame estimate'}
+              {trapSpeedEnabled ? 'Exact — zoals trajectcontrole' : 'Real-time schatting per frame'}
             </p>
           </div>
         </div>
         <div className="mt-4 pt-3 border-t border-stone-200 flex items-center gap-3">
           <Button onClick={handleSave} disabled={!canSave || saving}>
-            {saving ? 'Saving…' : canSave ? (pairsCount >= 4 ? `Save calibration (${pairsCount} pairs)` : 'Save lines & speed limit') : `Need ${Math.max(0, 4 - pairsCount)} more pairs`}
+            {saving ? 'Opslaan…' : canSave ? (pairsCount >= 4 ? `Kalibratie opslaan (${pairsCount} paren)` : 'Lijnen & limiet opslaan') : `Nog ${Math.max(0, 4 - pairsCount)} paren nodig`}
           </Button>
           <span className="text-xs text-stone-400">punten · lijnen · snelheidslimiet</span>
         </div>
@@ -918,17 +918,17 @@ export default function CameraCalibrate() {
 
       <TabPanel value="zones">
       <Panel className="mb-4">
-        <p className="text-xs font-bold uppercase tracking-widest">Road ROI mask</p>
+        <p className="text-xs font-bold uppercase tracking-widest">Weg-ROI-masker</p>
         <p className="text-xs text-stone-500 mt-0.5 mb-3">
-          Click to paint the drivable road. Detections whose ground point falls outside are
-          dropped before tracking — cuts off-road clutter (billboards, opposite carriageway,
-          parked) and phantom tracks. Empty = no mask. Save → camera restarts.
+          Klik om de berijdbare weg in te kleuren. Detecties waarvan het grondpunt erbuiten valt
+          worden vóór de tracking weggelaten — snijdt rommel buiten de weg weg (reclameborden,
+          tegenovergestelde rijbaan, geparkeerd) en spooktracks. Leeg = geen masker. Opslaan → camera herstart.
         </p>
         {snapshot ? (
           <ROIEditor frameBase64={snapshot} polygon={roiPolygon} onChange={setRoiPolygon} width={640} />
         ) : (
           <div className="border border-stone-200 h-32 flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
-            Waiting for snapshot…
+            Wachten op snapshot…
           </div>
         )}
         <div className="mt-3 flex gap-3 items-center">
@@ -937,16 +937,16 @@ export default function CameraCalibrate() {
             disabled={savingRoi}
             className="border-2 border-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-black text-white hover:bg-stone-800 disabled:opacity-40"
           >
-            {savingRoi ? 'Saving…' : 'Save ROI'}
+            {savingRoi ? 'Opslaan…' : 'ROI opslaan'}
           </button>
           <button
             onClick={() => setRoiPolygon([])}
             disabled={roiPolygon.length === 0}
             className="border border-stone-300 px-3 py-1.5 text-xs uppercase tracking-widest hover:border-black disabled:opacity-30"
           >
-            Clear
+            Wissen
           </button>
-          <span className="text-xs text-stone-400">{roiPolygon.length / 2} points</span>
+          <span className="text-xs text-stone-400">{roiPolygon.length / 2} punten</span>
         </div>
       </Panel>
 
@@ -983,7 +983,7 @@ export default function CameraCalibrate() {
           <DirectionZonesEditor frameBase64={snapshot} zones={directionZones} activeIdx={activeZone} onChange={setDirectionZones} width={640} />
         ) : (
           <div className="border border-stone-200 h-32 flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
-            Waiting for snapshot…
+            Wachten op snapshot…
           </div>
         )}
         <div className="mt-3 flex gap-3 items-center">
@@ -992,14 +992,14 @@ export default function CameraCalibrate() {
             disabled={savingZones}
             className="border-2 border-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-black text-white hover:bg-stone-800 disabled:opacity-40"
           >
-            {savingZones ? 'Saving…' : 'Save zones'}
+            {savingZones ? 'Opslaan…' : 'Zones opslaan'}
           </button>
           <button
             onClick={() => { setDirectionZones([]); setActiveZone(0) }}
             disabled={directionZones.length === 0}
             className="border border-stone-300 px-3 py-1.5 text-xs uppercase tracking-widest hover:border-black disabled:opacity-30"
           >
-            Clear all
+            Alles wissen
           </button>
           <span className="text-xs text-stone-400">{directionZones.length} zones</span>
         </div>
