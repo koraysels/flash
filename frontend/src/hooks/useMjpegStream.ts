@@ -79,15 +79,21 @@ export function useMjpegStream(cameraId: string): MjpegFrame {
             if (done) break
             if (value) buf = concat(buf, value)
 
+            // Drain every complete frame in the buffer but keep only the NEWEST —
+            // creating a Blob + objectURL for intermediate frames we never show just
+            // churns the GC and makes playback stutter. One objectURL per read tick.
+            let latest: { jpeg: Uint8Array<ArrayBuffer>; seq: number } | null = null
             let parsed = tryExtractFrame(buf)
             while (parsed) {
               buf = parsed.rest
-              const blob = new Blob([parsed.jpeg], { type: 'image/jpeg' })
-              const src = URL.createObjectURL(blob)
+              latest = { jpeg: parsed.jpeg, seq: parsed.seq }
+              parsed = tryExtractFrame(buf)
+            }
+            if (latest && active) {
+              const src = URL.createObjectURL(new Blob([latest.jpeg], { type: 'image/jpeg' }))
               if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current)
               prevBlobRef.current = src
-              if (active) setFrame({ src, seq: parsed.seq })
-              parsed = tryExtractFrame(buf)
+              setFrame({ src, seq: latest.seq })
             }
           }
 

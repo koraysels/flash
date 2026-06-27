@@ -123,38 +123,25 @@ function CameraCard({ cam }: { cam: Camera }) {
         </div>
       </div>
 
-      {cam.trapSpeedEnabled && (
-        <TrapLog measurements={recentTrapMeasurements} maxSpeedKmh={cam.maxSpeedKmh} />
-      )}
-
-      {/* Speed status strip (info only — no navigation here) */}
-      <div className="flex items-center justify-between px-3 py-2 border-t-2 border-black text-xs">
-        <span>
-          {calibrated
-            ? avgSpeedKmh !== null
-              ? <span className="font-bold">GEM {Math.round(avgSpeedKmh)} KM/H</span>
-              : <span className="text-stone-500">SNELHEID GEKALIBREERD</span>
-            : <span className="text-amber-600 font-bold uppercase tracking-widest">Niet gekalibreerd</span>}
-        </span>
-        {cam.maxSpeedKmh != null && counts.speeders > 0 && (
-          <span className="text-red-600 font-bold">{counts.speeders}× &gt;{cam.maxSpeedKmh}</span>
-        )}
-      </div>
-
-      {/* Action bar — one consistent place for every camera action */}
+      {/* Action bar — every camera action, colour-coded, above the detection list */}
       <div className="flex items-center gap-2 px-3 py-2 border-t-2 border-black">
         <select
           value={cam.displaySlot ?? ''}
           onChange={(e) => onSlotChange(e.target.value)}
           title="Welke vaste Pi-kiosk deze camera toont"
-          className="text-xs uppercase tracking-wide border border-black px-1.5 py-1 bg-white hover:bg-stone-50 focus:outline-none"
+          className="text-xs uppercase tracking-wide border-2 border-black px-1.5 py-1.5 bg-white hover:bg-stone-50 focus:outline-none"
         >
           <option value="">— Geen Pi —</option>
           {DISPLAY_SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <a
           href={`/cameras/${cam.id}/calibrate`}
-          className="text-xs uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+          title={calibrated ? 'Kalibratie & tracking aanpassen' : 'Nog niet gekalibreerd — klik om te kalibreren'}
+          className={`text-xs uppercase tracking-wide border-2 px-2.5 py-1.5 transition-colors ${
+            calibrated
+              ? 'border-black hover:bg-black hover:text-white'
+              : 'border-warn text-warn hover:bg-warn hover:text-white'
+          }`}
         >
           {calibrated ? 'Kalibreren' : 'Kalibreren ⚠'}
         </a>
@@ -162,7 +149,8 @@ function CameraCard({ cam }: { cam: Camera }) {
           href={`/camera/${cam.id}`}
           target="_blank"
           rel="noreferrer"
-          className="text-xs uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+          title="Open de live fullscreen-weergave"
+          className="text-xs uppercase tracking-wide border-2 border-black bg-black text-white px-2.5 py-1.5 hover:bg-stone-800 transition-colors"
         >
           Live ↗
         </a>
@@ -172,11 +160,30 @@ function CameraCard({ cam }: { cam: Camera }) {
             try { await resetCounts(cam.id) } finally { setResetting(false) }
           }}
           disabled={resetting}
-          className="ml-auto text-xs uppercase tracking-wide border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
+          title="Tellingen voor deze camera op nul zetten"
+          className="ml-auto text-xs uppercase tracking-wide border-2 border-danger text-danger px-2.5 py-1.5 hover:bg-danger hover:text-white disabled:opacity-40 transition-colors"
         >
           {resetting ? '…' : 'Reset'}
         </button>
       </div>
+
+      {/* Speed status strip (info only — no navigation here) */}
+      <div className="flex items-center justify-between px-3 py-2 border-t-2 border-black text-xs">
+        <span>
+          {calibrated
+            ? avgSpeedKmh !== null
+              ? <span className="font-bold">GEM {Math.round(avgSpeedKmh)} KM/H</span>
+              : <span className="text-stone-500">SNELHEID GEKALIBREERD</span>
+            : <span className="text-warn font-bold uppercase tracking-widest">Niet gekalibreerd</span>}
+        </span>
+        {cam.maxSpeedKmh != null && counts.speeders > 0 && (
+          <span className="text-danger font-bold">{counts.speeders}× &gt;{cam.maxSpeedKmh}</span>
+        )}
+      </div>
+
+      {cam.trapSpeedEnabled && (
+        <TrapLog measurements={recentTrapMeasurements} maxSpeedKmh={cam.maxSpeedKmh} />
+      )}
     </div>
   )
 }
