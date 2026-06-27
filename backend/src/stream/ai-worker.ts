@@ -320,6 +320,8 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     // 4 times, then the entry is dropped. At 20fps that's a ~0.4s fast strobe.
     const whiteStrobeIds = new Set<number>()
     for (const [id, left] of speederStrobe) {
+      // Stop the strobe the moment the vehicle leaves frame (no longer tracked).
+      if (!currentIds.has(id)) { speederStrobe.delete(id); continue }
       if (left % 2 === 0) whiteStrobeIds.add(id)
       if (left <= 1) speederStrobe.delete(id)
       else speederStrobe.set(id, left - 1)
