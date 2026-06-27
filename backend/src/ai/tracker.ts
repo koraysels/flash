@@ -73,7 +73,8 @@ const IOU_WEIGHT = 0.7   // legacy IoU matcher: IoU fraction in combined score
 const GATE_K = 4               // sigma multiplier on the predicted-position std
 const GATE_MIN_PX = 36         // floor: re-acquisition after a 1-frame miss is ~16-35px (measured)
 const GATE_VEL_FRAMES = 1.5    // also cover this many frames of the track's own motion
-const GATE_MAX_FRAC = 0.18     // cap gate at this fraction of the smaller frame side (bounded)
+const GATE_COAST_PX = 14       // widen the gate this many px per missed frame, so a track occluded behind the gantry can still re-acquire when its box has drifted (esp. shrinking cars driving away, whose own box is too small to gate on)
+const GATE_MAX_FRAC = 0.25     // cap gate at this fraction of the smaller frame side (bounded)
 const W_IOU = 0.5              // cost weights (sum = 1)
 const W_DIST = 0.35
 const W_DIR = 0.15
@@ -415,6 +416,9 @@ export class Tracker {
         // Covariance term + one+ frame of the track's own motion (so a 1-frame miss
         // on a moving car still re-acquires instead of spawning a new id).
         let s = GATE_K * Math.sqrt(Math.max(t.kf.posVar(), 1)) + t.kf.velMag() * 0.05 * GATE_VEL_FRAMES
+        // Widen with coast duration — the longer a track is occluded, the further its
+        // box may have drifted from the (re-emerging, possibly shrunken) car.
+        s += t.missedFrames * GATE_COAST_PX
         // A brand-new track has velocity 0, so its prediction doesn't move yet —
         // widen the gate while it's still learning velocity so a fast car's 2nd
         // detection attaches (then the gate tightens as the KF locks on).
