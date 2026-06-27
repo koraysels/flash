@@ -50,7 +50,7 @@ export function annotateFrame(
   hud?: { ab: number; ba: number; speeders: number; maxSpeedKmh?: number | null },
   lineAPoints?: number[],
   lineBPoints?: number[],
-  speederIds?: Set<number>,
+  whiteStrobeIds?: Set<number>,
 ): Buffer {
   // img is the already-decoded frame from the worker — no second JPEG decode here.
   const canvas = createCanvas(img.width, img.height)
@@ -87,9 +87,12 @@ export function annotateFrame(
     if (!Number.isFinite(v.x1) || !Number.isFinite(v.y1) || !Number.isFinite(v.x2) || !Number.isFinite(v.y2)) continue
 
     const color = CLASS_COLORS[v.class] ?? '#ffffff'
-    // Offender: strobe a red fill (~1.7 Hz) for as long as it's in frame.
-    if (speederIds?.has(v.id) && Date.now() % 600 < 300) {
-      ctx.fillStyle = 'rgba(255,0,0,0.5)'
+    // Offender: white camera-flash. The worker includes this id only on its "on"
+    // output frames (frame-by-frame parity over a short burst), so the box strobes
+    // white frame-on/off — visible even on the 5fps baked stream where a
+    // millisecond-timed strobe could not render.
+    if (whiteStrobeIds?.has(v.id)) {
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'
       ctx.fillRect(v.x1, v.y1, v.x2 - v.x1, v.y2 - v.y1)
     }
     ctx.strokeStyle = color

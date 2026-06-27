@@ -104,6 +104,10 @@ let actualWidth = 768
 let actualHeight = 576
 let speeders = 0
 const countedSpeeders = new Set<number>()   // IDs already counted (never reset until reset-counts)
+// White camera-flash on a fresh offender: frames remaining in the strobe burst,
+// per id. Counts down per annotated frame; box drawn white on "on" (even) frames.
+const speederStrobe = new Map<number, number>()
+const STROBE_FRAMES = 8   // 4 on + 4 off — at 5fps ≈ 1.6s of frame-by-frame flashing
 const publishedSpeedIds = new Set<number>()  // IDs already published to MQTT (once per track)
 const vehicleZoneSpeed = new Map<number, number>()  // max speed seen while in zone per vehicle (continuous mode only)
 let prevBoxIds = new Set<number>()
@@ -174,6 +178,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     counter.reset()
     speeders = 0
     countedSpeeders.clear()
+    speederStrobe.clear()
     publishedSpeedIds.clear()
     vehicleZoneSpeed.clear()
     trapCalc?.reset()
@@ -236,6 +241,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
           const maxZoneSpd = vehicleZoneSpeed.get(id)
           if (maxZoneSpd !== undefined && maxSpeedKmh !== null && maxZoneSpd > maxSpeedKmh && !countedSpeeders.has(id)) {
             countedSpeeders.add(id)
+            speederStrobe.set(id, STROBE_FRAMES)
             speeders++
           }
           vehicleZoneSpeed.delete(id)
@@ -269,11 +275,12 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
         // Trap mode: time between line A and B crossings — speed locked in after both crossed
         if (!v.isPredicted) trapCalc.update(v.id, v.bcx, v.bcy, ny, lineAY, lineBY, msg.frameTime)
         speedKmh = trapCalc.getSpeed(v.id)
-        // Only true speeders enter countedSpeeders — it both dedups the count AND
-        // drives the red strobe (annotator). Adding sub-limit cars here strobed
-        // them red without counting them. Matches the continuous-mode gating above.
+        // Only true speeders enter countedSpeeders — it dedups the count and arms
+        // the white strobe. Adding sub-limit cars here strobed them without
+        // counting them. Matches the continuous-mode gating above.
         if (speedKmh !== null && maxSpeedKmh !== null && speedKmh > maxSpeedKmh && !countedSpeeders.has(v.id)) {
           countedSpeeders.add(v.id)
+          speederStrobe.set(v.id, STROBE_FRAMES)
           speeders++
         }
       } else if (speedCalc) {
@@ -288,6 +295,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
             const maxZoneSpd = vehicleZoneSpeed.get(v.id)!
             if (maxSpeedKmh !== null && maxZoneSpd > maxSpeedKmh && !countedSpeeders.has(v.id)) {
               countedSpeeders.add(v.id)
+              speederStrobe.set(v.id, STROBE_FRAMES)
               speeders++
             }
             vehicleZoneSpeed.delete(v.id)
@@ -307,6 +315,16 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
       }
     }
 
+    // Advance each fresh offender's white-strobe burst once per frame. Box drawn
+    // white on "on" frames (even count remaining) → frame-by-frame flash on/off,
+    // 4 times, then the entry is dropped. At 20fps that's a ~0.4s fast strobe.
+    const whiteStrobeIds = new Set<number>()
+    for (const [id, left] of speederStrobe) {
+      if (left % 2 === 0) whiteStrobeIds.add(id)
+      if (left <= 1) speederStrobe.delete(id)
+      else speederStrobe.set(id, left - 1)
+    }
+
     let annotatedJpeg: Buffer | undefined
     if (annotatedEnabled) {
       annotatedJpeg = annotateFrame(
@@ -321,7 +339,7 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
         { ab: counts.AB, ba: counts.BA, speeders, maxSpeedKmh },
         lineAPoints,
         lineBPoints,
-        countedSpeeders,
+        whiteStrobeIds,
       )
     }
 
