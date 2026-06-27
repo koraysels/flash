@@ -128,7 +128,7 @@ export type HealthStatus = {
   pis: Array<{
     slot: string
     ip: string
-    reachable: boolean
+    online: boolean
     camera: string | null
     pageAlive: boolean
     streaming: boolean

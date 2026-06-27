@@ -9,7 +9,7 @@ import { getStreamer, getManager } from '../camera-worker'
 import type { TrackerConfig } from '../ai/tracker'
 import { requireAuth } from '../auth'
 import { publishSpeed, mqttConnected, mqttStatus, HLS_LATENCY_S, type SpeedEvent } from '../mqtt/publisher'
-import { parsePiHosts, tcpPing, annotatedAccessAt, touchAnnotatedAccess } from '../health'
+import { parsePiHosts, annotatedAccessAt, touchAnnotatedAccess } from '../health'
 import { kioskAliveAt, reloadKiosk } from '../socket/server'
 
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
@@ -260,26 +260,23 @@ export async function cameraRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, connected: mqttConnected(), payload: event })
   })
 
-  // Dashboard health: MQTT broker + per-Pi reachability / page-alive / streaming.
+  // Dashboard health: MQTT broker + per-Pi page-alive / streaming. "online" is
+  // derived from the app channels (segment fetches + page heartbeat), which work
+  // through the public URL — a TCP probe from this container can't reach the Pis'
+  // tailnet IPs, so it isn't used.
   app.get('/api/health', async () => {
     const pis = parsePiHosts()
     const cameras = await db.camera.findMany({ where: { displaySlot: { not: null } } })
     const slotCam = new Map(cameras.map((c) => [c.displaySlot!, c]))
     const now = Date.now()
-    const piStatus = await Promise.all(pis.map(async (p) => {
-      const reachable = await tcpPing(p.ip)
+    const piStatus = pis.map((p) => {
       const cam = slotCam.get(p.slot)
       const segAt = cam ? annotatedAccessAt(cam.id) : null
       const aliveAt = kioskAliveAt(p.slot)
-      return {
-        slot: p.slot,
-        ip: p.ip,
-        reachable,
-        camera: cam?.name ?? null,
-        pageAlive: aliveAt != null && now - aliveAt < 30_000,
-        streaming: segAt != null && now - segAt < 20_000,
-      }
-    }))
+      const streaming = segAt != null && now - segAt < 20_000
+      const pageAlive = aliveAt != null && now - aliveAt < 30_000
+      return { slot: p.slot, ip: p.ip, camera: cam?.name ?? null, pageAlive, streaming, online: pageAlive || streaming }
+    })
     return { mqtt: mqttStatus(), pis: piStatus }
   })
 
