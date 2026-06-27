@@ -12,15 +12,19 @@ const CLASS_COLORS: Record<string, string> = {
 
 const STALE_THRESHOLD_MS = 15_000
 const WATCHDOG_INTERVAL_MS = 2_000
-// Position lerp per rAF frame (~60fps). 0.2 → box reaches 96% of new position within 250ms,
-// settling smoothly between AI detections (~5fps = 200ms apart).
-const LERP = 0.2
+// Cap the draw loop at ~20fps (the AI detection rate). Drawing faster than the
+// data arrives just burns client CPU; 20fps keeps motion smooth without it.
+const DRAW_FPS = 20
+const DRAW_INTERVAL_MS = 1000 / DRAW_FPS
+// Position lerp per draw frame. Tuned for the DRAW_FPS loop (≈3× a 60fps factor)
+// so a box still reaches its new target within ~2 detection cycles.
+const LERP = 0.45
 // Keep a box alive this many detection cycles after it stops being detected,
-// then fade and remove. At ~5fps AI this gives ~2s of tolerance before removal.
+// then fade and remove. At 20fps AI this gives ~0.5s of tolerance before removal.
 const MAX_MISSED = 10
-// Per-rAF lerp factor for displayed speed — drifts the number continuously at 60fps
-// rather than jumping at AI frame rate (~5fps). Reaches ~90% of target in ~56 frames (~0.9s).
-const SPEED_LERP = 0.04
+// Per-draw lerp factor for displayed speed — drifts the number smoothly rather
+// than jumping at the AI frame rate.
+const SPEED_LERP = 0.11
 // Speeder strobe: when a box first exceeds the limit, flash it white a few times,
 // very fast — a camera-flash punch on the offender. 4 on/off cycles × 90ms ≈ 360ms.
 const STROBE_FLASHES = 4
@@ -175,17 +179,23 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
     }
   }
 
-  // rAF loop: lerp box positions toward targets, redraw at ~60fps
+  // rAF loop (throttled to DRAW_FPS): lerp box positions toward targets, redraw.
   useEffect(() => {
     let rafId: number
+    let lastDraw = 0
 
-    const draw = () => {
+    const draw = (now: number) => {
+      rafId = requestAnimationFrame(draw)
+      // Throttle to DRAW_FPS — skip frames that arrive sooner.
+      if (now - lastDraw < DRAW_INTERVAL_MS) return
+      lastDraw = now
+
       const canvas = canvasRef.current
       const img = imgRef.current
-      if (!canvas || !img) { rafId = requestAnimationFrame(draw); return }
+      if (!canvas || !img) return
 
       const layout = layoutRef.current
-      if (!layout) { rafId = requestAnimationFrame(draw); return }
+      if (!layout) return
 
       const ctx = canvas.getContext('2d')!
       ctx.clearRect(0, 0, layout.w, layout.h)
@@ -273,8 +283,6 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
         ctx.fillText(label, x1 + 3, ly - 3)
         ctx.globalAlpha = 1
       }
-
-      rafId = requestAnimationFrame(draw)
     }
 
     rafId = requestAnimationFrame(draw)
