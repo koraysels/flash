@@ -21,6 +21,10 @@ const MAX_MISSED = 10
 // Per-rAF lerp factor for displayed speed — drifts the number continuously at 60fps
 // rather than jumping at AI frame rate (~5fps). Reaches ~90% of target in ~56 frames (~0.9s).
 const SPEED_LERP = 0.04
+// Speeder strobe: when a box first exceeds the limit, flash it white a few times,
+// very fast — a camera-flash punch on the offender. 4 on/off cycles × 90ms ≈ 360ms.
+const STROBE_FLASHES = 4
+const STROBE_PERIOD_MS = 90
 
 type SmoothVehicle = {
   id: number
@@ -32,6 +36,8 @@ type SmoothVehicle = {
   // Target position from latest detection
   tx1: number; ty1: number; tx2: number; ty2: number
   missed: number  // detection cycles without a match
+  wasSpeeder: boolean       // latched once it first exceeds the limit
+  strobeStart: number | null // performance.now() when the white strobe began
 }
 
 interface Props {
@@ -74,12 +80,14 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
   const lineBRef = useRef(lineB)
   const lineAPointsRef = useRef(lineAPoints)
   const lineBPointsRef = useRef(lineBPoints)
+  const maxSpeedRef = useRef(maxSpeedKmh)
 
   useEffect(() => { frameSizeRef.current = frameSize }, [frameSize])
   useEffect(() => { lineARef.current = lineA }, [lineA])
   useEffect(() => { lineBRef.current = lineB }, [lineB])
   useEffect(() => { lineAPointsRef.current = lineAPoints }, [lineAPoints])
   useEffect(() => { lineBPointsRef.current = lineBPoints }, [lineBPoints])
+  useEffect(() => { maxSpeedRef.current = maxSpeedKmh }, [maxSpeedKmh])
 
   // Recompute canvas size and layout whenever the container changes
   const recomputeLayout = () => {
@@ -154,6 +162,7 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
           x1: v.x1, y1: v.y1, x2: v.x2, y2: v.y2,
           tx1: v.x1, ty1: v.y1, tx2: v.x2, ty2: v.y2,
           missed: 0,
+          wasSpeeder: false, strobeStart: null,
         })
       }
     }
@@ -228,6 +237,27 @@ export function CameraStream({ cameraId, lineA, lineB, lineAPoints, lineBPoints,
 
         // Fade boxes that haven't been detected recently
         ctx.globalAlpha = s.missed > 0 ? 0.35 : 1
+
+        // Speeder strobe: latch on the first frame this box exceeds the limit, then
+        // flash its interior white for STROBE_FLASHES fast on/off cycles.
+        const max = maxSpeedRef.current
+        if (s.speedKmh !== null && max != null && s.speedKmh > max && !s.wasSpeeder) {
+          s.wasSpeeder = true
+          s.strobeStart = performance.now()
+        }
+        if (s.strobeStart !== null) {
+          const elapsed = performance.now() - s.strobeStart
+          if (elapsed >= STROBE_FLASHES * STROBE_PERIOD_MS) {
+            s.strobeStart = null
+          } else if (Math.floor(elapsed / (STROBE_PERIOD_MS / 2)) % 2 === 0) {
+            ctx.save()
+            ctx.globalAlpha = 1
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1)
+            ctx.restore()
+          }
+        }
+
         ctx.strokeStyle = color
         ctx.lineWidth = 2
         ctx.setLineDash([])
