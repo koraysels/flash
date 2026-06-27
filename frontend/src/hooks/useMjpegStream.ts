@@ -91,9 +91,13 @@ export function useMjpegStream(cameraId: string): MjpegFrame {
             }
             if (latest && active) {
               const src = URL.createObjectURL(new Blob([latest.jpeg], { type: 'image/jpeg' }))
-              if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current)
+              const old = prevBlobRef.current
               prevBlobRef.current = src
               setFrame({ src, seq: latest.seq })
+              // Revoke the PREVIOUS url on a delay, not immediately: under a busy
+              // dashboard the <img> may not have finished decoding it yet, and
+              // revoking mid-load aborts it → onLoad never fires → boxes freeze.
+              if (old) setTimeout(() => URL.revokeObjectURL(old), 1000)
             }
           }
 
