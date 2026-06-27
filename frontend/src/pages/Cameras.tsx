@@ -123,32 +123,43 @@ export default function Cameras() {
             className={`px-4 py-3 ${i > 0 ? 'border-t-2 border-black' : ''}`}
           >
             {editingId === cam.id ? (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 flex gap-2">
-                  <input
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="border-2 border-black px-2 py-1 text-sm focus:outline-none bg-white w-36"
-                    placeholder="Naam"
-                  />
-                  <input
-                    value={editForm.location}
-                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                    className="border-2 border-black px-2 py-1 text-sm focus:outline-none bg-white w-28"
-                    placeholder="Locatie"
-                  />
+              <div className="bg-stone-50 -mx-4 -my-3 px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-widest mb-3">Camera bewerken</p>
+                <div className="flex items-start gap-4">
+                  <CameraThumbnail cameraId={cam.id} className="w-28 aspect-[4/3] border-2 border-black shrink-0" />
+                  <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Naam</label>
+                      <input
+                        autoFocus
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="w-full border-2 border-black px-3 py-2 text-sm focus:outline-none bg-white"
+                        placeholder="E17 Kortrijk"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest text-stone-500 mb-1">Locatie</label>
+                      <input
+                        value={editForm.location}
+                        onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                        className="w-full border-2 border-black px-3 py-2 text-sm focus:outline-none bg-white"
+                        placeholder="Kortrijk"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3 mt-4">
                   <button
                     onClick={() => saveEdit(cam.id)}
                     disabled={updateCamera.isPending}
-                    className="text-xs uppercase tracking-widest border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-40 transition-colors"
+                    className="text-xs uppercase tracking-widest border-2 border-black px-4 py-2 font-bold bg-black text-white hover:bg-stone-800 disabled:opacity-40 transition-colors"
                   >
-                    Opslaan
+                    {updateCamera.isPending ? 'Opslaan…' : 'Opslaan'}
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="text-xs uppercase tracking-widest text-stone-400 px-2 py-1 hover:text-black"
+                    className="text-xs uppercase tracking-widest border border-stone-300 px-4 py-2 hover:border-black transition-colors"
                   >
                     Annuleren
                   </button>
