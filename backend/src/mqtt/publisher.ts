@@ -32,9 +32,35 @@ export type SpeedEvent = {
 
 let client: MqttClient | null = null
 
+// Lightweight observability for the dashboard health view.
+let publishCount = 0
+let lastPublishAt: number | null = null
+let lastEvent: { speedKmh: number; location: string; direction: 'AB' | 'BA' | null; ts: number } | null = null
+
 /** True when the shared client is connected to the broker. */
 export function mqttConnected(): boolean {
   return !!(client && client.connected)
+}
+
+/** Snapshot of broker health + last published flash, for the dashboard observer. */
+export function mqttStatus(): {
+  connected: boolean
+  configured: boolean
+  host: string
+  topic: string
+  publishCount: number
+  lastPublishAt: number | null
+  lastEvent: typeof lastEvent
+} {
+  return {
+    connected: mqttConnected(),
+    configured: !!PASS,
+    host: `${HOST}:${PORT}`,
+    topic: TOPIC,
+    publishCount,
+    lastPublishAt,
+    lastEvent,
+  }
 }
 
 /** Connect once at startup. No-op (with a warning) when no password is configured. */
@@ -79,4 +105,7 @@ export function publishSpeed(e: SpeedEvent): void {
     hls_latency_s: e.hls_latency_s,
   })
   client.publish(TOPIC, payload, { qos: 0 })
+  publishCount++
+  lastPublishAt = Date.now()
+  lastEvent = { speedKmh: Math.round(e.speedKmh * 10) / 10, location: e.location, direction: e.direction, ts: e.ts }
 }

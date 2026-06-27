@@ -75,9 +75,26 @@ export function initSocketServer(httpServer: HttpServer): SocketServer {
     socket.on('unsubscribe', (cameraId: string) => {
       socket.leave(`camera:${cameraId}`)
     })
+    // Kiosk page heartbeat — the /display page emits this with its slug so we know
+    // the page is actually loaded and rendering (not just that the Pi is powered on).
+    socket.on('kiosk-hello', (slug: string) => {
+      if (typeof slug !== 'string' || !slug) return
+      kioskHeartbeats.set(slug, Date.now())
+      socket.join(`kiosk:${slug}`)
+    })
   })
 
   return io
+}
+
+// slug -> last heartbeat (ms). A recent value = the kiosk page is alive.
+const kioskHeartbeats = new Map<string, number>()
+export function kioskAliveAt(slug: string): number | null {
+  return kioskHeartbeats.get(slug) ?? null
+}
+/** Tell a kiosk page to reload itself (remote refresh from the dashboard). */
+export function reloadKiosk(slug: string): void {
+  io?.to(`kiosk:${slug}`).emit('kiosk-reload')
 }
 
 export function emitFrame(event: FrameEvent, rawJpeg?: string): void {

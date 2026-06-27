@@ -6,6 +6,7 @@ import { CameraStream } from '../components/CameraStream'
 import { Camera, resetCounts, testMqttFlash, setDisplaySlot, DISPLAY_SLOTS } from '../lib/api'
 import type { TrapMeasurement } from '../hooks/useCameraFeed'
 import { Spinner, LoadingOverlay } from '../components/ui/Spinner'
+import { HealthPanel } from '../components/HealthPanel'
 
 function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null; label: string }) {
   const now = Date.now()
@@ -223,22 +224,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Fixed Pi kiosk slots — put these URLs on each Pi; assign cameras via the
-          dropdown on each card below. */}
-      <div className="border-2 border-black mb-6 text-xs">
-        <p className="px-3 py-1.5 border-b-2 border-black font-bold uppercase tracking-widest">Pi-kiosk-slots</p>
-        {DISPLAY_SLOTS.map((s) => {
-          const cam = cameras.find((c) => c.displaySlot === s)
-          const url = `${window.location.origin}/display/${s}`
-          return (
-            <div key={s} className="flex items-center gap-3 px-3 py-1.5 border-b border-stone-200 last:border-b-0">
-              <span className="font-mono font-bold w-24 shrink-0">{s}</span>
-              <a href={url} target="_blank" rel="noreferrer" className="font-mono underline text-stone-500 hover:text-black truncate flex-1">{url}</a>
-              <span className={`shrink-0 ${cam ? 'text-black' : 'text-stone-400'}`}>{cam ? cam.name : '— niet toegewezen —'}</span>
-            </div>
-          )
-        })}
-      </div>
+      {/* System status: MQTT strobe + per-Pi reachability / page / stream + refresh. */}
+      <HealthPanel />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {cameras.map((cam) => (

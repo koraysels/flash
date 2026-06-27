@@ -8,7 +8,9 @@ import { extractStreamUrl } from '../stream/extractor'
 import { getStreamer, getManager } from '../camera-worker'
 import type { TrackerConfig } from '../ai/tracker'
 import { requireAuth } from '../auth'
-import { publishSpeed, mqttConnected, HLS_LATENCY_S, type SpeedEvent } from '../mqtt/publisher'
+import { publishSpeed, mqttConnected, mqttStatus, HLS_LATENCY_S, type SpeedEvent } from '../mqtt/publisher'
+import { parsePiHosts, tcpPing, annotatedAccessAt, touchAnnotatedAccess } from '../health'
+import { kioskAliveAt, reloadKiosk } from '../socket/server'
 
 // Cache resolved HLS URLs so we don't re-extract on every proxy request
 const hlsUrlCache = new Map<string, string>()
@@ -258,6 +260,35 @@ export async function cameraRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, connected: mqttConnected(), payload: event })
   })
 
+  // Dashboard health: MQTT broker + per-Pi reachability / page-alive / streaming.
+  app.get('/api/health', async () => {
+    const pis = parsePiHosts()
+    const cameras = await db.camera.findMany({ where: { displaySlot: { not: null } } })
+    const slotCam = new Map(cameras.map((c) => [c.displaySlot!, c]))
+    const now = Date.now()
+    const piStatus = await Promise.all(pis.map(async (p) => {
+      const reachable = await tcpPing(p.ip)
+      const cam = slotCam.get(p.slot)
+      const segAt = cam ? annotatedAccessAt(cam.id) : null
+      const aliveAt = kioskAliveAt(p.slot)
+      return {
+        slot: p.slot,
+        ip: p.ip,
+        reachable,
+        camera: cam?.name ?? null,
+        pageAlive: aliveAt != null && now - aliveAt < 30_000,
+        streaming: segAt != null && now - segAt < 20_000,
+      }
+    }))
+    return { mqtt: mqttStatus(), pis: piStatus }
+  })
+
+  // Remote-refresh a kiosk page (socket reload to the slug's room).
+  app.post<{ Params: { slug: string } }>('/api/kiosk/:slug/reload', { preHandler: requireAuth }, async (req, reply) => {
+    reloadKiosk(req.params.slug)
+    return reply.send({ ok: true })
+  })
+
   // Resolve a kiosk slug -> cameraId. Accepts a fixed slot name (FLASH-PI-01/02/03,
   // case-insensitive) or a raw camera id. Public — the Pi kiosk has no login.
   app.get<{ Params: { slug: string } }>('/api/display/:slug', async (req, reply) => {
@@ -387,6 +418,7 @@ export async function cameraRoutes(app: FastifyInstance) {
     const streamer = getStreamer(req.params.id)
     if (!streamer) { reply.code(404).send({ error: 'Camera not running' }); return }
     streamer.touchAnnotated()
+    touchAnnotatedAccess(req.params.id)  // a kiosk polling segments = stream is live
     const playlist = streamer.annotatedPlaylistPath()
     if (!playlist) { reply.code(404).send(); return }
     const dir = playlist.substring(0, playlist.lastIndexOf('/'))

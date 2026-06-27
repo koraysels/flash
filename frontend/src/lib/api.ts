@@ -115,6 +115,38 @@ export async function testMqttFlash(cameraId?: string): Promise<MqttTestResult> 
   return res.json()
 }
 
+export type HealthStatus = {
+  mqtt: {
+    connected: boolean
+    configured: boolean
+    host: string
+    topic: string
+    publishCount: number
+    lastPublishAt: number | null
+    lastEvent: { speedKmh: number; location: string; direction: 'AB' | 'BA' | null; ts: number } | null
+  }
+  pis: Array<{
+    slot: string
+    ip: string
+    reachable: boolean
+    camera: string | null
+    pageAlive: boolean
+    streaming: boolean
+  }>
+}
+
+export async function getHealth(): Promise<HealthStatus> {
+  const res = await fetch(`${BASE}/health`)
+  if (!res.ok) throw new Error('Health check failed')
+  return res.json()
+}
+
+export async function reloadKiosk(slug: string): Promise<void> {
+  const res = await fetch(`${BASE}/kiosk/${slug}/reload`, { method: 'POST', headers: authHeaders() })
+  if (res.status === 401) clearAuthAndReload()
+  if (!res.ok) throw new Error('Reload failed')
+}
+
 export async function getCameras(): Promise<Camera[]> {
   const res = await fetch(`${BASE}/cameras`)
   if (!res.ok) throw new Error('Failed to fetch cameras')

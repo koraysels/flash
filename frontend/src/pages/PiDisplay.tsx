@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { resolveDisplay } from '../lib/api'
 import { AnnotatedFullscreen } from '../components/AnnotatedFullscreen'
+import { socket } from '../lib/socket'
 
 /** Assignable Pi kiosk: /display/:slug where slug is a fixed slot (FLASH-PI-01/02/03).
  *  Resolves to whichever camera is assigned and re-polls so reassigning in the
@@ -21,6 +22,23 @@ export default function PiDisplay() {
     resolve()
     const t = setInterval(resolve, 15_000)
     return () => { cancelled = true; clearInterval(t) }
+  }, [slug])
+
+  // Heartbeat so the dashboard knows this kiosk page is alive + rendering, and
+  // listen for a remote reload command.
+  useEffect(() => {
+    if (!slug) return
+    const hello = () => socket.emit('kiosk-hello', slug)
+    hello()
+    const t = setInterval(hello, 10_000)
+    const onReload = () => window.location.reload()
+    socket.on('connect', hello)
+    socket.on('kiosk-reload', onReload)
+    return () => {
+      clearInterval(t)
+      socket.off('connect', hello)
+      socket.off('kiosk-reload', onReload)
+    }
   }, [slug])
 
   return (
