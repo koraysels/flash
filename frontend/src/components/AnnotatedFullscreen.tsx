@@ -8,7 +8,11 @@ export function AnnotatedFullscreen({ cameraId }: { cameraId: string | null }) {
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video || !cameraId) return
+    if (!video) return
+    // Kiosk: kill the Cast / Remote-Playback button (the JSX prop doesn't always
+    // take, so also force it on the element after mount).
+    video.disableRemotePlayback = true
+    if (!cameraId) return
     const src = `/api/cameras/${cameraId}/annotated/index.m3u8`
 
     let destroyed = false
@@ -47,6 +51,8 @@ export function AnnotatedFullscreen({ cameraId }: { cameraId: string | null }) {
       muted
       autoPlay
       playsInline
+      disableRemotePlayback
+      {...{ 'x-webkit-airplay': 'deny' }}
       className="w-full h-full"
       style={{ objectFit: 'contain' }}
     />
