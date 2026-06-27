@@ -8,6 +8,20 @@ export function Panel({ children, className = '' }: { children: ReactNode; class
   return <div className={`border-2 border-black p-4 ${className}`}>{children}</div>
 }
 
+// Consistent page header: a small eyebrow over a real title, with optional
+// right-aligned actions. Gives every page the same hierarchy.
+export function PageHeader({ eyebrow, title, right }: { eyebrow: string; title: string; right?: ReactNode }) {
+  return (
+    <div className="flex items-end justify-between gap-4 mb-6">
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.25em] text-stone-400">{eyebrow}</p>
+        <h1 className="text-xl font-bold uppercase tracking-wide leading-none mt-1">{title}</h1>
+      </div>
+      {right && <div className="flex items-center gap-3 shrink-0">{right}</div>}
+    </div>
+  )
+}
+
 export function SectionTitle({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="mb-3">

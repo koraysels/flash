@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCameras, useCreateCamera, useDeleteCamera, useUpdateCamera, useDuplicateCamera } from '../hooks/useCameras'
 import { CameraThumbnail } from '../components/CameraThumbnail'
+import { PageHeader } from '../components/ui/primitives'
 
 export default function Cameras() {
   const { data: cameras, isLoading, error } = useCameras()
@@ -48,15 +49,18 @@ export default function Cameras() {
 
   return (
     <div className="max-w-4xl">
-      <div className="flex justify-between items-center mb-6">
-        <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Camera-beheer</p>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
-        >
-          + Camera toevoegen
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Flash · beheer"
+        title="Camera's"
+        right={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="text-xs uppercase tracking-widest border-2 border-black px-3 py-1.5 hover:bg-black hover:text-white transition-colors"
+          >
+            + Camera toevoegen
+          </button>
+        }
+      />
 
       {showForm && (
         <form onSubmit={handleSubmit} className="border-2 border-black p-5 mb-6 space-y-4">

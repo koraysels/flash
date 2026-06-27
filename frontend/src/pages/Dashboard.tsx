@@ -7,6 +7,7 @@ import { Camera, resetCounts, testMqttFlash, setDisplaySlot, DISPLAY_SLOTS } fro
 import type { TrapMeasurement } from '../hooks/useCameraFeed'
 import { Spinner, LoadingOverlay } from '../components/ui/Spinner'
 import { HealthPanel } from '../components/HealthPanel'
+import { PageHeader } from '../components/ui/primitives'
 
 function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasurement[]; maxSpeedKmh: number | null; label: string }) {
   const now = Date.now()
@@ -217,19 +218,22 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-xs font-bold tracking-widest uppercase text-stone-400">Overzicht</p>
-        <div className="flex items-center gap-3">
-          {flashMsg && <span className="text-xs text-stone-600">{flashMsg}</span>}
-          <button
-            onClick={triggerFlash}
-            disabled={flashing}
-            className="border-2 border-black px-3 py-1 text-xs font-bold uppercase tracking-wide bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-          >
-            {flashing ? 'Verzenden…' : '🚨 Test-flash'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Flash · verkeersmonitor"
+        title="Overzicht"
+        right={
+          <>
+            {flashMsg && <span className="text-xs text-stone-600">{flashMsg}</span>}
+            <button
+              onClick={triggerFlash}
+              disabled={flashing}
+              className="border-2 border-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-danger text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {flashing ? 'Verzenden…' : '🚨 Test-flash'}
+            </button>
+          </>
+        }
+      />
 
       {/* System status: MQTT strobe + per-Pi reachability / page / stream + refresh. */}
       <HealthPanel />

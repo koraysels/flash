@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getDailyHistory, type DailyCountRow } from '../lib/api'
 import { Spinner } from '../components/ui/Spinner'
+import { PageHeader } from '../components/ui/primitives'
 
 function fmtDate(iso: string): string {
   const d = new Date(iso)
@@ -21,16 +22,19 @@ export default function History() {
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Historiek — dagtellingen</p>
-        <select
-          value={days}
-          onChange={(e) => setDays(parseInt(e.target.value))}
-          className="text-xs uppercase tracking-wide border-2 border-black px-2 py-1 bg-white focus:outline-none"
-        >
-          {[7, 14, 30, 90].map((d) => <option key={d} value={d}>{d} dagen</option>)}
-        </select>
-      </div>
+      <PageHeader
+        eyebrow="Flash · dagtellingen"
+        title="Historiek"
+        right={
+          <select
+            value={days}
+            onChange={(e) => setDays(parseInt(e.target.value))}
+            className="text-xs uppercase tracking-wide border-2 border-black px-2 py-1.5 bg-white focus:outline-none"
+          >
+            {[7, 14, 30, 90].map((d) => <option key={d} value={d}>{d} dagen</option>)}
+          </select>
+        }
+      />
 
       {isLoading && <div className="flex items-center gap-2 text-xs text-stone-400 uppercase tracking-widest"><Spinner /> Laden…</div>}
       {error && <div className="text-xs text-danger uppercase tracking-widest">Historiek laden mislukt.</div>}
