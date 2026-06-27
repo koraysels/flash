@@ -296,6 +296,24 @@ describe('Tracker motion-gated association', () => {
     expect(rep[0].cx).toBeLessThanOrEqual(lastMeasCenter + 12)
   })
 
+  it('re-acquires a coasted track when the car re-emerges ~1 box away (no new id)', () => {
+    // The occlusion swap: a car goes behind the gantry, its track coasts and the
+    // box drifts, then it re-emerges ~1 box-width away with near-zero IoU. Same
+    // zone → re-acquire the coasted id instead of spawning a new one.
+    const t = new Tracker({ motionGated: true })
+    t.setFrameSize(768, 576)
+    t.setDirectionZones([{ polygon: [0, 0, 1, 0, 1, 1, 0, 1], arrow: [0.1, 0.5, 0.9, 0.5] }])
+    let ts = 1000
+    t.update([car(100, 100)], ts); ts += 100
+    const est = t.update([car(140, 100)], ts); ts += 100
+    expect(est).toHaveLength(1)
+    const id = est[0].id
+    for (let i = 0; i < 3; i++) { t.update([], ts); ts += 100 }  // occluded — coasting
+    const rep = t.update([car(280, 100)], ts); ts += 100          // re-emerges, low IoU, same zone
+    expect(rep).toHaveLength(1)
+    expect(rep[0].id).toBe(id)
+  })
+
   it('legacy IoU path is unchanged (default config)', () => {
     const t = new Tracker()   // motionGated defaults false
     t.update([car(100, 100)], 1000)

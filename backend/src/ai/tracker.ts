@@ -79,7 +79,7 @@ const W_DIST = 0.35
 const W_DIR = 0.15
 const REVERSE_DIR_SCORE = 0.35 // dirScore below this = against heading → veto unless boxes overlap
 const NEW_TRACK_SUPPRESS_IOU = 0.2  // unmatched high-conf det overlapping a confirmed track this much = duplicate/swap, not a new car → don't spawn
-const NEW_TRACK_PROX_FRAC = 0.6     // OR: within this fraction of a box-size of a SAME-ZONE confirmed track = same car (Kalman overshoot lowered IoU to ~0) → don't spawn
+const NEW_TRACK_PROX_FRAC = 1.1     // OR: within this many box-sizes of a SAME-ZONE confirmed track = same car re-emerging from occlusion (its coasted box drifted ~1 box away). Re-acquire it instead of spawning a new id.
 const COAST_VEL_DAMP = 0.75         // each coasted (unmatched) frame, decay velocity by this — a lost box slows instead of flying ahead at stale speed (perspective decel / occlusion). 0.75^6≈0.18 after a full gap
 const RENDER_MEAS_WEIGHT = 0.7      // matched-frame box render: weight toward the raw detection centre vs the Kalman centre — kills the predict-lead so the box sits on the car (remainder keeps a little KF jitter-damping)
 
@@ -348,8 +348,35 @@ export class Tracker {
     return -1
   }
 
+  /** Bind a detection to a track: Kalman update, box/class smoothing, reset the
+   *  miss counter. Used both for the matcher's results and for re-acquiring a
+   *  coasted track whose box drifted off the car during occlusion. */
+  private attachDetection(t: KFTrack, det: DetectionResult, timestamp: number): void {
+    const r = rMeas(det.confidence)
+    const mcx = (det.x1 + det.x2) / 2, mcy = (det.y1 + det.y2) / 2
+    t.kf.update(mcx, mcy, r)
+    t.w = this.cfg.boxEmaAlpha * (det.x2 - det.x1) + (1 - this.cfg.boxEmaAlpha) * t.w
+    t.h = this.cfg.boxEmaAlpha * (det.y2 - det.y1) + (1 - this.cfg.boxEmaAlpha) * t.h
+    const rcx = RENDER_MEAS_WEIGHT * mcx + (1 - RENDER_MEAS_WEIGHT) * t.kf.cx
+    const rcy = RENDER_MEAS_WEIGHT * mcy + (1 - RENDER_MEAS_WEIGHT) * t.kf.cy
+    t.x1 = rcx - t.w / 2; t.y1 = rcy - t.h / 2
+    t.x2 = rcx + t.w / 2; t.y2 = rcy + t.h / 2
+    t.cx = rcx; t.cy = rcy
+    t.bcx = t.cx; t.bcy = t.y2 - t.h * 0.05
+    t.confidence = det.confidence
+    t.classVotes.set(det.class, (t.classVotes.get(det.class) ?? 0) + 1)
+    let bestClass = t.class, bestVotes = 0
+    for (const [cls, votes] of t.classVotes) { if (votes > bestVotes) { bestClass = cls; bestVotes = votes } }
+    t.class = bestClass
+    t.history.push({ cx: t.cx, cy: t.cy, timestamp })
+    if (t.history.length > 30) t.history.shift()
+    t.missedFrames = 0
+    t.confirmedFrames++
+    t.isPredicted = false
+  }
+
   update(detections: DetectionResult[], timestamp: number = Date.now()): TrackedVehicle[] {
-    const { highConfidence, iouStage1, iouStage2, maxPredictedGap, maxMissedFrames, minConfirmedFrames, boxEmaAlpha } = this.cfg
+    const { highConfidence, iouStage1, iouStage2, maxPredictedGap, maxMissedFrames, minConfirmedFrames } = this.cfg
 
     const predicted: Box[] = this.tracks.map((t) => {
       const dt = Math.max(0.01, Math.min((timestamp - t.lastTs) / 1000, 2.0))
@@ -424,43 +451,7 @@ export class Tracker {
     const matchedTSet = new Set(allMatched.map(m => m.ti))
 
     for (const { ti, di } of allMatched) {
-      const t   = this.tracks[ti]
-      const det = detections[di]
-      const r   = rMeas(det.confidence)
-
-      const mcx = (det.x1 + det.x2) / 2, mcy = (det.y1 + det.y2) / 2
-      t.kf.update(mcx, mcy, r)
-      t.w = boxEmaAlpha * (det.x2 - det.x1) + (1 - boxEmaAlpha) * t.w
-      t.h = boxEmaAlpha * (det.y2 - det.y1) + (1 - boxEmaAlpha) * t.h
-
-      // Render the box on the MEASUREMENT (where the detector actually saw the car),
-      // not the Kalman-predicted centre: predict() leads by a full frame of velocity
-      // and update() only partly corrects it, so a fast car's box floats ahead. The
-      // KF still drives velocity/coasting/gating — this only moves the drawn box (and
-      // the bcx/bcy used for counting) onto the car. A little KF weight damps jitter.
-      const rcx = RENDER_MEAS_WEIGHT * mcx + (1 - RENDER_MEAS_WEIGHT) * t.kf.cx
-      const rcy = RENDER_MEAS_WEIGHT * mcy + (1 - RENDER_MEAS_WEIGHT) * t.kf.cy
-      t.x1 = rcx - t.w / 2; t.y1 = rcy - t.h / 2
-      t.x2 = rcx + t.w / 2; t.y2 = rcy + t.h / 2
-      t.cx = rcx; t.cy = rcy
-      t.bcx = t.cx; t.bcy = t.y2 - t.h * 0.05
-
-      t.confidence = det.confidence
-      // Majority vote over matched detections — first-frame misclassifications
-      // (vehicle still small/far) shouldn't stick for the track's lifetime
-      t.classVotes.set(det.class, (t.classVotes.get(det.class) ?? 0) + 1)
-      let bestClass = t.class
-      let bestVotes = 0
-      for (const [cls, votes] of t.classVotes) {
-        if (votes > bestVotes) { bestClass = cls; bestVotes = votes }
-      }
-      t.class = bestClass
-      t.history.push({ cx: t.cx, cy: t.cy, timestamp })
-      if (t.history.length > 30) t.history.shift()
-
-      t.missedFrames = 0
-      t.confirmedFrames++
-      t.isPredicted = false
+      this.attachDetection(this.tracks[ti], detections[di], timestamp)
     }
 
     for (let ti = 0; ti < this.tracks.length; ti++) {
@@ -507,12 +498,12 @@ export class Tracker {
       // can't occupy the same pixels, so a high IoU here is always the same car.
       // Spawning a new id was the id-swap. Suppress it; the existing track keeps
       // its id and re-matches this detection next frame.
-      let near: { id: number; iou: number; d: number; missed: number; cx: number; cy: number } | null = null
+      let near: { t: KFTrack; id: number; iou: number; d: number; missed: number; cx: number; cy: number } | null = null
       for (const t of this.tracks) {
         if (t.confirmedFrames < minConfirmedFrames) continue
         const d = Math.hypot(t.cx - cx, t.cy - cy)
         if (!near || d < near.d) {
-          near = { id: t.id, iou: iou(t, det), d, missed: t.missedFrames, cx: t.cx, cy: t.cy }
+          near = { t, id: t.id, iou: iou(t, det), d, missed: t.missedFrames, cx: t.cx, cy: t.cy }
         }
       }
       // Two suppression signals, both meaning "same car, not a new one":
@@ -527,12 +518,18 @@ export class Tracker {
       const tz = near ? this.zoneOf(near.cx, near.cy) : -1
       const sameZone = dz >= 0 && dz === tz
       const proxPx = NEW_TRACK_PROX_FRAC * Math.max(w, h)
-      const suppress = !!near && (near.iou > NEW_TRACK_SUPPRESS_IOU || (sameZone && near.d < proxPx))
+      const sameCar = !!near && (near.iou > NEW_TRACK_SUPPRESS_IOU || (sameZone && near.d < proxPx))
+      // A coasted track (missed > 0) whose drifted box this detection re-emerged
+      // near IS that car — re-acquire it (snap the track onto the detection) so the
+      // id survives the occlusion. A matched track (missed === 0) means a duplicate
+      // detection → just drop it.
+      const recover = sameCar && near!.missed > 0
       if (this.cfg.trackDebug && near && near.d < 200) {
-        const tag = suppress ? 'SUPPRESS' : `SPAWN#${this.nextId}`
+        const tag = recover ? 'RECOVER' : sameCar ? 'SUPPRESS' : `SPAWN#${this.nextId}`
         process.stderr.write(`[track-debug] ${tag} det(conf=${det.confidence.toFixed(2)} ${Math.round(w)}x${Math.round(h)}) near #${near.id} dist=${near.d.toFixed(0)} iou=${near.iou.toFixed(2)} missed=${near.missed} detZone=${dz} trackZone=${tz}${sameZone ? ' SAME-ZONE' : ''}\n`)
       }
-      if (suppress) continue
+      if (recover) { this.attachDetection(near!.t, det, timestamp); continue }
+      if (sameCar) continue
       this.tracks.push({
         ...det,
         id: this.nextId++,
