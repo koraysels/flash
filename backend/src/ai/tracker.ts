@@ -82,7 +82,7 @@ const REVERSE_DIR_SCORE = 0.35 // dirScore below this = against heading → veto
 const NEW_TRACK_SUPPRESS_IOU = 0.2  // unmatched high-conf det overlapping a confirmed track this much = duplicate/swap, not a new car → don't spawn
 const NEW_TRACK_PROX_FRAC = 1.1     // OR: within this many box-sizes of a SAME-ZONE confirmed track = same car re-emerging from occlusion (its coasted box drifted ~1 box away). Re-acquire it instead of spawning a new id.
 const COAST_VEL_DAMP = 0.75         // each coasted (unmatched) frame, decay velocity by this — a lost box slows instead of flying ahead at stale speed (perspective decel / occlusion). 0.75^6≈0.18 after a full gap
-const RENDER_MEAS_WEIGHT = 0.7      // matched-frame box render: weight toward the raw detection centre vs the Kalman centre — kills the predict-lead so the box sits on the car (remainder keeps a little KF jitter-damping)
+const RENDER_MEAS_WEIGHT = 0.55     // matched-frame box render: weight toward the raw detection centre vs the Kalman centre. Lower = more KF damping = less frame-to-frame wiggle (yolov8s boxes jitter); the KF is corrected toward the measurement on matched frames so lead stays small. Coasted tracks render off the KF prediction, unaffected.
 
 const rMeas = (conf: number): number => 4 + (1 - conf) ** 2 * 56
 
@@ -522,7 +522,12 @@ export class Tracker {
       const tz = near ? this.zoneOf(near.cx, near.cy) : -1
       const sameZone = dz >= 0 && dz === tz
       const proxPx = NEW_TRACK_PROX_FRAC * Math.max(w, h)
-      const sameCar = !!near && (near.iou > NEW_TRACK_SUPPRESS_IOU || (sameZone && near.d < proxPx))
+      // Proximity-suppression ONLY applies to a COASTING track (missed > 0): that's
+      // the drifted-box re-emergence case. Two ACTIVELY tracked cars (missed === 0)
+      // can sit within a box of each other in dense traffic — they are DIFFERENT
+      // cars, so a nearby detection must spawn its own id, not get swallowed. The
+      // IoU branch still suppresses true duplicate boxes regardless of missed state.
+      const sameCar = !!near && (near.iou > NEW_TRACK_SUPPRESS_IOU || (sameZone && near.d < proxPx && near!.missed > 0))
       // A coasted track (missed > 0) whose drifted box this detection re-emerged
       // near IS that car — re-acquire it (snap the track onto the detection) so the
       // id survives the occlusion. A matched track (missed === 0) means a duplicate

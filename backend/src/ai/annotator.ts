@@ -61,23 +61,30 @@ export function annotateFrame(
   // Draw counting lines — use the angled 4-point spec ([x1,y1,x2,y2] normalised)
   // when present (matches the calibration/homography), else a horizontal fallback
   // at the scalar fraction.
-  const drawLine = (pts: number[] | undefined, frac: number): void => {
+  const drawLine = (pts: number[] | undefined, frac: number, label: string): void => {
+    const has = pts != null && pts.length === 4
+    const x0 = has ? pts![0] * img.width : 0
+    const y0 = has ? pts![1] * img.height : img.height * frac
+    const x1 = has ? pts![2] * img.width : img.width
+    const y1 = has ? pts![3] * img.height : img.height * frac
     ctx.beginPath()
-    if (pts && pts.length === 4) {
-      ctx.moveTo(pts[0] * img.width, pts[1] * img.height)
-      ctx.lineTo(pts[2] * img.width, pts[3] * img.height)
-    } else {
-      const y = img.height * frac
-      ctx.moveTo(0, y)
-      ctx.lineTo(img.width, y)
-    }
+    ctx.moveTo(x0, y0)
+    ctx.lineTo(x1, y1)
     ctx.stroke()
+    // A/B label chip at the left end of the line (fills aren't affected by the dash)
+    const lx = (x0 <= x1 ? x0 : x1) + 8
+    const ly = (x0 <= x1 ? y0 : y1)
+    ctx.font = 'bold 22px sans-serif'
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'
+    ctx.fillRect(lx, ly - 26, 24, 24)
+    ctx.fillStyle = 'rgba(255,255,0,0.95)'
+    ctx.fillText(label, lx + 5, ly - 8)
   }
   ctx.strokeStyle = 'rgba(255,255,0,0.6)'
   ctx.lineWidth = 2
   ctx.setLineDash([8, 4])
-  drawLine(lineAPoints, lineAFraction)
-  drawLine(lineBPoints, lineBFraction)
+  drawLine(lineAPoints, lineAFraction, 'A')
+  drawLine(lineBPoints, lineBFraction, 'B')
   ctx.setLineDash([])
 
   // Draw bounding boxes and labels
