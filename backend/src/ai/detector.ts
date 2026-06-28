@@ -9,27 +9,24 @@ export type DetectionResult = {
   class: string
 }
 
-// UA-DETRAC class indices for traffic_detector.onnx
-const VEHICLE_CLASSES: Record<number, string> = {
-  0: 'truck',
-  1: 'car',
-  2: 'truck',
-  3: 'van',
-}
-
 const INPUT_SIZE = 640
 // ByteTrack-style: keep low-confidence boxes so the tracker's stage-2 matching
 // can recover occluded/distant vehicles. New tracks still require
 // TrackerConfig.highConfidence, and only confirmed tracks are ever reported.
 const CONF_THRESHOLD = 0.15
 const IOU_THRESHOLD = 0.4     // slightly tighter than default: side-by-side vehicles in lanes
-const NUM_CLASSES = 4
 const NUM_DETECTIONS = 8400
 
 export class Detector {
   private session: ort.InferenceSession | null = null
 
-  constructor(private readonly modelPath: string) {}
+  // numClasses + classMap come from the model profile (models.ts). classMap only
+  // contains the vehicle indices we want to keep; others are dropped.
+  constructor(
+    private readonly modelPath: string,
+    private readonly numClasses: number,
+    private readonly classMap: Record<number, string>,
+  ) {}
 
   async init(): Promise<void> {
     this.session = await ort.InferenceSession.create(this.modelPath, {
@@ -96,13 +93,13 @@ export class Detector {
     for (let i = 0; i < NUM_DETECTIONS; i++) {
       let maxScore = 0
       let maxClassIdx = -1
-      for (let c = 0; c < NUM_CLASSES; c++) {
+      for (let c = 0; c < this.numClasses; c++) {
         const score = output[(4 + c) * NUM_DETECTIONS + i]
         if (score > maxScore) { maxScore = score; maxClassIdx = c }
       }
 
       if (maxScore < CONF_THRESHOLD) continue
-      if (!VEHICLE_CLASSES[maxClassIdx]) continue
+      if (!this.classMap[maxClassIdx]) continue   // keep only the wanted vehicle classes
 
       // Un-letterbox: subtract padding, divide by uniform scale
       const cx640 = output[0 * NUM_DETECTIONS + i]
@@ -121,7 +118,7 @@ export class Detector {
         x2: Math.max(0, Math.min(srcWidth,  cx + w / 2)),
         y2: Math.max(0, Math.min(srcHeight, cy + h / 2)),
         confidence: maxScore,
-        class: VEHICLE_CLASSES[maxClassIdx],
+        class: this.classMap[maxClassIdx],
       })
     }
 

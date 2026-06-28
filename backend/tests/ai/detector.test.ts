@@ -7,7 +7,7 @@ const MODEL_PATH = join(__dirname, '../../models/yolov8n.onnx')
 
 describe.skipIf(!existsSync(MODEL_PATH))('Detector', () => {
   it('initializes and runs inference on a blank letterboxed frame', async () => {
-    const detector = new Detector(MODEL_PATH)
+    const detector = new Detector(MODEL_PATH, 80, { 2: 'car', 7: 'truck' })
     await detector.init()
 
     // 640×640 blank RGBA (simulates a letterboxed frame with no padding)

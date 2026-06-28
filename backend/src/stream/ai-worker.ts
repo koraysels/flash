@@ -9,6 +9,7 @@ import { parentPort, workerData } from 'worker_threads'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { join } from 'path'
 import { Detector } from '../ai/detector'
+import { activeModel, modelPath } from '../ai/models'
 import { Tracker, type TrackerConfig, DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
 import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
@@ -62,7 +63,7 @@ export type WorkerResultMsg = {
 
 // ----------------------------------------------------------------------------------
 
-const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
+const MODEL = activeModel()
 
 const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig, directionZones } = workerData as WorkerInitData
 
@@ -86,7 +87,7 @@ function onRoad(nx: number, ny: number): boolean {
 }
 const trackingConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG, ...rawTrackingConfig }
 
-const detector = new Detector(MODEL_PATH)
+const detector = new Detector(modelPath(MODEL), MODEL.numClasses, MODEL.classMap)
 const tracker = new Tracker(trackingConfig)
 tracker.setDirectionZones(directionZones ?? [])
 let counter = new DirectionCounter(576, lineA, lineB, lineAPoints, lineBPoints)

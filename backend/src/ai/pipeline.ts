@@ -3,9 +3,7 @@ import { Detector } from './detector'
 import { Tracker } from './tracker'
 import { DirectionCounter } from '../analysis/counter'
 import { SpeedCalculator } from '../analysis/speed'
-import { join } from 'path'
-
-const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
+import { activeModel, modelPath } from './models'
 
 export type VehicleInfo = {
   id: number
@@ -49,7 +47,7 @@ export class CameraPipeline {
   ) {
     this.actualWidth = initialWidth
     this.actualHeight = initialHeight
-    this.detector = new Detector(MODEL_PATH)
+    this.detector = new Detector(modelPath(), activeModel().numClasses, activeModel().classMap)
     this.tracker = new Tracker()
     this.counter = new DirectionCounter(initialHeight, lineA, lineB)
     if (homographyMatrix.length === 9) {

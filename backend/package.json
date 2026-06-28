@@ -10,7 +10,7 @@
     "test": "vitest run",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
-    "download-model": "tsx scripts/download-model.ts"
+    "ensure-model": "tsx scripts/ensure-model.ts"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

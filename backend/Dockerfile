@@ -46,11 +46,9 @@ WORKDIR /app/backend
 
 EXPOSE 3001
 
-# models/ is a named volume — download traffic_detector.onnx on first start if absent.
-# Migrate then start. DATABASE_URL must be set at runtime.
+# models/ is a named volume — ensure-model downloads the FLASH_MODEL-selected onnx
+# on first start if absent. Migrate then start. DATABASE_URL must be set at runtime.
 CMD ["sh", "-c", "\
-  mkdir -p models && \
-  [ -f models/traffic_detector.onnx ] || curl -fsSL -o models/traffic_detector.onnx \
-    https://github.com/koraysels/flash/releases/download/v0.1.0-models/traffic_detector.onnx && \
+  pnpm exec tsx scripts/ensure-model.ts && \
   pnpm exec prisma migrate deploy && \
   pnpm exec tsx src/index.ts"]
