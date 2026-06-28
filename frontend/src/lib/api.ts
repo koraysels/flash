@@ -145,6 +145,8 @@ export type DailyCountRow = {
   directionAB: number
   directionBA: number
   speeders: number
+  maxSpeedKmh: number | null
+  avgSpeederKmh: number | null
   camera?: { name: string }
 }
 

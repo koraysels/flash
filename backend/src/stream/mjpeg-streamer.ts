@@ -5,6 +5,7 @@ import { Worker } from 'worker_threads'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { emitFrame } from '../socket/server'
+import { db } from '../db'
 import type { WorkerInitData, WorkerResultMsg } from './ai-worker'
 import type { TrackerConfig } from '../ai/tracker'
 import { DEFAULT_TRACKER_CONFIG } from '../ai/tracker'
@@ -162,6 +163,19 @@ export class MJPEGStreamer extends EventEmitter {
                 ts: e.ts,
                 hls_latency_s: HLS_LATENCY_S,
               })
+              // Persist speeders (only) for the history speed stats. Fire-and-forget
+              // with a swallowed error so a DB hiccup never stalls the live pipeline.
+              if (e.direction && this.maxSpeedKmh !== null && e.speedKmh > this.maxSpeedKmh) {
+                db.trafficEvent.create({
+                  data: {
+                    cameraId: this.cameraId,
+                    direction: e.direction,
+                    vehicleClass: e.vehicleClass,
+                    speedKmh: e.speedKmh,
+                    isSpeeder: true,
+                  },
+                }).catch(() => { /* non-fatal: history stat write failed */ })
+              }
             }
           }
 

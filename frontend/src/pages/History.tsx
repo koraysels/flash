@@ -57,16 +57,20 @@ export default function History() {
               </div>
               <div className="flex items-center px-3 py-1 border-b border-stone-200 text-[10px] uppercase tracking-widest text-stone-400">
                 <span className="flex-1">Camera</span>
-                <span className="w-16 text-right">A→B</span>
-                <span className="w-16 text-right">B→A</span>
-                <span className="w-16 text-right">Flits</span>
+                <span className="w-14 text-right">A→B</span>
+                <span className="w-14 text-right">B→A</span>
+                <span className="w-14 text-right">Flits</span>
+                <span className="w-20 text-right">Max km/h</span>
+                <span className="w-20 text-right">Gem flits</span>
               </div>
               {rows.map((r) => (
                 <div key={r.id} className="flex items-center px-3 py-1.5 border-b border-stone-100 last:border-b-0 text-xs">
                   <span className="flex-1 truncate uppercase tracking-wide">{r.camera?.name ?? r.cameraId}</span>
-                  <span className="w-16 text-right tabular-nums">{r.directionAB}</span>
-                  <span className="w-16 text-right tabular-nums">{r.directionBA}</span>
-                  <span className="w-16 text-right tabular-nums font-bold text-danger">{r.speeders}</span>
+                  <span className="w-14 text-right tabular-nums">{r.directionAB}</span>
+                  <span className="w-14 text-right tabular-nums">{r.directionBA}</span>
+                  <span className="w-14 text-right tabular-nums font-bold text-danger">{r.speeders}</span>
+                  <span className="w-20 text-right tabular-nums">{r.maxSpeedKmh ?? '–'}</span>
+                  <span className="w-20 text-right tabular-nums">{r.avgSpeederKmh ?? '–'}</span>
                 </div>
               ))}
             </div>

@@ -285,16 +285,44 @@ export async function cameraRoutes(app: FastifyInstance) {
     return reply.send({ ok: true })
   })
 
+  // Aggregate speeder speed stats (max + average) per camera per day from the
+  // persisted TrafficEvent rows, keyed by `${cameraId}|YYYY-MM-DD`. Done in JS so
+  // there's no raw SQL / date_trunc dependency; the speeder volume is bounded.
+  const speedStatsByDay = async (since: Date, cameraId?: string) => {
+    const events = await db.trafficEvent.findMany({
+      where: { isSpeeder: true, speedKmh: { not: null }, timestamp: { gte: since }, ...(cameraId ? { cameraId } : {}) },
+      select: { cameraId: true, timestamp: true, speedKmh: true },
+    })
+    const stat = new Map<string, { max: number; sum: number; n: number }>()
+    for (const e of events) {
+      const key = `${e.cameraId}|${e.timestamp.toISOString().slice(0, 10)}`
+      const s = stat.get(key) ?? { max: 0, sum: 0, n: 0 }
+      s.max = Math.max(s.max, e.speedKmh!)
+      s.sum += e.speedKmh!
+      s.n += 1
+      stat.set(key, s)
+    }
+    return stat
+  }
+  const withSpeed = <T extends { cameraId: string; date: Date }>(row: T, stat: Map<string, { max: number; sum: number; n: number }>) => {
+    const s = stat.get(`${row.cameraId}|${row.date.toISOString().slice(0, 10)}`)
+    return { ...row, maxSpeedKmh: s ? Math.round(s.max) : null, avgSpeederKmh: s && s.n ? Math.round(s.sum / s.n) : null }
+  }
+
   // Daily count history across all cameras (newest first).
   app.get<{ Querystring: { days?: string } }>('/api/daily', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query.days ?? '14', 10) || 14, 1), 365)
     const since = new Date()
     since.setDate(since.getDate() - days)
-    return db.dailyCount.findMany({
-      where: { date: { gte: since } },
-      orderBy: [{ date: 'desc' }, { cameraId: 'asc' }],
-      include: { camera: { select: { name: true } } },
-    })
+    const [counts, stat] = await Promise.all([
+      db.dailyCount.findMany({
+        where: { date: { gte: since } },
+        orderBy: [{ date: 'desc' }, { cameraId: 'asc' }],
+        include: { camera: { select: { name: true } } },
+      }),
+      speedStatsByDay(since),
+    ])
+    return counts.map((c) => withSpeed(c, stat))
   })
 
   // Daily count history for one camera.
@@ -302,10 +330,14 @@ export async function cameraRoutes(app: FastifyInstance) {
     const days = Math.min(Math.max(parseInt(req.query.days ?? '30', 10) || 30, 1), 365)
     const since = new Date()
     since.setDate(since.getDate() - days)
-    return db.dailyCount.findMany({
-      where: { cameraId: req.params.id, date: { gte: since } },
-      orderBy: { date: 'desc' },
-    })
+    const [counts, stat] = await Promise.all([
+      db.dailyCount.findMany({
+        where: { cameraId: req.params.id, date: { gte: since } },
+        orderBy: { date: 'desc' },
+      }),
+      speedStatsByDay(since, req.params.id),
+    ])
+    return counts.map((c) => withSpeed(c, stat))
   })
 
   // Resolve a kiosk slug -> cameraId. Accepts a fixed slot name (FLASH-PI-01/02/03,

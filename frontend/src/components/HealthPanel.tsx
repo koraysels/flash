@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { getHealth, reloadKiosk } from '../lib/api'
+import { getHealth, reloadKiosk, getCameras } from '../lib/api'
 import { Spinner } from './ui/Spinner'
 
 function ago(ts: number | null): string {
@@ -21,6 +21,9 @@ function Dot({ ok, label, title }: { ok: boolean; label: string; title?: string 
 
 export function HealthPanel() {
   const { data, isLoading } = useQuery({ queryKey: ['health'], queryFn: getHealth, refetchInterval: 10_000 })
+  // Shared cache with the dashboard/admin list, so the number matches there (i+1 over getCameras order).
+  const { data: cams } = useQuery({ queryKey: ['cameras'], queryFn: getCameras })
+  const numByName = new Map((cams ?? []).map((c, i) => [c.name, i + 1]))
   const reload = useMutation({ mutationFn: reloadKiosk })
 
   return (
@@ -67,7 +70,12 @@ export function HealthPanel() {
               label="stream"
               title="De Pi haalt recent geannoteerde HLS-segmenten op — groen = de videostream wordt daadwerkelijk getoond."
             />
-            <span className={`truncate ${p.camera ? 'text-ink' : 'text-stone-400'}`}>{p.camera ?? '— niet toegewezen —'}</span>
+            <span className={`flex items-center gap-1.5 truncate ${p.camera ? 'text-ink' : 'text-stone-400'}`}>
+              {p.camera && numByName.has(p.camera) && (
+                <span className="shrink-0 text-[11px] font-bold border border-black px-1 leading-tight tabular-nums">{numByName.get(p.camera)}</span>
+              )}
+              <span className="truncate">{p.camera ?? '— niet toegewezen —'}</span>
+            </span>
             <div className="ml-auto flex items-center gap-3">
               <a href={url} target="_blank" rel="noreferrer" className="font-mono text-stone-400 underline hover:text-black truncate max-w-[14rem]">{url}</a>
               <button
