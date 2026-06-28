@@ -70,7 +70,6 @@ export async function cameraRoutes(app: FastifyInstance) {
           countingLineBPoints: src.countingLineBPoints,
           trapSpeedEnabled: src.trapSpeedEnabled,
           trackingConfig: src.trackingConfig === null ? Prisma.JsonNull : (src.trackingConfig as Prisma.InputJsonValue),
-          roiPolygon: src.roiPolygon,
           directionZones: src.directionZones === null ? Prisma.JsonNull : (src.directionZones as Prisma.InputJsonValue),
           // displaySlot intentionally omitted → null
         },
@@ -342,19 +341,8 @@ export async function cameraRoutes(app: FastifyInstance) {
       return reply.send({ ok: true, slot })
     })
 
-  // Road ROI mask: flattened normalised polygon [x1,y1,x2,y2,...]. Detections whose
-  // ground point is outside are dropped before tracking. Restarts the camera so the
-  // worker picks it up. Empty array clears the mask.
-  app.post<{ Params: { id: string }; Body: { roiPolygon: number[] } }>(
-    '/api/cameras/:id/roi', { preHandler: requireAuth }, async (req, reply) => {
-      const roiPolygon = Array.isArray(req.body?.roiPolygon) ? req.body.roiPolygon.map(Number).filter(Number.isFinite) : []
-      await db.camera.update({ where: { id: req.params.id }, data: { roiPolygon } })
-      getManager()?.restartCamera(req.params.id)
-      return reply.send({ ok: true, points: roiPolygon.length / 2 })
-    })
-
   // Per-lane direction zones: [{polygon:[...], arrow:[ax1,ay1,ax2,ay2]}] normalised.
-  // Fixed heading prior + same-zone association; also acts as the ROI. Restarts camera.
+  // Fixed heading prior + same-zone association; also the road mask. Restarts camera.
   app.post<{ Params: { id: string }; Body: { directionZones: Array<{ polygon: number[]; arrow: number[] }> } }>(
     '/api/cameras/:id/direction-zones', { preHandler: requireAuth }, async (req, reply) => {
       const zones = Array.isArray(req.body?.directionZones)

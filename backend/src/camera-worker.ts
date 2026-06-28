@@ -122,7 +122,6 @@ export class CameraWorkerManager {
         camera.calibrationWidth,
         camera.calibrationHeight,
         camera.location,
-        (camera.roiPolygon as number[] | null) ?? [],
         (camera.directionZones as Array<{ polygon: number[]; arrow: number[] }> | null) ?? [],
         camera.displaySlot,
       )

@@ -86,7 +86,6 @@ export class MJPEGStreamer extends EventEmitter {
     private readonly calibrationWidth: number | null = null,
     private readonly calibrationHeight: number | null = null,
     private readonly location: string = '',
-    private readonly roiPolygon: number[] = [],
     private readonly directionZones: Array<{ polygon: number[]; arrow: number[] }> = [],
     // Only cameras assigned to a Pi kiosk slot fire the physical MQTT strobe.
     // Unassigned cameras (e.g. tuning duplicates) still track/count/preview, but
@@ -116,7 +115,6 @@ export class MJPEGStreamer extends EventEmitter {
         calibrationHeight: this.calibrationHeight,
         trapSpeedEnabled: this.trapSpeedEnabled,
         trackingConfig: this.trackingConfig,
-        roiPolygon: this.roiPolygon,
         directionZones: this.directionZones,
       }
 

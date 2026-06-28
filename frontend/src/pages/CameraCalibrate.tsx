@@ -4,12 +4,11 @@ import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-g
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text as KonvaText } from 'react-konva'
 import useImage from 'use-image'
 import { FramePointPicker } from '../components/FramePointPicker'
-import { ROIEditor } from '../components/ROIEditor'
 import { DirectionZonesEditor, type Zone } from '../components/DirectionZonesEditor'
 import { Tabs, TabPanel } from '../components/ui/Tabs'
 import { Panel, SectionTitle, Toggle, Button } from '../components/ui/primitives'
 import {
-  getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig, saveRoi, saveDirectionZones,
+  getCameraSnapshot, saveCalibration, getCameras, saveTrackingConfig, saveDirectionZones,
   type Camera, type CalibrationPoint, type TrackerConfig, DEFAULT_TRACKER_CONFIG,
 } from '../lib/api'
 
@@ -398,8 +397,6 @@ export default function CameraCalibrate() {
   const [trapSpeedEnabled, setTrapSpeedEnabled] = useState(false)
   const [trackingConfig, setTrackingConfig] = useState<TrackerConfig>({ ...DEFAULT_TRACKER_CONFIG })
   const [savingTracking, setSavingTracking] = useState(false)
-  const [roiPolygon, setRoiPolygon] = useState<number[]>([])
-  const [savingRoi, setSavingRoi] = useState(false)
   const [directionZones, setDirectionZones] = useState<Zone[]>([])
   const [activeZone, setActiveZone] = useState(0)
   const [savingZones, setSavingZones] = useState(false)
@@ -447,7 +444,6 @@ export default function CameraCalibrate() {
       setMaxSpeedKmh(cam.maxSpeedKmh?.toString() ?? '')
       setTrapSpeedEnabled(cam.trapSpeedEnabled ?? false)
       setTrackingConfig({ ...DEFAULT_TRACKER_CONFIG, ...(cam.trackingConfig ?? {}) })
-      setRoiPolygon(cam.roiPolygon ?? [])
       setDirectionZones((cam.directionZones as Zone[] | null) ?? [])
 
       // Restore counting lines from saved state
@@ -592,17 +588,6 @@ export default function CameraCalibrate() {
     }
   }
 
-  async function handleSaveRoi() {
-    if (!id) return
-    setSavingRoi(true)
-    try {
-      await saveRoi(id, roiPolygon)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ROI opslaan mislukt')
-    } finally {
-      setSavingRoi(false)
-    }
-  }
 
   async function handleSaveZones() {
     if (!id) return
@@ -751,7 +736,7 @@ export default function CameraCalibrate() {
           { value: 'calib', label: 'Kalibratie', hint: 'Puntparen ↔ kaart → homografie' },
           { value: 'count', label: 'Tellen & snelheid', hint: 'Tellijnen, snelheidslimiet, methode' },
           { value: 'tracking', label: 'Tracking', hint: 'Tracker-tuning + matcher' },
-          { value: 'zones', label: 'Zones', hint: 'Weg-ROI + richting-zones' },
+          { value: 'zones', label: 'Zones', hint: 'Richting-zones (= weg-masker)' },
         ]}
       >
       <TabPanel value="calib">
@@ -920,45 +905,13 @@ export default function CameraCalibrate() {
       </TabPanel>
 
       <TabPanel value="zones">
-      <Panel className="mb-4">
-        <p className="text-xs font-bold uppercase tracking-widest">Weg-ROI-masker</p>
-        <p className="text-xs text-stone-500 mt-0.5 mb-3">
-          Klik om de berijdbare weg in te kleuren. Detecties waarvan het grondpunt erbuiten valt
-          worden vóór de tracking weggelaten — snijdt rommel buiten de weg weg (reclameborden,
-          tegenovergestelde rijbaan, geparkeerd) en spooktracks. Leeg = geen masker. Opslaan → camera herstart.
-        </p>
-        {snapshot ? (
-          <ROIEditor frameBase64={snapshot} polygon={roiPolygon} onChange={setRoiPolygon} width={640} />
-        ) : (
-          <div className="border border-stone-200 h-32 flex items-center justify-center text-stone-400 text-xs uppercase tracking-widest">
-            Wachten op snapshot…
-          </div>
-        )}
-        <div className="mt-3 flex gap-3 items-center">
-          <button
-            onClick={handleSaveRoi}
-            disabled={savingRoi}
-            className="border-2 border-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-black text-white hover:bg-stone-800 disabled:opacity-40"
-          >
-            {savingRoi ? 'Opslaan…' : 'ROI opslaan'}
-          </button>
-          <button
-            onClick={() => setRoiPolygon([])}
-            disabled={roiPolygon.length === 0}
-            className="border border-stone-300 px-3 py-1.5 text-xs uppercase tracking-widest hover:border-black disabled:opacity-30"
-          >
-            Wissen
-          </button>
-          <span className="text-xs text-stone-400">{roiPolygon.length / 2} punten</span>
-        </div>
-      </Panel>
-
       <Panel>
         <p className="text-xs font-bold uppercase tracking-widest">Richting-zones (per rijrichting)</p>
         <p className="text-xs text-stone-500 mt-0.5 mb-3">
           Teken een zone per rijrichting en sleep de pijl in de rijrichting. De tracker gebruikt
           die vaste richting + houdt id's binnen dezelfde zone → minder id-wissels (vooral bij
-          wegrijdende auto's). Vervangt de ROI als er zones zijn. Opslaan → camera herstart.
+          wegrijdende auto's). De zones zijn óók het weg-masker: detecties buiten de zones worden
+          vóór de tracking weggelaten (rommel naast de weg). Opslaan → camera herstart.
         </p>
         <div className="flex flex-wrap gap-2 mb-3 items-center">
           {directionZones.map((_, i) => (

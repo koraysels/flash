@@ -30,7 +30,6 @@ export type WorkerInitData = {
   calibrationHeight: number | null
   trapSpeedEnabled: boolean
   trackingConfig: TrackerConfig
-  roiPolygon: number[]
   directionZones: Array<{ polygon: number[]; arrow: number[] }>
 }
 
@@ -65,7 +64,7 @@ export type WorkerResultMsg = {
 
 const MODEL_PATH = join(process.cwd(), 'models/traffic_detector.onnx')
 
-const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig, roiPolygon, directionZones } = workerData as WorkerInitData
+const { cameraId, lineA, lineB, lineAPoints, lineBPoints, maxSpeedKmh, homographyMatrix, calibrationWidth, calibrationHeight, trapSpeedEnabled, trackingConfig: rawTrackingConfig, directionZones } = workerData as WorkerInitData
 
 // Ray-casting point-in-polygon on a flattened normalised polygon [x1,y1,x2,y2,...].
 function pip(nx: number, ny: number, poly: number[]): boolean {
@@ -80,12 +79,10 @@ function pip(nx: number, ny: number, poly: number[]): boolean {
   return inside
 }
 const zonePolys = (directionZones ?? []).map((z) => z.polygon)
-// Detection passes the road mask if: inside any direction zone (when zones defined),
-// else inside the ROI polygon (when defined), else always.
+// Direction zones are the road mask: a detection passes if its ground point is
+// inside any zone. No zones → no mask (everything passes); add zones per camera.
 function onRoad(nx: number, ny: number): boolean {
-  if (zonePolys.length) return zonePolys.some((p) => pip(nx, ny, p))
-  if (roiPolygon.length >= 6) return pip(nx, ny, roiPolygon)
-  return true
+  return zonePolys.some((p) => pip(nx, ny, p))
 }
 const trackingConfig: TrackerConfig = { ...DEFAULT_TRACKER_CONFIG, ...rawTrackingConfig }
 
@@ -220,10 +217,10 @@ parentPort!.on('message', async (msg: WorkerAnalyseMsg | WorkerResetMsg | Worker
     const t2 = performance.now()
 
     const rawDetections = await detector.detect(rgba640, padX, padY, scale, width, height)
-    // Road ROI mask: keep only detections whose ground-contact point (bottom-centre)
-    // is on the road — drops off-road clutter (billboards, opposite carriageway,
-    // parked) before tracking, cutting phantom tracks. No ROI → keep all.
-    const detections = (zonePolys.length || roiPolygon.length >= 6)
+    // Zone road mask: keep only detections whose ground-contact point (bottom-centre)
+    // is inside a direction zone — drops off-road clutter (billboards, opposite
+    // carriageway, parked) before tracking. No zones → keep all.
+    const detections = zonePolys.length
       ? rawDetections.filter((d) => onRoad(((d.x1 + d.x2) / 2) / width, d.y2 / height))
       : rawDetections
     const t3 = performance.now()
