@@ -46,9 +46,18 @@ WORKDIR /app/backend
 
 EXPOSE 3001
 
-# models/ is a named volume — ensure-model downloads the FLASH_MODEL-selected onnx
-# on first start if absent. Migrate then start. DATABASE_URL must be set at runtime.
+# models/ is a named volume. Download the FLASH_MODEL-selected onnx on first start
+# if absent (inline so no extra files need copying), then migrate and start.
+# DATABASE_URL must be set at runtime. Default model = the custom traffic_detector.
 CMD ["sh", "-c", "\
-  pnpm exec tsx scripts/ensure-model.ts && \
+  M=\"${FLASH_MODEL:-traffic_detector}\"; \
+  case \"$M\" in \
+    yolov8s) U=\"https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8s.onnx\"; F=yolov8s.onnx;; \
+    yolov8m) U=\"https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8m.onnx\"; F=yolov8m.onnx;; \
+    *) U=\"https://github.com/koraysels/flash/releases/download/v0.1.0-models/traffic_detector.onnx\"; F=traffic_detector.onnx;; \
+  esac; \
+  mkdir -p models; \
+  [ -f \"models/$F\" ] || curl -fsSL -o \"models/$F\" \"$U\"; \
+  echo \"[model] using $F\"; \
   pnpm exec prisma migrate deploy && \
   pnpm exec tsx src/index.ts"]
