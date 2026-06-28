@@ -684,7 +684,10 @@ export default function CameraCalibrate() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <p className="text-xs uppercase tracking-widest text-stone-400 mb-1">Kalibreren</p>
-          <h1 className="text-lg font-bold uppercase">{camera?.name ?? '...'}</h1>
+          <h1 className="text-lg font-bold uppercase flex items-center gap-2">
+            {camIdx >= 0 && <span className="text-sm border-2 border-black px-1.5 py-0.5 leading-none tabular-nums">{camIdx + 1}</span>}
+            {camera?.name ?? '...'}
+          </h1>
           <p className="text-xs text-stone-500">{camera?.location}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -701,7 +704,7 @@ export default function CameraCalibrate() {
                 title="Spring naar een andere camera"
                 className="text-xs uppercase tracking-wide border-x-2 border-black px-2 py-1.5 bg-white focus:outline-none max-w-[11rem]"
               >
-                {allCameras.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {allCameras.map((c, i) => <option key={c.id} value={c.id}>{i + 1} · {c.name}</option>)}
               </select>
               <a
                 href={nextCam ? `/cameras/${nextCam.id}/calibrate` : undefined}

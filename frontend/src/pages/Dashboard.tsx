@@ -18,11 +18,11 @@ function TrapCol({ measurements, maxSpeedKmh, label }: { measurements: TrapMeasu
         <p className="px-2 pb-2 text-xs text-stone-300">—</p>
       ) : (
         <div className="divide-y divide-stone-100">
-          {measurements.slice(0, 5).map((m, i) => {
+          {measurements.slice(0, 5).map((m) => {
             const agoS = Math.round((now - m.timestamp) / 1000)
             const agoStr = agoS < 60 ? `${agoS}s` : `${Math.round(agoS / 60)}m`
             return (
-              <div key={i} className="flex items-center justify-between px-2 py-1 text-xs tabular-nums">
+              <div key={m.timestamp} className="flex items-center justify-between px-2 py-1 text-xs tabular-nums">
                 <span className={`font-bold ${m.isSpeeder ? 'text-red-600' : ''}`}>
                   {Math.round(m.speedKmh)}
                   {m.isSpeeder && maxSpeedKmh && (
@@ -59,7 +59,7 @@ function TrapLog({ measurements, maxSpeedKmh }: { measurements: TrapMeasurement[
   )
 }
 
-function CameraCard({ cam }: { cam: Camera }) {
+function CameraCard({ cam, num }: { cam: Camera; num: number }) {
   const [resetting, setResetting] = useState(false)
   const qc = useQueryClient()
   const { aiFps, videoFps, counts, avgSpeedKmh, active, recentTrapMeasurements } = useCameraFeed(cam.id)
@@ -76,9 +76,12 @@ function CameraCard({ cam }: { cam: Camera }) {
     <div className="border-2 border-black bg-white">
       {/* Header: identity + live status only */}
       <div className="flex justify-between items-start px-3 py-2 border-b-2 border-black">
-        <div className="min-w-0">
-          <p className="font-bold text-sm uppercase tracking-wide truncate">{cam.name}</p>
-          <p className="text-xs text-stone-500 truncate">{cam.location}</p>
+        <div className="flex items-start gap-2 min-w-0">
+          <span className="shrink-0 text-sm font-bold border-2 border-black px-1.5 py-0.5 leading-none tabular-nums">{num}</span>
+          <div className="min-w-0">
+            <p className="font-bold text-sm uppercase tracking-wide truncate">{cam.name}</p>
+            <p className="text-xs text-stone-500 truncate">{cam.location}</p>
+          </div>
         </div>
         {active ? (
           <div className="flex items-center gap-3 text-xs tabular-nums shrink-0">
@@ -239,8 +242,8 @@ export default function Dashboard() {
       <HealthPanel />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {cameras.map((cam) => (
-          <CameraCard key={cam.id} cam={cam} />
+        {cameras.map((cam, i) => (
+          <CameraCard key={cam.id} cam={cam} num={i + 1} />
         ))}
       </div>
     </div>
