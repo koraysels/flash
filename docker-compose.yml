@@ -20,6 +20,8 @@ services:
       MQTT_TOPIC: ${MQTT_TOPIC:-krocky/speed}
       MQTT_SPEED_FLOOR: ${MQTT_SPEED_FLOOR:-0}
       HLS_LATENCY_S: ${HLS_LATENCY_S:-8}
+      # Detection model: traffic_detector (custom, default) | yolov8s | yolov8m
+      FLASH_MODEL: ${FLASH_MODEL:-traffic_detector}
       # Pi kiosk hosts (user@ip) — used for the dashboard reachability probe
       SSH_PI_01: ${SSH_PI_01:-}
       SSH_PI_02: ${SSH_PI_02:-}
