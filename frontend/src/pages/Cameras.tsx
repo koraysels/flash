@@ -172,6 +172,7 @@ export default function Cameras() {
             ) : (
               <div className="flex justify-between items-center gap-3">
                 <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0 text-sm font-bold border-2 border-black px-1.5 py-0.5 leading-none tabular-nums">{i + 1}</span>
                   <CameraThumbnail cameraId={cam.id} className="w-24 aspect-[4/3] border border-black shrink-0" />
                   <div className="min-w-0">
                     <p className="text-sm font-bold uppercase truncate">{cam.name}</p>
