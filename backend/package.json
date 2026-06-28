@@ -9,7 +9,7 @@
     "start": "node dist/src/index.js",
     "test": "vitest run",
     "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
