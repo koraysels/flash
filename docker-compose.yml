@@ -4,9 +4,13 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      DIRECT_URL: ${DIRECT_URL:-${DATABASE_URL}}
+      # Self-hosted postgres on the flash docker network (migrated off Neon).
+      DATABASE_URL: "postgresql://flash:bf2b55990918f3eb8509991fa5bb3756018a109944c2324b@db:5432/flash?sslmode=disable"
+      DIRECT_URL: "postgresql://flash:bf2b55990918f3eb8509991fa5bb3756018a109944c2324b@db:5432/flash?sslmode=disable"
       FLASH_TRACK_DEBUG: ${FLASH_TRACK_DEBUG:-0}
       PORT: ${PORT:-3001}
       NODE_ENV: ${NODE_ENV:-production}
@@ -50,9 +54,6 @@ services:
       POSTGRES_DB: flash
     volumes:
       - flash_pgdata:/var/lib/postgresql/data
-    ports:
-      # TEMP: one-time data restore over the tailnet; removed in the cutover commit.
-      - "55432:5432"
     networks:
       - flash
     healthcheck:
