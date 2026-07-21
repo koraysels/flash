@@ -41,6 +41,26 @@ services:
     networks:
       - flash
 
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flash
+      POSTGRES_PASSWORD: bf2b55990918f3eb8509991fa5bb3756018a109944c2324b
+      POSTGRES_DB: flash
+    volumes:
+      - flash_pgdata:/var/lib/postgresql/data
+    ports:
+      # TEMP: one-time data restore over the tailnet; removed in the cutover commit.
+      - "55432:5432"
+    networks:
+      - flash
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flash -d flash"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
   frontend:
     build:
       context: .
@@ -64,3 +84,4 @@ networks:
 volumes:
   flash_models:
   flash_snapshots:
+  flash_pgdata:
